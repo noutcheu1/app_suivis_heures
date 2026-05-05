@@ -1,0 +1,246 @@
+@startuml Database Schema Chaudoudoux
+
+skinparam class {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+
+skinparam note {
+    BackgroundColor LightYellow
+    BorderColor Orange
+}
+
+' =============================================
+' Tables principales
+' =============================================
+
+class intervenants_unifie {
+    +id (PK)
+    +num_salarie
+    +num_ss
+    +titre
+    +nom
+    +prenom
+    +date_naissance
+    +lieu_naissance
+    +pays_naissance
+    +nationalite
+    +num_titre_sejour
+    +date_titre_sejour
+    +adresse
+    +code_postal
+    +ville
+    +secteur
+    +quartier
+    +tel_portable
+    +tel_fixe
+    +tel_urgence
+    +email
+    +statut_handicap
+    +permis
+    +vehicule
+    +statut_pro
+    +situation_familiale
+    +diplomes
+    +qualifications
+    +exp_bb_moins_1an
+    +enfant_handicape
+    +date_entree
+    +date_sortie
+    +archive
+    +certification
+    +taux_horaire
+    +recherche_complement
+    +nb_heures_semaine
+    +nb_heures_mois
+    +proposer_psc1
+    +justificatifs
+    +date_modification
+    +suivi
+    +arret_travail
+    +date_fin_arret
+    +archive_temporaire
+    +date_debut_archive_temporaire
+    +date_fin_archive_temporaire
+    +repassage
+    +mutuelle
+    +cmu
+    +disponibilites
+    +observations
+    +candidature_retenue
+    +date_entretien
+    +travail_voulu
+    +nom_jeune_fille
+    +created_at
+    +updated_at
+}
+
+class famille_normalisee {
+    +id (PK)
+    +numero_famille
+    +nom_famille
+    +adresse
+    +code_postal
+    +ville
+    +secteur
+    +quartier
+    +tel_dom
+    +email
+    +num_alloc
+    +num_urssaf
+    +date_entree
+    +date_sortie
+    +archive
+    +type_logement
+    +superficie
+    +nb_etage
+    +nb_chambres
+    +nb_sdb
+    +nb_sanitaire
+    +arret_bus
+    +num_bus
+    +vehicule
+    +garde_partielle
+    +repassage
+    +prest_menage
+    +prest_garde_enfants
+    +nb_sem_vacances_menage
+    +nb_sem_vacances_ge
+    +options_famille
+    +mode_paiement
+    +mandataire
+    +observations_famille
+    +remarques_famille
+    +enfant_handicape
+    +created_at
+    +updated_at
+}
+
+class tarifs_unifiee {
+    +id (PK)
+    +type_prestation
+    +libelle_prestation
+    +tarif_horaire_base
+    +tarif_horaire_majoration
+    +frais_gestion
+    +km_enfants
+    +abonnement
+    +date_debut_validite
+    +date_fin_validite
+    +created_at
+    +updated_at
+}
+
+' =============================================
+' Tables de normalisation (Formes Normales)
+' =============================================
+
+class disponibilites_intervenants {
+    +id (PK)
+    +intervenant_id (FK)
+    +jour_semaine
+    +periode_journee
+    +disponible
+    +created_at
+}
+
+class observations_intervenants {
+    +id (PK)
+    +intervenant_id (FK)
+    +type_observation
+    +observation
+    +date_observation
+    +auteur_observation
+    +created_at
+}
+
+' =============================================
+' Tables existantes (conservées)
+' =============================================
+
+class horaireinter {
+    +id (PK)
+    +numFam
+    +nomFam
+    +numInter
+    +datePresta
+    +heureDebutPresta
+    +heureFinPresta
+    +typePresta
+    +kmAvecEnfant
+    +ajouterLe
+    +modifierLe
+    +desactiver
+    +validerFam
+    +validerLe
+    +remarque
+    +remarqueLe
+}
+
+class relevemensuelinter {
+    +moisannee (PK)
+    +numInter (PK)
+    +typePresta (PK)
+    +heureDehors
+    +heureDehorsAjouterLe
+    +signer
+    +signerLe
+}
+
+class relevemensuelfam {
+    +id (PK)
+    +numero_famille
+    +mois_annee
+    +total_heures
+    +total_montant
+    +valide
+    +date_validation
+}
+
+class users2 {
+    +identifiant (PK)
+    +mdp
+}
+
+' =============================================
+' Relations
+' =============================================
+
+intervenants_unifie ||--o{ disponibilites_intervenants : "1..N"
+intervenants_unifie ||--o{ observations_intervenants : "1..N"
+intervenants_unifie ||--o{ horaireinter : "1..N"
+intervenants_unifie ||--o{ relevemensuelinter : "1..N"
+famille_normalisee ||--o{ horaireinter : "1..N"
+famille_normalisee ||--o{ relevemensuelfam : "1..N"
+
+' =============================================
+' Notes explicatives
+' =============================================
+
+note right of intervenants_unifie
+  **Table unifiée principale**
+  - Fusion de candidats et intervenants
+  - Respecte 1FN, 2FN, 3FN
+  - 4,259 enregistrements
+end note
+
+note right of disponibilites_intervenants
+  **Normalisation 1FN**
+  - Évite les champs multivalués
+  - Structure atomique
+end note
+
+note right of observations_intervenants
+  **Normalisation 2FN/3FN**
+  - Sépare les dépendances
+  - Type d'observation structuré
+end note
+
+note bottom of tarifs_unifiee
+  **Tarifs unifiés**
+  - 3 types de prestations
+  - Frais et majorations
+end note
+
+@enduml

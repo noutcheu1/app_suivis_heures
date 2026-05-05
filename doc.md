@@ -125,5 +125,15 @@
 
     ### 🚪 Déconnexion
 
-    * Cliquer sur **Déconnexion** en haut à droite pour quitter la session.
+    *
+     Cliquer sur **Déconnexion** en haut à droite pour quitter la session.
 
+
+
+
+Migrer les contrôleurs existants vers la nouvelle architecture
+Créer des services pour les autres entités (prestations, heures, etc.)
+Implémenter Symfony Security pour remplacer Auth custom
+Ajouter des tests unitaires pour les services
+Supprimer progressivement PdoApp.php et include/db.php
+L'architecture MVC est maintenant correctement respectée selon les standards Symfony, facilitant grandement la maintenance et l'évolution du projet ! 🎉
