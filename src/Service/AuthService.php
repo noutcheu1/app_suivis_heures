@@ -38,12 +38,21 @@ class AuthService
         $this->getSession()->set('user', $user);
         $this->getSession()->set('auth', true);
 
-        // Chercher l'intervenant correspondant
-        $intervenant = $this->intervenantRepository->findByNumSalarie($identifiant);
-        if ($intervenant) {
-            $this->intervenant = $intervenant;
-            $this->getSession()->set('intervenant', $intervenant);
-            $this->getSession()->set('intervenant_id', $intervenant->getId());
+        // Définir le type d'utilisateur
+        if ($identifiant === '9.99.99.99.999.999.99') {
+            $this->getSession()->set('type', 'ADMIN');
+        } else {
+            // Chercher l'intervenant correspondant
+            $intervenant = $this->intervenantRepository->findByNumSalarie($identifiant);
+            if ($intervenant) {
+                $this->intervenant = $intervenant;
+                $this->getSession()->set('intervenant', $intervenant);
+                $this->getSession()->set('intervenant_id', $intervenant->getId());
+                $this->getSession()->set('type', 'INTER');
+            } else {
+                // Si c'est pas un intervenant, c'est une famille
+                $this->getSession()->set('type', 'FAM');
+            }
         }
 
         return true;
@@ -72,10 +81,8 @@ class AuthService
      */
     public function isAdmin(): bool
     {
-        // Logique à adapter selon votre système de rôles
-        // Pour l'instant, on considère admin si l'identifiant commence par 'admin'
         $identifiant = $this->getSession()->get('user')?->getIdentifiant();
-        return $identifiant && str_starts_with($identifiant, 'admin');
+        return $identifiant === '9.99.99.99.999.999.99';
     }
 
     /**
@@ -116,5 +123,23 @@ class AuthService
     public function getType(): ?string
     {
         return $this->getSession()->get('type');
+    }
+
+    /**
+     * Vérifie si l'utilisateur est un intervenant
+     */
+    public function isIntervenant(): bool
+    {
+        $type = $this->getSession()->get('type');
+        return $type === 'INTER';
+    }
+
+    /**
+     * Vérifie si l'utilisateur est une famille
+     */
+    public function isFamille(): bool
+    {
+        $type = $this->getSession()->get('type');
+        return $type === 'FAM';
     }
 }
