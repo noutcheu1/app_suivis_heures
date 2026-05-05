@@ -1,0 +1,217 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Retour famille{% endblock %}
+
+{% block body %}
+    <h1>Liste des saisies <?php if (isset($_GET['ancien'])) { echo "anciennement"; }?> signaler par les familles </h1>
+    <ul class="menu">
+        <li>
+        {% if not ancien %}
+            <a href="{{ path('admin_retour_famille') }}">
+                <img src="{{ asset('/assets/icons/erreur.png') }}">
+                Liste des nouveaux retours des familles
+            </a>
+        {% else %}
+            <a href="{{ path('admin_retour_famille') }}/?ancien=1">
+                <img src="{{ asset('/assets/icons/erreur.png') }}">
+                Liste des anciens retours des familles
+            </a>
+        {% endif %}
+        
+      </li>
+    </ul>
+    <table id="table">
+        <thead>
+        <tr> 
+            <th> Nom de l'intervenant </th> 
+            <th> Nom de la famille </th> 
+            <th> Remarque </th> 
+            <th> Date de prestation </th> 
+            <th> Heure de debut </th> 
+            <th> Heure de fin </th> 
+            <th> Type de prestation </th> 
+            {% if not ancien %}
+              <th> Modifier la prestation </th> 
+              <th> Supprimer </th>
+            {% endif %}
+            
+        </tr>
+        </thead>
+        <tbody>
+        {% for prestations in prestation  %}
+            <tr>
+                <td<a href=" {{ path('intervenant_panel', { id: prestation.numInter }) }}" > {{ prestation.nomCompletInter }} </a></td>
+                <td><a href="{{ path('famille_panel', { id: prestation.numFam }) }}"> {{ prestation.nomFam }} </a></td>
+                <td> {{ prestation.remarque }} </td>
+                <td> {{ prestation.datePresta|date('d/m/Y') }} </td>
+                <td> {{ prestation.heureDebutPresta|date('H:i') }}</td>
+                <td> {{ prestation.heureFinPresta|date('H:i') }} </td>
+                <td> {{ prestation.typePresta }} </td>
+                {% if not ancien %}
+                <td><a href="{{ path('suivie', { id: prestation.numInter }) }}?edite={{ prestation.id }}&erreur=0" class="btn-vert">Modifier</a></td>
+                <td> 
+                    <a href="<?= BASE_URL ?>/admin/lesheures?supp=<?=$presta['id']?>" class="btn-rouge">X</a>
+                </td>
+                {% endif %}
+                
+            
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table> 
+{% endblock %}
+
+{% block stylesheet %}
+
+<style>
+    th {
+        cursor: pointer;
+        position: relative;
+        user-select: none;
+    }
+
+    th .arrow {
+        font-size: 0.8em;
+        margin-left: 5px;
+    }
+    
+    .btn-vert {
+    display: inline-block;
+    padding: 4px 10px;
+    margin-left: 6px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #fff;
+    background-color: #4CAF50; /* vert doux */
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .btn-vert:hover {
+    background-color: #43a047; /* vert un peu plus foncé */
+    transform: scale(1.05);
+    }
+
+    .btn-vert:active {
+    background-color: #388e3c;
+    transform: scale(0.97);
+    }
+
+    .btn-rouge {
+    display: inline-block;
+    padding: 4px 10px;
+    margin-left: 6px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #fff;
+    background-color: #f44336; /* rouge doux */
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .btn-rouge:hover {
+    background-color: #e53935; /* rouge un peu plus foncé */
+    transform: scale(1.05);
+    }
+
+    .btn-rouge:active {
+    background-color: #c62828; /* rouge foncé */
+    transform: scale(0.97);
+    }
+
+    table {
+      width: 100%;             /* occupe 100% de la largeur */
+      border-collapse: collapse; /* supprime les doubles bordures */
+      text-align: center;      /* centre le texte dans les cellules */
+    }
+    th, td {
+      border: 1px solid #333; /* bordures visibles */
+      padding: 10px;          /* espace interne */
+    }
+    th {
+        background: linear-gradient(135deg, #1e3d58, #3b6b9a);
+        color: #fff; /* texte blanc pour contraster avec le dégradé */
+        padding: 8px; /* un peu d’espace */
+        border: 1px solid #ccc; /* optionnel pour délimiter les cellules */
+        }
+        /* Quand l’écran est plus haut que large (portrait) */
+        @media screen and (max-aspect-ratio: 1/1) {
+                main {
+                    width: 200%; 
+                max-width: none; 
+                }
+                header {
+                    width: 200%; /* Le header est deux fois plus large que la page */
+                    position: relative; /* nécessaire pour le placement du contenu */
+                }
+        }
+
+    </style>
+
+{% endblock %}
+
+{% block script %}
+<script>
+const compare = (ids, asc) => (row1, row2) => {
+  const tdValue = (row, ids) => row.children[ids].textContent;
+  const tri = (v1, v2) => v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2) ? v1 - v2 : v1.toString().localeCompare(v2);
+  return tri(tdValue(asc ? row1 : row2, ids), tdValue(asc ? row2 : row1, ids));
+};
+
+const tbody = document.querySelector('tbody');
+const thx = document.querySelectorAll('th');
+const trxb = tbody.querySelectorAll('tr');
+
+thx.forEach(th => {
+  th.addEventListener('click', function() {
+    // Déterminer l'index de la colonne
+    const index = Array.from(thx).indexOf(th);
+    
+    // Alterner l'ordre de tri
+    this.asc = !this.asc;
+    
+    let sortedRows;
+    if (index === 1) {
+      // Colonne 2 : tri des dates FR
+      const parseDateFR = (str) => {
+        const parts = str.split('/');
+        if (parts.length !== 3) return null;
+        const [day, month, year] = parts.map(Number);
+        return new Date(year, month - 1, day);
+      };
+
+      sortedRows = Array.from(trxb).sort((row1, row2) => {
+        const v1 = row1.children[index].textContent.trim();
+        const v2 = row2.children[index].textContent.trim();
+        const d1 = parseDateFR(v1);
+        const d2 = parseDateFR(v2);
+        if (d1 && d2 && !isNaN(d1) && !isNaN(d2)) {
+          return this.asc ? d1 - d2 : d2 - d1;
+        }
+        return 0; // si date invalide, ne change rien
+      });
+
+    } else {
+      // Autres colonnes : tri classique
+      sortedRows = Array.from(trxb).sort(compare(index, this.asc));
+    }
+    // Réinsérer les lignes triées
+    sortedRows.forEach(tr => tbody.appendChild(tr));
+    
+    // Supprimer les flèches de tous les th
+    thx.forEach(th => {
+      let arrow = th.querySelector('.arrow');
+      if (arrow) arrow.remove();
+    });
+    
+    // Ajouter la flèche à la colonne triée
+    const arrow = document.createElement('span');
+    arrow.classList.add('arrow');
+    arrow.textContent = this.asc ? '▲' : '▼'; // ▲ = croissant, ▼ = décroissant
+    th.appendChild(arrow);
+  });
+});
+</script>
+{% endblock %}

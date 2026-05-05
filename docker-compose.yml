@@ -1,0 +1,116 @@
+version: "3.9"
+
+services:
+
+  # ─── PHP 8.3 / Apache / Symfony 7.4 ─────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chaudoudoux_php
+    ports:
+      - "8032:80"
+    volumes:
+      # Code source monté en live — pas besoin de rebuild à chaque modif
+      - .:/var/www/html
+      # Cache var/ exclu du volume pour les perfs
+      - app_var:/var/www/html/var
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: dev
+      APP_DEBUG: "1"
+      APP_SECRET: ${APP_SECRET:-7480ba10cece01e91403306fd4d14827624de2c6ec2e8cf21fd01ad96800cb3b}
+      # ⚠ DB_HOST = nom du service docker, pas 127.0.0.1
+      DATABASE_URL: "mysql://chaudoudoux:root@db:3306/bdchaudoudoux_horaire?serverVersion=10.11.0-MariaDB&charset=utf8mb4"
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_USER: chaudoudoux
+      DB_PASSWORD: root
+      DB_NAME_PRINCIPAL: bdchaudoudoux
+      DB_NAME_SECONDAIRE: bdchaudoudoux_horaire
+      MAILER_DSN: "sendmail://default"
+    restart: unless-stopped
+    networks:
+      - chaudoudoux_net
+    # command: bash -c "fix-permissions.sh && apache2-foreground"
+
+  # ─── MariaDB 10.11 — 2 bases créées automatiquement ─────────────────────────
+  db:
+    image: mariadb:10.11
+    container_name: chaudoudoux_mariadb
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      # Base principale créée par défaut
+      MYSQL_DATABASE: bdchaudoudoux
+      MYSQL_USER: chaudoudoux
+      MYSQL_PASSWORD: root
+    volumes:
+      - db_data:/var/lib/mysql
+      # Script init : crée la 2ème base + droits utilisateur
+      - ./docker/sql/01-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      # Dumps à importer au premier démarrage (optionnel)
+      - ./docker/sql/:/docker-entrypoint-initdb.d/
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - chaudoudoux_net
+
+  # ─── Adminer — interface BDD dans le navigateur ───────────────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: chaudoudoux_adminer
+    restart: unless-stopped
+    ports:
+      - "8033:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DEFAULT_USER: chaudoudoux
+      ADMINER_DEFAULT_PASSWORD: root
+      ADMINER_DESIGN: pepa-linha
+    networks:
+      - chaudoudoux_net
+
+# ─── Volumes ─────────────────────────────────────────────────────────────────
+
+###> doctrine/doctrine-bundle ###
+  database:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      # You should definitely change the password in production
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - database_data:/var/lib/postgresql/data:rw
+      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
+      # - ./docker/db/data:/var/lib/postgresql/data:rw
+###< doctrine/doctrine-bundle ###
+volumes:
+  db_data:
+  app_var:
+
+
+###> doctrine/doctrine-bundle ###
+  database_data:
+###< doctrine/doctrine-bundle ###
+# ─── Réseau interne ──────────────────────────────────────────────────────────
+networks:
+  chaudoudoux_net:
+    driver: bridge

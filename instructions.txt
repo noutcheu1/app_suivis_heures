@@ -1,0 +1,6 @@
+  - installer xampp si vous etes sous windows sinon php et MySQL sous linux
+  - se mettre dans htdocs et créer un directory dédié
+  - il faut installer vendor : https://getcomposer.org/download/
+  - (optionel) configuer xampp pour l'envoie de mail mot de passe oublié voir doc pour la config
+  - lancer xampp
+  - Bon Courage ! 

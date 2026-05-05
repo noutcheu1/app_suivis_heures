@@ -1,0 +1,47 @@
+{% extends 'base.html.twig' %}
+{% block title %}Liste des intervenants{% endblock %}
+
+{% block body %}
+{% set avatar =
+    user.genre == 'MR' ? asset('assets/icons/boy.png') :
+    user.genre in ['MME', 'Mel'] ? asset('assets/icons/woman.png') :
+    asset('assets/icons/user.png')
+%}
+
+<div class="profile-card">
+    <div class="profile-header">
+        Détail de l’
+        {{ user.genre in ['MME', 'Mel'] ? 'intervenante' : 'intervenant' }}
+    </div>
+
+    <img src="{{ avatar }}" alt="Avatar" class="profile-avatar">
+
+    <div class="profile-name">
+        <h2>
+            <a href="{{ path('intervenant_panel', {'id': user.id}) }}">
+                {{ user.nom }} {{ user.prenom }}
+            </a>
+        </h2>
+    </div>
+
+    <div class="profile-info">
+        <ul>
+            {% for key, value in user %}
+             {% if key == 'email' %}
+                <li>
+                    <strong>Email :</strong>
+                    <a href="mailto:{{ value }}">{{ value }}</a>
+                </li>
+
+            {% else %}
+                <li>
+                    <strong> {{ key|capitalize }} :</strong>
+                    <span> {{ value }}</a>
+                </li>
+            {% endif %}
+                
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

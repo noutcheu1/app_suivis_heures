@@ -1,0 +1,22 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Choisissez votre type{% endblock %}
+
+{% block body %}
+<h1>Bienvenue, choisissez qui vous êtes</h1>
+
+<ul class="menu">
+    <li>
+        <a href="{{ path('set_type', {'type': 'INTER'}) }}">
+            <img src="{{ asset('assets/icons/intervenants.png') }}" alt="Intervenant">
+            Intervenant
+        </a>
+    </li>
+    <li>
+        <a href="{{ path('set_type', {'type': 'FAM'}) }}">
+            <img src="{{ asset('assets/icons/famille.png') }}" alt="Famille">
+            Famille
+        </a>
+    </li>
+</ul>
+{% endblock %}
