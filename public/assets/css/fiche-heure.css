@@ -1,0 +1,64 @@
+   input[type="number"] {
+        width: 45%;
+        box-sizing: border-box;
+        padding: 10px;
+    }
+    select {
+        width: 45%;
+        box-sizing: border-box;
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 1px solid #bbb;
+        background-color: #fff;
+        color: #333;
+        cursor: pointer;
+        appearance: none; /* Désactive le style natif de l’OS */
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        transition: all 0.3s ease;
+    }
+    table {
+      width: 100%;             /* occupe 100% de la largeur */
+      border-collapse: collapse; /* supprime les doubles bordures */
+      text-align: center;      /* centre le texte dans les cellules */
+    }
+    th, td {
+      border: 1px solid #333; /* bordures visibles */
+      padding: 10px;          /* espace interne */
+    }
+    th {
+      background-color: transparent; /* couleur d’arrière-plan pour l’en-tête */
+    }
+    /* Classe spéciale : pas de bordure */
+    .no-borders {
+      border: none; /* supprime toutes les bordures */
+    }
+    /* Quand l’écran est plus haut que large (portrait) */
+    @media screen and (max-aspect-ratio: 1/1) {
+        main {
+            width: 200%; 
+        max-width: none; 
+        }
+        header {
+            width: 200%; /* Le header est deux fois plus large que la page */
+            position: relative; /* nécessaire pour le placement du contenu */
+}
+
+.header-content {
+    width: 50%; /* Premier 100% de la page = 50% du header de 200% */
+    margin-left: 0; /* commence au bord gauche de la page */
+    text-align: center; /* texte centré dans cette zone */
+    box-sizing: border-box;
+}
+
+        
+    }
+    tr.dimanche {
+        background-color: #e0e0e0; /* gris clair */
+        color: #333; /* couleur du texte (optionnel) */
+    }
+    th:nth-child(n+4):nth-child(-n+8) {
+    /* Les 5 colonnes “FAMILLES” */
+    width: 15%; /* Chaque colonne = 20% du tableau */
+}

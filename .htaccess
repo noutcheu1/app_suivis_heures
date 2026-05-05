@@ -1,0 +1,10 @@
+RewriteEngine On
+ErrorDocument 400 /templates/errors.php
+ErrorDocument 401 /templates/errors.php
+ErrorDocument 403 /templates/errors.php
+ErrorDocument 404 /templates/errors.php
+ErrorDocument 500 /templates/errors.php
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]

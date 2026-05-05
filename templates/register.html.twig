@@ -1,0 +1,80 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Connexion{% endblock %}
+
+{% block body %}
+
+<h1>Inscription {{ type }} </h1>
+
+<p style="color: red; text-align: center;"></p>
+
+<form id="create_login_form" action="{{ path('app_register') }}" method="POST">
+    <input id="type" value="{{ type }}" hidden>
+    {% if type == 'INTER' %}
+        <label>Numéro sécurité sociale :</label>
+        <input id="id_conexion" type="text" name="id" maxlength="21" required>
+    {% else %}
+        <label>Numéro client :</label>
+        <input type="text"
+            id="id_conexion"
+            name="id_conexion"
+            maxlength="7"
+            required
+            pattern="^[A-Z]{2,3}\d{4}$">
+    {% endif %}
+
+    <label for="mdp">Mot de passe :</label>
+    <div class="password-wrapper">
+        <input type="password" id="password" name="password" required>
+        <span id="togglePassword">
+            <i class="fa fa-eye" aria-hidden="true"></i>
+        </span>
+    </div>
+    <label for="mdp">Confirmer mot de passe :</label>
+    <div class="password-wrapper">
+        <input type="password" id="password2" name="password2" required>
+    </div>
+    <button id="create_login" type="submit">S'inscrire</button>
+</form>
+
+{% endblock %}
+
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="{{ asset('/assets/js/login.js') }}"></script>
+
+    <script>
+    const idInput = document.getElementById('id_conexion');
+
+    const requiredLength = {{ type == 'INTER' ? 21 : 6 }};
+
+    // toggle password
+    const passwordField = document.getElementById("password");
+    const togglePassword = document.getElementById("togglePassword");
+    togglePassword.addEventListener("click", () => {
+        const icon = togglePassword.querySelector("i");
+        const isPassword = passwordField.type === "password";
+        passwordField.type = isPassword ? "text" : "password";
+        icon.classList.toggle("fa-eye");
+        icon.classList.toggle("fa-eye-slash");
+    });
+
+    // input formatting
+    idInput.addEventListener('input', () => {
+        let value = idInput.value;
+        {% if type == 'INTER' %}
+            value = value.replace(/\D/g, '');
+            if (value.length > 1) value = value.slice(0,1)+'.'+value.slice(1);
+            if (value.length > 4) value = value.slice(0,4)+'.'+value.slice(4);
+            if (value.length > 7) value = value.slice(0,7)+'.'+value.slice(7);
+            if (value.length > 10) value = value.slice(0,10)+'.'+value.slice(10);
+            if (value.length > 14) value = value.slice(0,14)+'.'+value.slice(14);
+            if (value.length > 18) value = value.slice(0,18)+'.'+value.slice(18);
+        {% elseif type == 'FAM' %}
+            value = value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+        {% endif %}
+        idInput.value = value;
+    });
+</script>
+{% endblock %}

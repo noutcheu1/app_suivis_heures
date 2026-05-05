@@ -1,0 +1,37 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Liste des familles{% endblock %}
+
+{% block body %}
+<h1>Détail Famille</h1>
+
+    {% if user %}
+        <p>Famille : <strong> {{ user['Nom de la famille']}} </strong> </p>
+        <ul class="menu">
+            <li>
+                <a href="{{ path('famille_profile', { id: id } ) }}">
+                    <img src="{{ asset('/assets/icons/user.png') }}" alt="Profile">
+                    Profil
+                </a>
+            </li>
+            {% if  user.PGE != "PGE_ _ _ _" and user.PGE != "" %}
+            <li>
+                <a href="<?= BASE_URL ?>/mon-recap?type=ENFA&mois=0&fam=<?= $_GET['id'] ?>">
+                    <img src="{{ asset('/assets/icons/folderENFA.png') }}">
+                    Mes recapitulatif d'heures Garde d'enfant
+                </a>
+            </li>
+            {% elseif user.PM != "" and user.PM != "" %}
+            <li>
+                <a href="<?= BASE_URL ?>/mon-recap?type=MENA&mois=0&fam=<?= $_GET['id'] ?>">
+                    <img src="{{ asset('/assets/icons/folderMENA.png')}}">
+                    Mes recapitulatif d'heures Menage
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    {% else %}
+        <p style="color: red; text-align: center;">La famille n'a pas été trouvé.</p>
+    {% endif %}
+
+{% endblock %}

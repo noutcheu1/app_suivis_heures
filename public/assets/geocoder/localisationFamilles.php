@@ -1,0 +1,125 @@
+
+<?php
+
+$user='root';
+$pdoChaudoudoux = new PdoBdChaudoudoux("localhost", "bdchaudoudoux", $user,"");
+
+$lesFamilles = $pdoChaudoudoux->obtenirListeFamilleAPourvoir();
+
+$adresse = array();
+foreach($lesFamilles as $uneFamille) {
+    $num = $uneFamille["numero_Famille"];
+    $coord = $pdoChaudoudoux->obtenirDetailFamille($num);
+    array_push($adresse,$coord["adresse_Famille"].", ".$coord["cp_Famille"]." ".$coord["ville_Famille"]);//J'obtiens un tableau avec toutes les adresses des familles
+} ?>
+<script>
+coord = [];                 //tableau avec toutes les coordonnees a la fin
+famille = <?php echo json_encode($lesFamilles);?>;//tableau avec le numéro des familles
+addr = <?php echo json_encode($adresse);?>;//tableau avec les adresses
+famille_errone = "";
+var i = 0;                     //  set your counter to 1
+j = ((famille.length - 1) * 5);// 
+
+
+var time = 0;//init du temps
+
+function myLoop() {         //  create a loop function
+  setTimeout(function() {   //  call a 5s setTimeout when the loop is called
+    var button = document.getElementById("gen");
+	button.setAttribute("disabled", ""); // désactive le bouton
+    if(famille[0] != null){
+      addr_search(addr[i],famille[i].numero_Famille, i+1);  //  your code here
+    }
+    time = 5000;            // le temps que prends chaque boucle
+    i++;                    //  increment the counter
+    if (i < famille.length) {           //  if the counter < la longueur de famille, call the loop function
+      myLoop();             //  ..  again which will trigger another 
+    }                       //  ..  setTimeout()
+  }, time)
+}
+
+var time2 = 0;
+
+function timeLoop() {//de même que myLoop
+  setTimeout(function() {
+    var time = document.getElementById("Time");
+    time.innerHTML = j + " seconde(s) restante(s)";//affiche un texte dans une balise html
+    time2 = 1000;
+    j--;          //diminue le temps restants
+    if (j >= 0) {
+      timeLoop();
+    }
+  }, time2)
+}
+
+function addr_search(addr,num_famille,i)
+{
+ var xmlhttp = new XMLHttpRequest();//demarre une instance XHR
+ 
+ var url = "https://nominatim.openstreetmap.org/search?format=json&limit=3&q=" + addr;//construction de l'adresse où les données sont récupérées
+ xmlhttp.onreadystatechange = function()
+ {
+   if (this.readyState == 4 && this.status == 200)//si le serveur est prêt et que l'on recoit les données, cette fonction est exécutée
+   {
+    var myArr = JSON.parse(this.responseText);//on récupère les données ici
+    if(myArr[0] == null){//on teste si les données sont bonnes
+      lat = 0;
+      lon = i+1;
+      famille_errone = famille_errone + num_famille + ',';//on ajoute la famille au fichier txt avec les familles errone
+    }
+    else {lat = myArr[0].lat; lon = myArr[0].lon;}
+    chooseAddr(lat, lon, num_famille, i, famille.length);
+    if (i >= famille.length){
+		makeMarker();
+      /*downloadURI('data:text/html,' + JSON.stringify(coord), "famille.json");//permet de télécharger un fichier
+      if (famille_errone != ""){
+        downloadURI('data:text/html,' + famille_errone, "famille_errone.txt");
+      }*/
+    }
+   }
+ };
+ xmlhttp.open("GET", url, true);
+ xmlhttp.send();
+}
+
+var uneCoord = document.createElement("p");//crée un élément html
+uneCoord.setAttribute("id", "counter");
+
+function chooseAddr(lat, lon, num_famille, i, end)
+{
+ var famille = document.getElementById("famille");
+ var nbrCoord = document.getElementById("counter");
+ if (lat==0){
+   var noCoord = document.createElement("p");
+   noCoord.textContent = num_famille + ": Coordonnée Non Trouvée !";//si aucun résultat a été obtenu
+   famille.appendChild(noCoord);//on rajoute l'élément crée au document
+ }
+ else{
+   //uneCoord.textContent = num_famille + ": Coordonnée Trouvée !"
+ }
+ nbrCoord = i + " sur " + end;
+ uneCoord.innerHTML = nbrCoord;//informe l'utilisateur sur combien de tours restants
+ coord.push({"id" : num_famille, "latitude" : lat, "longitude" : lon});//ajouter au tableau "coord" les informations obtenues
+ //famille.innerHTML = uneCoord.innerHTML//on rajoute l'élément crée au document
+ famille.appendChild(uneCoord);
+}
+
+/*function downloadURI(url, name) {
+  var emplacement = document.getElementById("top");
+  var fichier = document.getElementById("fichier");
+  var end = document.createElement("p");
+  var link = document.createElement("a");
+  fichier.setAttribute("style", "float:right;position:absolute;right:500px");
+  end.textContent = " Le Générateur a fini, "+ name +" a été Téléchargé.";
+  link.download = name;//nom et type du fichier
+  link.href = url;//contenu du document
+  link.innerHTML = "<button type='button' style='float:right;position:absolute;right:500px'>Download</button>" ;
+  emplacement.appendChild(fichier);
+  fichier.appendChild(end);
+  fichier.appendChild(link);
+  //link.click();//clique sur le lien
+  //fichier.removeChild(link);
+  //delete link;
+}*/
+
+</script>

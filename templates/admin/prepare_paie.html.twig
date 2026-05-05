@@ -1,0 +1,103 @@
+{% extends 'base.html.twig' %}
+{% block title %}Retour famille{% endblock %}
+
+{% block body %}
+
+    <h1>Préparation de la paie de {{ moisNom }} </h1>
+    
+    <ul class="menu">
+        <li>
+            <a href="#" id="exportLink" class="disabled" onclick="return false;">
+            <img src="{{ asset('/assets/icons/save.png') }}">
+            Exporter en CSV
+            </a>
+        </li>
+        <li>
+            <a href="{{ path('admin_prepare_paie') }}?mois={{ moisNum - 1 }}">
+                <img src="{{ asset('/assets/icons/flecheGaucheR.png') }}">
+                Mois precedente
+            </a>
+        </li>
+        {% if moisNum < 0 %}
+            <li> 
+                <a href="{{ path('admin_prepare_paie') }}?mois={{ moisNum + 1 }}">
+                    <img src="{{ asset('/assets/icons/flecheDroiteR.png') }}">
+                    Mois suivante
+                </a>
+            </li>
+        {% endif %}
+    </ul>
+    <table id="table">
+        <thead>
+        <tr> 
+            <th> Intervenante </th> 
+            <th> Prestation </th> 
+            <th> Nbre Hres déclaré par INTERVENANTE </th> 
+            <th> nbre de trajets </th> 
+            <th> nbre de km avec enfants </th> 
+            <th> nbre de km sans enfants </th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for intervenant in intervenants  %}
+            <tr>
+                <td><a href=" {{ path('intervenant_switch_panel', { id: intervenant.numInter} ) }}/?id={{ intervenant.numInter }}"> {{ intervenant.nomComplet }} </a></td>
+                <td>
+                {% if intervenant.typePresta == "MENA" %}
+                    MENAGES
+                {% elseif intervenant.typePresta == "ENFA"  %}
+                    GARDE D'ENFANTS
+                {% endif %}
+                {{ intervenant.typePresta }}
+
+                <td><?php 
+                list($hours, $minutes) = explode(":", $Intervenant['dureeTotale'] );
+                $decimal = $hours + ($minutes / 60);
+                echo str_replace('.', ',', $decimal);
+                
+                ?></td>
+                <td> {{ intervenant.nbrTrajet }} </td>
+                <td> {{ intervenant.kmAvecEnfant }} </td>
+                
+                {% if intervenant.famhorsrennes %}
+                    <td name='traget'> Calcul ...
+                    {%  if '|' in Intervenant.famhorsrennes %}
+                    {% set familles = Intervenant.famhorsrennes|split('|') %}
+                if (strpos($Intervenant['famhorsrennes'], '|') !== false) {
+                    $y = 0;
+                    $familles = explode('|', $Intervenant['famhorsrennes']);
+                    // echo $famille. "  " . $x . $y . "<br>";
+                    
+
+                    {% for famille in familles %}
+                    
+                    $adrs = $GLOBALS['pdo']->getAdrFam($Intervenant['typePresta'],$Intervenant['numInter'],$famille,date('Y-m', strtotime($_GET['mois'].' month'))."%");
+                    // echo json_encode($adrs);
+                    if ($y == 0) {
+                        echo "<input value='".$adrs['adresse_Candidats'].", ".$adrs['cp_Candidats'].", ".$adrs['ville_Candidats']."' id=adrInter".$x." hidden>";
+                    }
+                    echo "<input value='".$adrs['adresse_Famille'].", ".$adrs['cp_Famille'].", ".$adrs['ville_Famille']."' id=adrFam".$x.$y." hidden>";
+                    $y++;
+                    }  
+                    {% endfor %}
+                {% else %}
+                    $adrs = $GLOBALS['pdo']->getAdrFam($Intervenant['typePresta'],$Intervenant['numInter'],$Intervenant['famhorsrennes'],date('Y-m', strtotime($_GET['mois'].' month'))."%");
+                    
+                    echo "<input value='".$adrs['adresse_Candidats'].", ".$adrs['cp_Candidats'].", ".$adrs['ville_Candidats']."' id=adrInter".$x." hidden>";
+                    echo "<input value='".$adrs['adresse_Famille'].", ".$adrs['cp_Famille'].", ".$adrs['ville_Famille']."' id=adrFam".$x."0 hidden>";
+                }
+                
+                $x++;
+                {% endif %}
+                {% else %}
+                0,00
+                {% endif %}
+                ?>
+                </td>
+                
+            </tr>
+        {% endfor %}
+        <input id='nbrKmAcalculer' value=<?=$x;?> hidden>
+        </tbody>
+    </table> 
+{% endblock %}

@@ -1,0 +1,221 @@
+{% extends 'base.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        [id^="monTableau0"] {
+            transform: scale(1.20);
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 10px;
+        }
+        th {
+            background-color: transparent;
+        }
+        .no-borders {
+            border: none;
+        }
+        .border-line {
+            border-bottom: solid 5px;
+        }
+        .title {
+            text-decoration: underline;
+        }
+        .cell-position-left {
+            text-align: left;
+        }
+        .cell-position-right {
+            text-align: right;
+        }
+        tr.dimanche {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+        th:nth-child(n+4):nth-child(-n+8) {
+            width: 15%;
+        }
+        @media screen and (max-aspect-ratio: 1/1) {
+            main {
+                width: 200%;
+                max-width: none;
+            }
+            header {
+                width: 200%;
+                position: relative;
+            }
+            .header-content {
+                width: 50%;
+                margin-left: 0;
+                text-align: center;
+                box-sizing: border-box;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<h1>Patienter, ne toucher à rien</h1>
+
+{% for index, fiche in fiches %}
+    {% set x = index + 1 %}
+    
+    {# Tableau d'en-tête #}
+    <table id="monTableau0{{ x }}">
+        <tr>
+            <th class="no-borders title" colspan="4">
+                {{ typeLibelle }} - RELEVE D'HEURES - {{ fiche.moisComplet }} {{ fiche.annee }}
+            </th>
+        </tr>
+        <tr>
+            <td class="no-borders" colspan="4" style="font-size: 10px;">
+                LES FEUILLES D'HEURES DOIVENT ETRE SIGNER AU PLUS TARD LE {{ fiche.dateLimite }} DU MOIS
+            </td>
+        </tr>
+        <tr  class="cell-position-right bold">
+            <td rowspan="2" class="title"> Nom : </td>
+            <td rowspan="2"> </td>
+            <td class=""> Tel : </td>
+            <td rowspan="1"></td>
+        </tr>
+        <tr class="cell-position-right bold">
+            <td rowspan="1">Adresse</td>
+            <td rowspan="1"></td>
+        </tr>
+        
+        <tr class="cell-position-right">
+            <td colspan="4" class="no-borders" style="font-size: 10px;">
+                Toute absence doit être justifiée
+            </td>
+        </tr>
+    </table>
+
+    {# Tableau principal #}
+    <table id="monTableau1{{ x }}">
+        <tr>
+            <td class="no-borders"></td>
+            <td class="no-borders"></td>
+            <td class="no-borders"></td>
+            <th colspan="5" class="bold">FAMILLES</th>
+        </tr>
+        <tr>
+            <td class="no-borders" colspan="3"></td>
+            {% for i in 1..5 %}
+                <td style='width: 15%;'>{{ i }}</td>
+            {% endfor %}
+        </tr>
+        <tr>
+            <td class="no-borders"></td>
+            <th colspan="2" class="bold">Date</th>
+            {% for i in 1..5 %}
+                <th style='width: 15%;'> <br><br> </th>
+            {% endfor %}
+        </tr>
+
+        {# Lignes des jours #}
+        {% for jour in fiche.jours %}
+            <tr {% if jour.isDimanche %} class='dimanche'{% endif %}>
+                {% if jour.isDimanche %}
+                    <td></td>
+                {% elseif jour.nouvelleSemaine %}
+                    <td class="bold" rowspan='{{ jour.rowspan }}'>S{{ jour.numeroSemaine }}</td>
+                {% endif %}
+                
+                <td class="bold">{{ jour.nomJourCourt }}</td>
+                <td>
+                    {{ jour.numeroJour }}
+                    {% if jour.afficherMois %}-{{ jour.nomMois }}{% endif %}
+                </td>
+                
+                {% for i in 1..5 %}
+                    <td></td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+
+        {# Lignes de totaux #}
+        <tr>
+            <td class="no-borders"></td>
+            <th colspan="2">TOTAL Heures</th>
+            <td></td><td></td><td></td><td></td><td></td>
+        </tr>
+        <tr>
+            <td class="no-borders"></td>
+            <th colspan="2">&nbsp;</th>
+            <td></td><td></td><td></td><td></td><td></td>
+        </tr>
+
+        {% if fiche.afficherKm %}
+            <tr>
+                <td class="no-borders"></td>
+                <th colspan="2">TOTAL Km (avec enfants)</th>
+                <td></td><td></td><td></td><td></td><td></td>
+            </tr>
+        {% endif %}
+
+        <tr>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+        </tr>
+        <tr>
+            <td class="no-borders"></td>
+            <td colspan="2" class="no-borders">TOTAL MENSUEL DES HEURES</td>
+            <td></td>
+            <th class="no-borders"></th>
+            <td></td>
+            {% if fiche.afficherKm %}
+                <th class="no-borders">TOTAL MENSUEL DES KM (avec enfants)</th>
+                <td></td>
+            {% endif %}
+        </tr>
+        <tr>
+            <td class="no-borders" colspan="4"></td>
+            <td class="no-borders" colspan="2" style="text-align: left;">Date :</td>
+            <td class="no-borders bold" colspan="2" style="text-align: left;">Signature :</td>
+        </tr>
+        <tr>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+        </tr>
+        <tr>
+            <th colspan="8">
+                VOUS DEVEZ NOUS INDIQUER LE NOMBRE TOTAL D'HEURES QUE VOUS AVEZ EFFECTUÉES 
+                DANS LE MOIS POUR TOUT VOS EMPLOYEURS QUI VOUS PAYENT DIRECTEMENT 
+                SOIT TOTAL DE VOTRE MOIS : _ _ _ h _ _ ***
+            </th>
+        </tr>
+    </table>
+{% endfor %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/jspdf-autotable"></script>
+    
+    <script src="{{ asset('assets/js/build_relever_d_heure_pdf.js') }}"></script>
+
+    <script>
+        genererPDF("{{ type }}", "{{ type }}" ); 
+    </script>
+{% endblock %}

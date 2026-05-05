@@ -1,0 +1,15 @@
+{
+  "name": "Mon app Chaudoudoux",
+  "short_name": "App Chaudoudoux",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#11DC32",
+  "icons": [
+    {
+      "src": "/icons/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

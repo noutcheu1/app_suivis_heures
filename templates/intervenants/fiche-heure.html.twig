@@ -1,0 +1,149 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Heures de {{ user.nom }}{% endblock %}
+{% block body %}
+
+{% if isAdmin %}
+<h1> Voici la/les fiche/s de relevé d'heures de {{ user.nom }} {{ user.prenom }}  </h1>
+{% else %}
+<h1> {{ user.nom }} {{ user.prenom }} voici vos/votre fiche/s de relevé d'heures </h1>
+{% endif %}
+
+<ul class="menu">
+
+
+    <li>
+        <a href="{{ path('intervenant_fiches', { id: user.id_intervenant }) }}?type={{type}}&mois={{ moisOffset-1 }}" >
+            <img src=" {{ asset('/assets/icons/flecheGauche.png') }}">
+            Mois précèdent
+        </a>
+    </li>
+
+    {% if moisOffset < 0 %}
+
+    <li> 
+        <a href="{{ path('intervenant_fiches', { id: user.id_intervenant }) }}?type={{type}}&mois={{ moisOffset+1 }}">
+            <img src="{{ asset('/assets/icons/flecheDroite.png') }}">
+            Mois suivant
+        </a>
+    </li>
+
+    {% endif %}
+
+</ul>
+
+<div class="d-none d-md-block">
+
+    <div id="tableContainer">
+
+    </div>
+
+</div>
+
+<div class="d-block d-md-none" >
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">{% if type=="MENA" %} Ménage  {% else %} Famille {% endif %} </th>
+                <th scope="col">Totales des heures</th>
+            </tr>
+        </thead>
+        <tbody id="familleRecap">
+        </tbody>
+    </table>
+
+
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">Info</th>
+                <th scope="col">États</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <th scope="row">Votre fiche est</th>
+                <td id ="signerMobile"></td>
+            </tr>
+            <tr {% if type == "MENA" %} style="display: none;" {% endif %} >
+                <th scope="row">Totales des KM fait avec les enfants</th>
+                <td id ="kmParcourue"></td>
+            </tr>
+            <tr>
+                <th scope="row">Totales des heures fait sur le mois</th>
+                <td id ="heureCumuler"></td>
+            </tr>
+        </tbody>
+    </table>
+
+</div>
+<ul class="menu">
+    <li>
+        <a id="donwload" >
+            <img src="{{asset('/assets/icons/save.png')}}">
+            {% if isMobile %}
+                Cosulter le relever d'heure en PDF
+            {% else %}
+                Télécharger le relever d'heure
+            {% endif %}
+        </a>
+    </li>
+    
+    <li align="center">
+    
+            
+        <a id="saveTime">
+            <img src="{{asset('/assets/icons/immeuble.png')}}">
+            Saisir les heures travailler en dehors de chaudoudoux, puis cliquer ici pour sauvegarder
+        </a>
+        <input id="heure" type='number' min="0" placeholder="exemple : 4"> h
+        <select id="minute" name="minute" required>
+            <!-- Options ajoutées via JS -->
+        </select> 
+    </li>
+
+    <li>    
+        <a id="signerButton">
+            <img src="{{ asset('/assets/icons/signer.png') }}">
+            Signer
+        </a>
+    </li>
+</ul>
+
+
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://unpkg.com/jspdf-autotable"></script>
+
+<script>
+const ID={{ user.id_intervenant }};
+const paramsUri = new URLSearchParams(window.location.search);
+const TYPE_PRESTA= paramsUri.get("type");
+
+const donwnloadInput = document.getElementById("donwload") ;
+donwnloadInput.addEventListener("click", () => {
+    genererPDF(TYPE_PRESTA, "2026"); 
+});
+
+</script>
+
+<script src="{{ asset('/assets/js/fiche-dheure.js') }}"></script>
+<script src="{{ asset('/assets/js/build_relever_d_heure_pdf.js') }}"></script>
+
+
+
+{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+    <link rel="stylesheet" href="{{ asset('/assets/css/fiche-heure.css') }}">
+{% endblock %}
