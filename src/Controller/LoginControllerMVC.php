@@ -21,7 +21,7 @@ final class LoginControllerMVC extends AbstractController
         private User2Service $user2Service
     ) {}
 
-    #[Route('/login-mvc', name: 'app_login_mvc', methods: ['post', 'get'])]
+    #[Route('/login', name: 'app_login', methods: ['post', 'get'])]
     public function login(Request $request): Response
     {
         $session = $request->getSession();
@@ -56,14 +56,14 @@ final class LoginControllerMVC extends AbstractController
         ]);
     }
 
-    #[Route('/logout-mvc', name: 'app_logout_mvc')]
+    #[Route('/logout', name: 'app_logout')]
     public function logout(Request $request): Response
     {
         $this->authService->logout();
-        return $this->redirectToRoute('app_login_mvc');
+        return $this->redirectToRoute('app_login');
     }
 
-    #[Route('/api/register-mvc', name: 'api_register_mvc', methods: ['POST'])]
+    #[Route('/api/register', name: 'api_register', methods: ['POST'])]
     public function apiRegister(Request $request): JsonResponse
     {
         $session = $request->getSession();
@@ -99,7 +99,7 @@ final class LoginControllerMVC extends AbstractController
         return $this->json(['success' => true, 'message' => 'Inscription réussie.']);
     }
 
-    #[Route('/register-mvc', name: 'app_register_mvc')]
+    #[Route('/register', name: 'app_register')]
     public function register(Request $request): Response
     {
         $session = $request->getSession();
