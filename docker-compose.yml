@@ -30,7 +30,7 @@ services:
       DB_PASSWORD: root
       DB_NAME_PRINCIPAL: bdchaudoudoux
       DB_NAME_SECONDAIRE: bdchaudoudoux_horaire
-      MAILER_DSN: "sendmail://default"
+      MAILER_DSN: "smtp://noreplychaudoudoux@gmail.com:maiq%20shik%20xooh%20sbzw@smtp.gmail.com:587"
     restart: unless-stopped
     networks:
       - chaudoudoux_net

@@ -5,7 +5,7 @@ namespace App\Service;
 use App\Entity\User2;
 use App\Entity\Intervenant;
 use App\Repository\IntervenantRepository;
-use Symfony\Component\HttpFoundation\Session\SessionInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 class AuthService
 {
@@ -15,8 +15,13 @@ class AuthService
     public function __construct(
         private User2Service $user2Service,
         private IntervenantRepository $intervenantRepository,
-        private SessionInterface $session
+        private RequestStack $requestStack
     ) {}
+
+    private function getSession()
+    {
+        return $this->requestStack->getSession();
+    }
 
     /**
      * Authentifie un utilisateur
@@ -30,15 +35,15 @@ class AuthService
         }
 
         $this->user = $user;
-        $this->session->set('user', $user);
-        $this->session->set('auth', true);
+        $this->getSession()->set('user', $user);
+        $this->getSession()->set('auth', true);
 
         // Chercher l'intervenant correspondant
         $intervenant = $this->intervenantRepository->findByNumSalarie($identifiant);
         if ($intervenant) {
             $this->intervenant = $intervenant;
-            $this->session->set('intervenant', $intervenant);
-            $this->session->set('intervenant_id', $intervenant->getId());
+            $this->getSession()->set('intervenant', $intervenant);
+            $this->getSession()->set('intervenant_id', $intervenant->getId());
         }
 
         return true;
@@ -49,7 +54,7 @@ class AuthService
      */
     public function logout(): void
     {
-        $this->session->clear();
+        $this->getSession()->clear();
         $this->user = null;
         $this->intervenant = null;
     }
@@ -59,7 +64,7 @@ class AuthService
      */
     public function check(): bool
     {
-        return $this->session->get('auth', false);
+        return $this->getSession()->get('auth', false);
     }
 
     /**
@@ -69,7 +74,7 @@ class AuthService
     {
         // Logique à adapter selon votre système de rôles
         // Pour l'instant, on considère admin si l'identifiant commence par 'admin'
-        $identifiant = $this->session->get('user')?->getIdentifiant();
+        $identifiant = $this->getSession()->get('user')?->getIdentifiant();
         return $identifiant && str_starts_with($identifiant, 'admin');
     }
 
@@ -78,7 +83,7 @@ class AuthService
      */
     public function intervenant_id(): ?int
     {
-        return $this->session->get('intervenant_id');
+        return $this->getSession()->get('intervenant_id');
     }
 
     /**
@@ -86,7 +91,7 @@ class AuthService
      */
     public function getUser(): ?User2
     {
-        return $this->session->get('user');
+        return $this->getSession()->get('user');
     }
 
     /**
@@ -94,7 +99,7 @@ class AuthService
      */
     public function getIntervenant(): ?Intervenant
     {
-        return $this->session->get('intervenant');
+        return $this->getSession()->get('intervenant');
     }
 
     /**
@@ -102,7 +107,7 @@ class AuthService
      */
     public function setType(string $type): void
     {
-        $this->session->set('type', $type);
+        $this->getSession()->set('type', $type);
     }
 
     /**
@@ -110,6 +115,6 @@ class AuthService
      */
     public function getType(): ?string
     {
-        return $this->session->get('type');
+        return $this->getSession()->get('type');
     }
 }
