@@ -1,0 +1,188 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Hello AdminController!{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f4f4f4;
+        }
+
+        #responsive {
+            display: none;
+        }
+        input[type='number'] {
+                width: 100%;
+                box-sizing: border-box;
+                padding: 10px;
+            }
+        @media (max-width: 768px) {
+
+            table,
+            thead,
+            tbody,
+            th,
+            td,
+            tr {
+                display: block;
+            }
+
+            th {
+                display: none;
+            }
+
+            tr {
+                margin-bottom: 15px;
+            }
+
+            td {
+                text-align: left;
+                position: relative;
+            }
+
+            input {
+                width: 100%;
+                box-sizing: border-box;
+                padding: 10px;
+            }
+            
+
+            #responsive {
+                display: block;
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+        }
+        form select {
+            width: 40%;
+            box-sizing: border-box;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #bbb;
+            background-color: #fff;
+            color: #333;
+            cursor: pointer;
+            appearance: none; /* Désactive le style natif de l’OS */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            transition: all 0.3s ease;
+        }
+        #famille, #type {
+        width: 100%;
+    }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <h1> ADMIN) Crée des fiches vierges </h1>
+    
+    <form action="{{ path('fiche_vierge_build') }}" method="POST">
+
+        <table>
+            <tr>
+                <th>Type de prestation</th>
+                <th>Date de début</th>
+                <th>Date de fin</th>
+            </tr>
+        <tr>
+            <td>
+            <p id="responsive">Type de prestation :</p>
+            <select id="type" name="type" required>
+                <option value="" disabled selected>Choisir le type de fiche</option>
+                <option value="ENFA">Garde d'enfant</option>
+                <option value="MENA">Menage</option>
+            </select>
+        </td>        
+        <td>
+            <p id="responsive">Date de début:</p>
+            <select id="moisDebut" name="moisDebut">
+            <option value="1">Janvier</option>
+            <option value="2">Février</option>
+            <option value="3">Mars</option>
+            <option value="4">Avril</option>
+            <option value="5">Mai</option>
+            <option value="6">Juin</option>
+            <option value="7">Juillet</option>
+            <option value="8">Août</option>
+            <option value="9">Septembre</option>
+            <option value="10">Octobre</option>
+            <option value="11">Novembre</option>
+            <option value="12">Décembre</option>
+            </select>
+            
+            <select id="anneeDebut" name="anneeDebut">
+            <!-- Options ajoutées via JS -->
+            </select>
+        </td>
+        <td> 
+            <p id="responsive">Date de fin:</p>
+            <select id="moisFin" name="moisFin">
+            <option value="1">Janvier</option>
+            <option value="2">Février</option>
+            <option value="3">Mars</option>
+            <option value="4">Avril</option>
+            <option value="5">Mai</option>
+            <option value="6">Juin</option>
+            <option value="7">Juillet</option>
+            <option value="8">Août</option>
+            <option value="9">Septembre</option>
+            <option value="10">Octobre</option>
+            <option value="11">Novembre</option>
+            <option value="12" selected>Décembre</option>
+            </select>
+            
+            <select id="anneeFin" name="anneeFin">
+            <!-- Options ajoutées via JS -->
+            </select>
+
+            </td>
+        </tr>
+    </table>
+    <button type="submit">Valider</button>
+</form>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+  // TODO Deplacer dans son propre fichier
+  const anneeCourante = new Date().getFullYear() ;
+
+  const debutSelect = document.getElementById("anneeDebut");
+  const finSelect = document.getElementById("anneeFin");
+
+  // Remplir année début
+  for (let i = 0; i <= 5; i++) {
+    const option = document.createElement("option");
+    option.value = anneeCourante + i;
+    option.textContent = anneeCourante + i;
+    debutSelect.appendChild(option);
+  }
+
+  // Remplir année fin
+  for (let i = 0; i <= 5; i++) {
+    const option = document.createElement("option");
+    option.value = anneeCourante + i;
+    option.textContent = anneeCourante + i;
+    finSelect.appendChild(option);
+  }
+
+  // Année début = année courante par défaut
+  debutSelect.value = anneeCourante;
+</script>
+
+{% endblock %}

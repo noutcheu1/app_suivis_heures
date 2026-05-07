@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Préparation à la paie{% endblock %}
+
+{% block body %}
+<h1>Préparation à la paie — {{ mois }}</h1>
+
+<ul class="menu">
+    <li>
+        <a href="{{ path('admin_prepare_paie_csv_mvc', {mois: mois}) }}">
+            <img src="{{ asset('/assets/icons/save.png') }}" alt="CSV">
+            Exporter en CSV
+        </a>
+    </li>
+</ul>
+
+{% if donneesPaie is empty %}
+    <p>Aucune donnée de paie pour ce mois.</p>
+{% else %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Intervenant</th>
+                <th>Type</th>
+                <th>Heures déclarées</th>
+                <th>Trajets</th>
+                <th>Km avec enfants</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ligne in donneesPaie %}
+            <tr>
+                <td>{{ ligne.nomComplet ?? '-' }}</td>
+                <td>{{ ligne.typePresta == 'MENA' ? 'Ménage' : 'Garde d\'enfants' }}</td>
+                <td>{{ ligne.dureeTotale ?? '-' }}</td>
+                <td>{{ ligne.nbrTrajet ?? 0 }}</td>
+                <td>{{ ligne.kmAvecEnfant ?? 0 }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+{% endblock %}

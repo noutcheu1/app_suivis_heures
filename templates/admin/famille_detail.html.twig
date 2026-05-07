@@ -1,0 +1,41 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Détail Famille{% endblock %}
+
+{% block body %}
+<h1>Famille {{ famille.nomParents ?? famille.numero ?? '' }}</h1>
+
+<ul class="menu">
+    <li><a href="{{ path('admin_familles_mvc') }}">← Retour à la liste</a></li>
+</ul>
+
+<h2>Prestations</h2>
+{% if prestations is empty %}
+    <p>Aucune prestation enregistrée.</p>
+{% else %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Intervenant</th>
+                <th>Date</th>
+                <th>Début</th>
+                <th>Fin</th>
+                <th>Type</th>
+                <th>Validé</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for p in prestations %}
+            <tr>
+                <td>{{ p.numInter }}</td>
+                <td>{{ p.datePresta|date('d/m/Y') }}</td>
+                <td>{{ p.heureDebutPresta|date('H:i') }}</td>
+                <td>{{ p.heureFinPresta|date('H:i') }}</td>
+                <td>{{ p.typePresta }}</td>
+                <td>{{ p.validerFam ? 'Oui' : 'Non' }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,14 @@
+HTTP/1.1 302 Found
+Date: Tue, 05 May 2026 14:16:11 GMT
+Server: Apache/2.4.66 (Debian)
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+X-Powered-By: PHP/8.3.30
+Cache-Control: max-age=0, must-revalidate, private
+Location: /
+X-Robots-Tag: noindex
+Expires: Tue, 05 May 2026 14:16:11 GMT
+Transfer-Encoding: chunked
+Content-Type: text/html; charset=utf-8
+

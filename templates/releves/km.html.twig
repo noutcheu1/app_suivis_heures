@@ -1,0 +1,33 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Kilomètres{% endblock %}
+
+{% block body %}
+<h1>Récapitulatif kilomètres — {{ mois }}</h1>
+
+<ul class="menu">
+    <li><a href="{{ path('intervenant_panel_mvc', {id: intervenantId}) }}">← Retour</a></li>
+</ul>
+
+<div class="stat-card">
+    <h3>{{ kmTotal|number_format(2, ',', ' ') }} km</h3>
+    <p>Total kilomètres avec enfants</p>
+</div>
+
+{% if detailsKm is not empty %}
+    <h2>Détail par famille</h2>
+    <table class="table">
+        <thead>
+            <tr><th>Famille</th><th>Km</th></tr>
+        </thead>
+        <tbody>
+        {% for d in detailsKm %}
+            <tr>
+                <td>{{ d.nomFam ?? '-' }}</td>
+                <td>{{ d.km ?? 0 }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+{% endblock %}

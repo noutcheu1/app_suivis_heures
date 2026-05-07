@@ -1,0 +1,335 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Connexion{% endblock %}
+
+{% block body %}
+<div class="container-fluid vh-100 d-flex align-items-center justify-content-center bg-light">
+    <div class="row w-100 justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-lg border-0">
+
+                <div class="card-header text-white text-center py-3 bg-secondary" id="cardHeader">
+                    <button class="btn btn-sm btn-outline-light float-start mt-1"
+                            id="btnBack" style="display:none;" title="Changer de profil">
+                        <i class="fas fa-sign-in-alt me-2"></i>
+                    </button>
+                    <h4 class="mb-0">
+
+                        <span id="titleText">Connexion</span>
+                    </h4>
+                </div>
+
+                <div class="card-body p-4">
+
+                    <!-- Étape 1 : Choix du profil -->
+                    <div id="stepChoix">
+                        <p class="text-center text-muted mb-3 fw-bold">Qui êtes-vous ?</p>
+                        <div class="d-flex gap-3 justify-content-center mb-3">
+                            <button type="button"
+                                    class="btn btn-outline-primary btn-lg flex-fill text-center py-3"
+                                    onclick="choisirType('INTER')">
+                                <i class="fas fa-id-card fa-2x d-block mb-1"></i>
+                                Intervenant
+                            </button>
+                            <button type="button"
+                                    class="btn btn-outline-success btn-lg flex-fill text-center py-3"
+                                    onclick="choisirType('FAM')">
+                                <i class="fas fa-users fa-2x d-block mb-1"></i>
+                                Famille
+                            </button>
+                        </div>
+                        <hr>
+                        <p class="text-center small text-muted mb-0">
+                            Pas encore de compte ?
+                            <a href="{{ path('app_register') }}">S'inscrire</a>
+                        </p>
+                    </div>
+
+                    <!-- Étape 2 : Formulaire login -->
+                    <div id="stepLogin" style="display:none;">
+
+                        <div id="zoneErreur" class="alert alert-danger py-2 text-center" style="display:none;">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            <span id="msgErreur"></span>
+                        </div>
+
+                        {% if error %}
+                        <div class="alert alert-danger py-2 text-center">
+                            <i class="fas fa-exclamation-triangle me-1"></i>{{ error }}
+                        </div>
+                        {% endif %}
+
+                        <form action="{{ path('app_login') }}" method="POST" id="formLogin">
+                            <input type="hidden" name="type" id="inputType" value="{{ type ?? '' }}">
+
+                            <div class="mb-3">
+                                <label for="inputId" class="form-label fw-bold">
+                                    <i class="fas fa-id-card me-1" id="iconId"></i>
+                                    <span id="textLabelId">Identifiant</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-id-card" id="iconInputId"></i>
+                                    </span>
+                                    <input type="text"
+                                           id="inputId"
+                                           name="id"
+                                           class="form-control form-control-lg"
+                                           autocomplete="username"
+                                           required>
+                                </div>
+                                <div class="form-text text-muted" id="hintId"></div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <label for="password" class="form-label fw-bold mb-0">
+                                        <i class="fas fa-lock me-1"></i>Mot de passe
+                                    </label>
+                                    <a href="#" id="forgotLink" class="small text-muted"
+                                       style="pointer-events:none;opacity:0.4;">
+                                        <i class="fas fa-question-circle"></i> Mot de passe oublié
+                                    </a>
+                                </div>
+                                <div class="input-group mt-1">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" id="password" name="password"
+                                           class="form-control form-control-lg"
+                                           autocomplete="current-password" required>
+                                    <button class="btn btn-outline-secondary" type="button"
+                                            id="togglePassword" title="Afficher/masquer">
+                                        <i class="fas fa-eye" id="toggleIcon"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="d-grid mb-3">
+                                <button type="submit" class="btn btn-lg btn-primary" id="btnSubmit">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Se connecter
+                                </button>
+                            </div>
+
+                            <div class="text-center">
+                                <span class="text-muted small">Pas encore de compte ?</span>
+                                <a href="{{ path('app_register') }}" class="small ms-1">
+                                    <i class="fas fa-user-plus me-1"></i>S'inscrire
+                                </a>
+                            </div>
+                        </form>
+
+                        <form id="forgotForm" action="{{ path('mdp_oublie_mvc') }}" method="POST" style="display:none;">
+                            <input type="hidden" name="identifiant" id="hiddenId">
+                            <input type="hidden" name="type" id="hiddenType">
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card-footer bg-light text-center py-2" id="cardFooter" style="display:none;">
+                    <small class="text-muted">
+                        <i class="fas fa-shield-alt me-1"></i>Connexion sécurisée
+                        <span class="mx-2">·</span>
+                        <button type="button" class="btn btn-link btn-sm text-muted p-0"
+                                onclick="retourChoix()">
+                            Changer de profil
+                        </button>
+                    </small>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+.card        { border-radius: 15px; }
+.card-header { border-radius: 15px 15px 0 0 !important; transition: background-color .3s; }
+.card-footer { border-radius: 0 0 15px 15px; }
+
+@media (max-width: 576px) {
+    .card {
+        border-radius: 10px;
+    }
+
+    .card-header h4 {
+        font-size: 1.2rem;
+    }
+
+    .btn-lg {
+        padding: 10px;
+        font-size: 0.95rem;
+    }
+
+    .form-control-lg {
+        padding: 10px;
+        font-size: 0.95rem;
+    }
+
+    .input-group-text {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .card-body {
+        padding: 1.5rem 1rem;
+    }
+}
+#btnBack {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+}
+
+.card-header {
+    position: relative;
+}
+
+input, select, textarea {
+    font-size: 16px;
+}
+input, select, textarea {
+    font-size: 16px;
+}
+body {
+    overflow-x: hidden;
+}
+</style>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+let currentType = '{{ type ?? "" }}';
+
+const CONFIG = {
+    INTER: {
+        label: 'Numéro de sécurité sociale',
+        icon: 'fa-id-card', placeholder: '1.23.45.67.890.123.45',
+        hint: 'Format : 1.23.45.67.890.123.45', maxlength: 21,
+        headerBg: 'bg-primary', btnClass: 'btn-primary',
+        badge: '<span class="badge bg-white text-primary ms-1" style="font-size:.7em">Intervenant</span>',
+        format: formatSS
+    },
+    FAM: {
+        label: 'Numéro client (PM ou PGE)',
+        icon: 'fa-users', placeholder: 'PGE1234',
+        hint: 'Format : PGE1234 ou PM1234', maxlength: 6,
+        headerBg: 'bg-success', btnClass: 'btn-success',
+        badge: '<span class="badge bg-white text-success ms-1" style="font-size:.7em">Famille</span>',
+        format: formatFAM
+    }
+};
+
+// DOM refs
+const stepChoix   = document.getElementById('stepChoix');
+const stepLogin   = document.getElementById('stepLogin');
+const cardHeader  = document.getElementById('cardHeader');
+const cardFooter  = document.getElementById('cardFooter');
+const titleText   = document.getElementById('titleText');
+const btnBack     = document.getElementById('btnBack');
+const inputId     = document.getElementById('inputId');
+const inputType   = document.getElementById('inputType');
+const iconId      = document.getElementById('iconId');
+const iconInputId = document.getElementById('iconInputId');
+const textLabel   = document.getElementById('textLabelId');
+const hintId      = document.getElementById('hintId');
+const btnSubmit   = document.getElementById('btnSubmit');
+const forgotLink  = document.getElementById('forgotLink');
+const forgotForm  = document.getElementById('forgotForm');
+const hiddenId    = document.getElementById('hiddenId');
+const hiddenType  = document.getElementById('hiddenType');
+const toggleBtn   = document.getElementById('togglePassword');
+const toggleIcon  = document.getElementById('toggleIcon');
+const passwordFld = document.getElementById('password');
+
+function choisirType(type) {
+    currentType = type;
+    const c = CONFIG[type];
+
+    // Header
+    cardHeader.className = `card-header text-white text-center py-3 ${c.headerBg}`;
+    titleText.innerHTML  = `<i class="fas fa-sign-in-alt me-2"></i>Connexion ${c.badge}`;
+    btnBack.style.display = 'inline-block';
+
+    // Champs
+    inputType.value     = type;
+    textLabel.textContent = c.label;
+    iconId.className    = `fas ${c.icon} me-1`;
+    iconInputId.className = `fas ${c.icon}`;
+    inputId.placeholder = c.placeholder;
+    inputId.maxLength   = c.maxlength;
+    hintId.textContent  = c.hint;
+    btnSubmit.className = `btn btn-lg w-100 ${c.btnClass}`;
+
+    // Reset
+    inputId.value = '';
+    passwordFld.value = '';
+    forgotLink.style.pointerEvents = 'none';
+    forgotLink.style.opacity = '0.4';
+
+    // Afficher
+    stepChoix.style.display  = 'none';
+    stepLogin.style.display  = 'block';
+    cardFooter.style.display = 'block';
+    inputId.focus();
+}
+
+function retourChoix() {
+    currentType = '';
+    cardHeader.className = 'card-header text-white text-center py-3 bg-secondary';
+    titleText.innerHTML  = '<i class="fas fa-sign-in-alt me-2"></i>Connexion';
+    btnBack.style.display = 'none';
+    stepLogin.style.display  = 'none';
+    stepChoix.style.display  = 'block';
+    cardFooter.style.display = 'none';
+    document.getElementById('zoneErreur').style.display = 'none';
+}
+
+btnBack.addEventListener('click', retourChoix);
+
+inputId.addEventListener('input', () => {
+    if (!currentType) return;
+    CONFIG[currentType].format();
+    const ready = inputId.value.length >= CONFIG[currentType].maxlength;
+    forgotLink.style.pointerEvents = ready ? 'auto' : 'none';
+    forgotLink.style.opacity = ready ? '1' : '0.4';
+});
+
+forgotLink.addEventListener('click', e => {
+    e.preventDefault();
+    hiddenId.value   = inputId.value;
+    hiddenType.value = currentType;
+    forgotForm.submit();
+});
+
+function formatSS() {
+    let v = inputId.value.replace(/\D/g, '');
+    if (v.length > 1)  v = v.slice(0,1)  + '.' + v.slice(1);
+    if (v.length > 4)  v = v.slice(0,4)  + '.' + v.slice(4);
+    if (v.length > 7)  v = v.slice(0,7)  + '.' + v.slice(7);
+    if (v.length > 10) v = v.slice(0,10) + '.' + v.slice(10);
+    if (v.length > 14) v = v.slice(0,14) + '.' + v.slice(14);
+    if (v.length > 18) v = v.slice(0,18) + '.' + v.slice(18);
+    inputId.value = v;
+}
+
+function formatFAM() {
+    inputId.value = inputId.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+        const isPwd = passwordFld.type === 'password';
+        passwordFld.type = isPwd ? 'text' : 'password';
+        toggleIcon.classList.toggle('fa-eye');
+        toggleIcon.classList.toggle('fa-eye-slash');
+    });
+}
+
+// Init : si type déjà défini (retour après erreur serveur)
+if (currentType && CONFIG[currentType]) {
+    choisirType(currentType);
+}
+</script>
+{% endblock %}

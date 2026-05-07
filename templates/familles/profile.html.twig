@@ -1,0 +1,44 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Profil - {{ famille.nomFamille }}{% endblock %}
+
+{% block body %}
+<div class="profile-card">
+    <div class="profile-header">Profil de la famille</div>
+    <div class="profile-name">
+        <h2>{{ famille.nomFamille }}</h2>
+    </div>
+
+    <div class="profile-info">
+        <ul>
+            <li><strong>Numéro client :</strong> {{ famille.numeroFamille }}</li>
+            {% if famille.adresse %}
+            <li><strong>Adresse :</strong>
+                {{ famille.adresse }}
+                {% if famille.codePostal %} {{ famille.codePostal }}{% endif %}
+                {% if famille.ville %} {{ famille.ville }}{% endif %}
+            </li>
+            {% endif %}
+            {% if famille.telDom %}
+            <li><strong>Téléphone :</strong> {{ famille.telDom }}</li>
+            {% endif %}
+            {% if famille.email %}
+            <li><strong>Email :</strong> <a href="mailto:{{ famille.email }}">{{ famille.email }}</a></li>
+            {% endif %}
+            {% if famille.secteur %}
+            <li><strong>Secteur :</strong> {{ famille.secteur }}</li>
+            {% endif %}
+            {% if famille.quartier %}
+            <li><strong>Quartier :</strong> {{ famille.quartier }}</li>
+            {% endif %}
+            {% if famille.modePaiement %}
+            <li><strong>Mode de paiement :</strong> {{ famille.modePaiement }}</li>
+            {% endif %}
+        </ul>
+
+        <a href="{{ path('famille_panel_mvc') }}" class="btn btn-primary mt-3">
+            ← Retour à mon espace
+        </a>
+    </div>
+</div>
+{% endblock %}

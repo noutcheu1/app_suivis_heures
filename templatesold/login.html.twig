@@ -1,0 +1,112 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Connexion{% endblock %}
+
+{% block body %}
+<h1>Connexion {% if type == 'INTER' %}intervenant{% elseif type == 'FAM' %}famille{% endif %}</h1>
+
+{% if error %}
+    <p style="color: red; text-align: center;">{{ error }}</p>
+{% endif %}
+
+<form action="{{ path('app_login') }}" method="POST">
+    {% if type == 'INTER' %}
+        <label for="id">Numéro sécurité social :</label>
+        <input type="text" id="id" name="id" maxlength="21" required>
+    {% elseif type == 'FAM' %}
+        <label for="id">Numéro client :</label>
+        <input type="text" id="id" name="id" maxlength="6" required pattern="^[A-Z]{2,3}\d{4}$"
+               title="Le format doit être 2 ou 3 lettres suivies de 4 chiffres">
+    {% endif %}
+
+    <label for="password">Mot de passe :</label>
+    <div class="password-wrapper">
+        <input type="password" id="password" name="password" required>
+        <span id="togglePassword">
+            <i class="fa fa-eye" aria-hidden="true"></i>
+        </span>
+    </div>
+
+    <a href="#" id="forgotLink" style="pointer-events:none;opacity:0.5;">
+        Mot de passe oublié
+        {% if type == 'INTER' %}(saisir le numéro de sécurité social avant){% elseif type == 'FAM' %}(saisir le numéro client avant){% endif %}
+    </a>
+
+    <button type="submit">Se connecter</button>
+</form>
+
+<form id="forgotForm" action="{{ path('forgot_password') }}" method="POST" style="display:none;">
+    <input type="hidden" name="id" id="hiddenId">
+</form>
+{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .password-wrapper {
+        position: relative;
+        width: 100%;
+    }
+    .password-wrapper input { width: 100%; padding-right: 40px; box-sizing: border-box; }
+    .password-wrapper span#togglePassword {
+        position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
+        cursor: pointer; color: #888;
+    }
+</style>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+    const idInput = document.getElementById('id');
+    const forgotLink = document.getElementById('forgotLink');
+    const hiddenId = document.getElementById('hiddenId');
+    const forgotForm = document.getElementById('forgotForm');
+
+    const requiredLength = {{ type == 'INTER' ? 21 : 6 }};
+
+    idInput.addEventListener('input', () => {
+        if (idInput.value.length >= requiredLength) {
+            forgotLink.style.pointerEvents = 'auto';
+            forgotLink.style.opacity = '1';
+        } else {
+            forgotLink.style.pointerEvents = 'none';
+            forgotLink.style.opacity = '0.5';
+        }
+    });
+
+    forgotLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        hiddenId.value = idInput.value;
+        forgotForm.submit();
+    });
+
+    // toggle password
+    const passwordField = document.getElementById("password");
+    const togglePassword = document.getElementById("togglePassword");
+    togglePassword.addEventListener("click", () => {
+        const icon = togglePassword.querySelector("i");
+        const isPassword = passwordField.type === "password";
+        passwordField.type = isPassword ? "text" : "password";
+        icon.classList.toggle("fa-eye");
+        icon.classList.toggle("fa-eye-slash");
+    });
+
+    // input formatting
+    idInput.addEventListener('input', () => {
+        let value = idInput.value;
+        {% if type == 'INTER' %}
+            value = value.replace(/\D/g, '');
+            if (value.length > 1) value = value.slice(0,1)+'.'+value.slice(1);
+            if (value.length > 4) value = value.slice(0,4)+'.'+value.slice(4);
+            if (value.length > 7) value = value.slice(0,7)+'.'+value.slice(7);
+            if (value.length > 10) value = value.slice(0,10)+'.'+value.slice(10);
+            if (value.length > 14) value = value.slice(0,14)+'.'+value.slice(14);
+            if (value.length > 18) value = value.slice(0,18)+'.'+value.slice(18);
+        {% elseif type == 'FAM' %}
+            value = value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+        {% endif %}
+        idInput.value = value;
+    });
+</script>
+{% endblock %}

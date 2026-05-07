@@ -1,0 +1,34 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Exceptions de tarif{% endblock %}
+
+{% block body %}
+<h1>Exceptions de tarif</h1>
+
+{% if exceptions is empty %}
+    <p>Aucune exception de tarif configurée.</p>
+{% else %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Famille</th>
+                <th>Type</th>
+                <th>Taux</th>
+                <th>Date début</th>
+                <th>Date fin</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for e in exceptions %}
+            <tr>
+                <td>{{ e.numFam ?? '-' }}</td>
+                <td>{{ e.typePresta ?? '-' }}</td>
+                <td>{{ e.taux ?? '-' }} €</td>
+                <td>{{ e.dateDebut ?? '-' }}</td>
+                <td>{{ e.dateFin ?? '-' }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+{% endblock %}

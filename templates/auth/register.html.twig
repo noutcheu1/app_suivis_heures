@@ -1,0 +1,237 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Inscription{% endblock %}
+
+{% block body %}
+<div class="container-fluid vh-100 d-flex align-items-center justify-content-center bg-light">
+    <div class="row w-100 justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-success text-white text-center py-3">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-plus me-2"></i>
+                        Inscription 
+                        {% if type == 'INTER' %}Intervenant{% elseif type == 'FAM' %}Famille{% endif %}
+                    </h4>
+                </div>
+                
+                <div class="card-body p-4">
+                    {% if error is defined and error %}
+                    <div class="alert alert-danger text-center">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {{ error }}
+                    </div>
+                    {% endif %}
+
+                    <div id="error-message" class="alert alert-danger text-center" style="display: none;">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <span id="error-text"></span>
+                    </div>
+
+                    <form id="create_login_form" action="{{ path('app_register') }}" method="POST">
+                        <input type="hidden" id="type" name="type" value="{{ type }}">
+                        
+                        <div class="mb-3">
+                            <label for="id_conexion" class="form-label fw-bold">
+                                {% if type == 'INTER' %}
+                                    <i class="fas fa-id-card me-1"></i>Numéro sécurité sociale
+                                {% else %}
+                                    <i class="fas fa-users me-1"></i>Numéro client
+                                {% endif %}
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    {% if type == 'INTER' %}
+                                        <i class="fas fa-id-card"></i>
+                                    {% else %}
+                                        <i class="fas fa-users"></i>
+                                    {% endif %}
+                                </span>
+                                <input type="text"
+                                       id="id_conexion"
+                                       name="id"
+                                       class="form-control form-control-lg"
+                                       maxlength="{{ type == 'INTER' ? '21' : '7' }}"
+                                       required
+                                       {% if type == 'FAM' %}
+                                       pattern="^[A-Z]{2,3}\d{4}$"
+                                       title="Le format doit être 2 ou 3 lettres suivies de 4 chiffres"
+                                       {% endif %}>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label fw-bold">
+                                <i class="fas fa-lock me-1"></i>Mot de passe
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <input type="password" 
+                                       id="password" 
+                                       name="password" 
+                                       class="form-control form-control-lg" 
+                                       required>
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i class="fas fa-eye" id="toggleIcon"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">
+                                <small>Minimum 8 caractères</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password2" class="form-label fw-bold">
+                                <i class="fas fa-lock me-1"></i>Confirmer mot de passe
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <input type="password" 
+                                       id="password2" 
+                                       name="password2" 
+                                       class="form-control form-control-lg" 
+                                       required>
+                                <span class="input-group-text" id="passwordMatch">
+                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                                </span>
+                            </div>
+                            <div class="form-text">
+                                <small id="match-text">Les mots de passe doivent correspondre</small>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button id="create_login" type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>
+                                S'inscrire
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-3">
+                        <span class="text-muted">Déjà un compte ?</span>
+                        <a href="{{ path('app_login') }}" class="text-decoration-none">
+                            <i class="fas fa-sign-in-alt me-1"></i>Se connecter
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+.card {
+    border-radius: 15px;
+}
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+}
+</style>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+
+<script>
+const idInput = document.getElementById('id_conexion');
+const passwordField = document.getElementById("password");
+const passwordField2 = document.getElementById("password2");
+const togglePassword = document.getElementById("togglePassword");
+const toggleIcon = document.getElementById("toggleIcon");
+const form = document.getElementById('create_login_form');
+const errorMessage = document.getElementById('error-message');
+const errorText = document.getElementById('error-text');
+const passwordMatch = document.getElementById('passwordMatch');
+const matchText = document.getElementById('match-text');
+
+// Toggle password visibility
+if (togglePassword) {
+    togglePassword.addEventListener("click", () => {
+        const isPassword = passwordField.type === "password";
+        passwordField.type = isPassword ? "text" : "password";
+        passwordField2.type = isPassword ? "text" : "password";
+        toggleIcon.classList.toggle("fa-eye");
+        toggleIcon.classList.toggle("fa-eye-slash");
+    });
+}
+
+// Password match validation
+function checkPasswordMatch() {
+    const password = passwordField.value;
+    const password2 = passwordField2.value;
+    const checkIcon = passwordMatch.querySelector('.fa-check');
+    const timesIcon = passwordMatch.querySelector('.fa-times');
+    
+    if (password2.length > 0) {
+        if (password === password2) {
+            checkIcon.style.display = 'inline';
+            timesIcon.style.display = 'none';
+            matchText.textContent = 'Les mots de passe correspondent';
+            matchText.className = 'form-text text-success';
+        } else {
+            checkIcon.style.display = 'none';
+            timesIcon.style.display = 'inline';
+            matchText.textContent = 'Les mots de passe ne correspondent pas';
+            matchText.className = 'form-text text-danger';
+        }
+    } else {
+        checkIcon.style.display = 'none';
+        timesIcon.style.display = 'none';
+        matchText.textContent = 'Les mots de passe doivent correspondre';
+        matchText.className = 'form-text';
+    }
+}
+
+passwordField2.addEventListener('input', checkPasswordMatch);
+passwordField.addEventListener('input', checkPasswordMatch);
+
+// Form validation
+form.addEventListener('submit', (e) => {
+    const password = passwordField.value;
+    const password2 = passwordField2.value;
+    
+    if (password.length < 8) {
+        e.preventDefault();
+        errorMessage.style.display = 'block';
+        errorText.textContent = 'Le mot de passe doit contenir au moins 8 caractères';
+        return;
+    }
+    
+    if (password !== password2) {
+        e.preventDefault();
+        errorMessage.style.display = 'block';
+        errorText.textContent = 'Les mots de passe ne correspondent pas';
+        return;
+    }
+    
+    errorMessage.style.display = 'none';
+});
+
+// Input formatting
+idInput.addEventListener('input', () => {
+    let value = idInput.value;
+    {% if type == 'INTER' %}
+        value = value.replace(/\D/g, '');
+        if (value.length > 1) value = value.slice(0,1)+'.'+value.slice(1);
+        if (value.length > 4) value = value.slice(0,4)+'.'+value.slice(4);
+        if (value.length > 7) value = value.slice(0,7)+'.'+value.slice(7);
+        if (value.length > 10) value = value.slice(0,10)+'.'+value.slice(10);
+        if (value.length > 14) value = value.slice(0,14)+'.'+value.slice(14);
+        if (value.length > 18) value = value.slice(0,18)+'.'+value.slice(18);
+    {% elseif type == 'FAM' %}
+        value = value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+    {% endif %}
+    idInput.value = value;
+});
+</script>
+{% endblock %}

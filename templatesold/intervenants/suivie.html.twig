@@ -1,0 +1,120 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Heures de {{ user.nom_Candidats }}{% endblock %}
+
+{% block body %}
+
+{% if isAdmin %}
+    {% if editId %}
+        <h1>ADMIN – Modifier une erreur</h1>
+    {% else %}
+        <h1>ADMIN – Ajouter des heures oubliées</h1>
+    {% endif %}
+{% else %}
+    <p>Indiquez les heures auxquelles vous avez travaillé</p>
+    <p>
+        <strong>ATTENTION :</strong>
+        Vous pouvez ajouter des heures pour les {{ nbrJourSaisie }} derniers jours.
+    </p>
+{% endif %}
+
+<form id="form_ajout_heure" class="form_ajout_heure" action="">
+
+    <div class="form-group">
+        <label for="date">Date</label>
+        <input class="form-control" type="date" class="form-control" id="date" name="date" required value="">
+        <small class="form-text text-muted">Date de la prestation</small>
+    </div>
+
+    <div class="form-group">
+        <label for="famille">Famille de votre planning :</label>
+        <div class="row">
+            <div class="col-auto">
+                <select class="form-control" name="famille" id="famille">
+                            <option value="" disabled selected>Choisir une famille</option>
+                            <option value="0" data-prestations="ENFA">Famille OCCASIONNELLE</option>
+
+                            {% for famille in familles %}
+                                <option 
+                                    data-num="{{ famille.numero_Famille }}"
+                                    data-prestations="{{ famille.prestations }}"
+                                    data-nom="{{ famille.nom_parents }}"
+                                    value="{{ famille.numero_Famille }}">
+                                    {{ famille.nom_parents }}
+                                </option>
+                            {% endfor %}
+                </select>
+                <small class="form-text text-muted">Choisir l'une des familles ou ménages qui vous sont assignés</small>
+            </div>
+            <div class="col-auto">
+                <input type="text" id="nomRemplacement" name="nomRemplacement" class="form-control" placeholder="Saisir le nom ici..." hidden >
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="type">Type de prestation : </label>
+        <select class="form-control" id="type" name="type" required>
+            <option value="" disabled selected>A choisir</option>
+            <option value="ENFA">Garde d'enfant</option>
+            <option value="MENA">Menage</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label id="trajetTxt" hidden for="trajetInput">Trajet en voiture AVEC les enfants en Km :</label>
+        <input type="number" id="trajetInput" name="trajet" class="form-control" placeholder="exemple : 4,5" max='100' step="0.1" hidden  ?>
+    </div>
+
+
+
+    <div class="form-group">
+
+        <div class="row">
+            <div class="col">
+                <label  for="famille">Heure de début : </label>
+            </div>
+            <div class="col">
+                <label for="famille">Heure de fin : </label>
+            </div>
+        </div>
+        
+
+        <div class="row">
+            <div class="col">
+                <select id="heureDebut" name="heureDebut" required>
+                            <!-- Options ajoutées via JS -->
+                </select>
+                <strong>:</strong>
+                <select id="minuteDebut" name="minuteDebut" required>
+                          <!-- Options ajoutées via JS -->
+                </select>
+            </div>
+            <div class="col">
+                <select id="heureFin" name="heureFin" required>
+                        <!-- Options ajoutées via JS -->
+                </select>
+                <strong>:</strong>
+                <select id="minuteFin" name="minuteFin" required>
+                        <!-- Options ajoutées via JS -->
+                </select> 
+            </div>
+        </div>
+        
+    </div>
+
+    <button type="submit">Valider</button>
+</form>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+
+<script>
+const ID={{user.id}};
+</script>
+
+<script src="{{ asset('/assets/js/suivie.js') }}" defer></script>
+
+{% endblock %}

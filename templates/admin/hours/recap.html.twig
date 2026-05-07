@@ -1,0 +1,45 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Récapitulatif des interventions{% endblock %}
+
+{% block body %}
+<h1>Récapitulatif des interventions — {{ mois }}</h1>
+
+<ul class="menu">
+    <li>
+        <a href="{{ path('admin_recapitulatif_csv_mvc', {mois: mois}) }}">
+            <img src="{{ asset('/assets/icons/save.png') }}" alt="CSV">
+            Exporter en CSV
+        </a>
+    </li>
+</ul>
+
+{% if recapitulatif is empty %}
+    <p>Aucune intervention pour ce mois.</p>
+{% else %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Intervenant</th>
+                <th>Type</th>
+                <th>Famille</th>
+                <th>Heures</th>
+                <th>Trajets</th>
+                <th>Km avec enfants</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ligne in recapitulatif %}
+            <tr>
+                <td>{{ ligne.nomComplet ?? '-' }}</td>
+                <td>{{ ligne.typePresta == 'MENA' ? 'Ménage' : 'Garde d\'enfants' }}</td>
+                <td>{{ ligne.nomFam ?? '-' }}</td>
+                <td>{{ ligne.dureeTotale ?? '-' }}</td>
+                <td>{{ ligne.nbrTrajet ?? 0 }}</td>
+                <td>{{ ligne.kmAvecEnfant ?? 0 }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Liste des intervenants{% endblock %}
+
+{% block body %}
+<h1>Liste des intervenants</h1>
+
+<div class="search-container">
+    <input
+        type="text"
+        class="search-input"
+        id="searchBar"
+        onkeyup="filterIntervenants()"
+        placeholder="Rechercher un intervenant..."
+    >
+</div>
+
+<ul class="menu" id="intervenantList">
+    {% if users is not empty %}
+        {% for user in users %}
+            <li class="search-item">
+                <a href="{{ path('intervenant_panel', {id: user.id_intervenant}) }}">
+                    <img src="{{ asset(
+                        user.genre == 'MR'
+                            ? 'assets/icons/boy.png'
+                            : user.genre in ['MME', 'Mel']
+                                ? 'assets/icons/woman.png'
+                                : 'assets/icons/user.png'
+                    ) }}" alt="Profile Picture">
+
+                    <span class="name">
+                        {{ user.nom }} {{ user.prenom }}
+                    </span>
+                </a>
+            </li>
+        {% endfor %}
+    {% else %}
+        <p class="error">Aucun intervenant trouvé.</p>
+    {% endif %}
+</ul>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="{{ asset('assets/js/search_bar.js') }}" ></script>
+{% endblock %}

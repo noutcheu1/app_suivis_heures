@@ -1,0 +1,56 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Détail Intervenant{% endblock %}
+
+{% block body %}
+
+<h1>Détail Intervenant</h1>
+
+{% if user %}
+    <p>
+        {{ user.genre is defined ? (user.genre in ['MME', 'Mel'] ? 'Intervenante' : 'Intervenant') : 'Intervenant' }}: 
+        <strong>{{ user.nom ~ ' ' ~ user.prenom }}</strong>
+    </p>
+
+    <ul class="menu">
+        <li>
+            <a href="{{ path('intervenant_profile', {'id': user.id_intervenant}) }}">
+                <img src="{{ asset('assets/icons/user.png') }}" alt="Profile">
+                Profil
+            </a>
+        </li>
+        <li>
+            <a href="{{ path('intervenant_suivie', {'id': user.id_intervenant}) }}">
+                <img src="{{ asset('assets/icons/calendar.png') }}" alt="ajouter">
+                Ajouter
+            </a>
+        </li>
+        <li>
+            <a href="{{ path('intervenant_heures', {'id': user.id_intervenant}) }}">
+                <img src="{{ asset('assets/icons/calendar.png') }}" alt="Les heures">
+                Les heures enregistrées
+            </a>
+        </li>
+        <li>
+            <a href="{{ path('intervenant_fiches', {'type': 'ENFA', 'page': 1, 'mois': 0, 'id': user.id_intervenant}) }}">
+                <img src="{{ asset('assets/icons/folderENFA.png') }}" alt="Fiches d'heures">
+                Fiches d'heures Garde d'enfant
+            </a>
+        </li>
+        <li>
+            <a href="{{ path('intervenant_fiches', {'type': 'MENA', 'page': 1, 'mois': 0, 'id': user.id_intervenant}) }}">
+                <img src="{{ asset('assets/icons/folderMENA.png') }}" alt="Fiches d'heures">
+                Fiches d'heures Menage
+            </a>
+        </li>
+        <li>
+            <a href="{{ path('intervenant_settings', {'id': user.id_intervenant}) }}">
+                <img src="{{ asset('assets/icons/settings.png') }}" alt="Paramètres du compte">
+                Paramètres du compte
+            </a>
+        </li>
+    </ul>
+{% else %}
+    <p style="color: red; text-align: center;">L'intervenant(e) n'a pas été trouvé.</p>
+{% endif %}
+{% endblock %}

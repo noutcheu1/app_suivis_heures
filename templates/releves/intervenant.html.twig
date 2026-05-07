@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Relevés intervenant{% endblock %}
+
+{% block body %}
+<h1>Relevés — mois {{ mois }}</h1>
+
+<ul class="menu">
+    <li><a href="{{ path('intervenant_panel_mvc', {id: intervenantId}) }}">← Retour</a></li>
+    <li>
+        <a href="{{ path('releves_intervenant_pdf_mvc', {intervenantId: intervenantId, mois: mois}) }}">
+            <img src="{{ asset('/assets/icons/save.png') }}" alt="PDF">
+            Télécharger en PDF
+        </a>
+    </li>
+</ul>
+
+{% if heures is empty %}
+    <p>Aucune heure enregistrée pour ce mois.</p>
+{% else %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Famille</th>
+                <th>Date</th>
+                <th>Début</th>
+                <th>Fin</th>
+                <th>Type</th>
+                <th>Km</th>
+                <th>Validé</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for h in heures %}
+            <tr>
+                <td>{{ h.nomFam }}</td>
+                <td>{{ h.datePresta|date('d/m/Y') }}</td>
+                <td>{{ h.heureDebutPresta|date('H:i') }}</td>
+                <td>{{ h.heureFinPresta|date('H:i') }}</td>
+                <td>{{ h.typePresta == 'MENA' ? 'Ménage' : 'Garde d\'enfants' }}</td>
+                <td>{{ h.kmAvecEnfant ?? 0 }}</td>
+                <td>{{ h.validerFam ? 'Oui' : 'Non' }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+{% endblock %}

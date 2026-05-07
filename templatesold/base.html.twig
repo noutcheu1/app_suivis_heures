@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Mon App{% endblock %}</title>
+    <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
+    {% block stylesheets %}
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    {% endblock %}
+</head>
+<body>
+    <header class="container-fluid">
+        <h1>Mon Application</h1>
+        <a style="color:white;" href="https://lamaisondeschaudoudoux.fr">La Maison des Chaudoudoux</a>
+        
+        <nav>
+            <ul>
+            {% if auth %}
+                <li> <a href="{{ path('dashboard') }}"> Accueil </li>
+                <li> <a href="{{ path('app_logout') }}">Se déconnecter</a> </li>
+            {% else %}
+                <li> <a href="{{ path('app_login') }}">Connexion</a> </li>
+                <li> <a href="{{ path('app_register') }}">Inscription</a> </li>
+            {% endif %}
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% block body %}{% endblock %}
+    </main>
+
+    {% block modal %} 
+        <div class="modal" id="modalMessage" tabindex="-1" >
+            <div class="modal-dialog">
+                <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Titre</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    Contenu
+                </div>
+                <div class="modal-footer" id="modalFooter">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+                </div>
+            </div>
+        </div>
+    {% endblock %}
+
+    {% block javascripts %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous" defer></script>
+    <script src="{{ asset('/assets/js/app.js') }}"></script>
+    {% endblock %}
+</body>
+</html>

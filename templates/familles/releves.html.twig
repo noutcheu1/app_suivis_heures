@@ -1,0 +1,31 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Relevés famille{% endblock %}
+
+{% block body %}
+<h1>Relevés — famille {{ famille.nomParents ?? famille.numero ?? '' }}</h1>
+<p>Mois : <strong>{{ mois }}</strong></p>
+
+<ul class="menu">
+    <li><a href="{{ path('famille_detail_mvc', {numFam: famille.numero}) }}">← Retour</a></li>
+</ul>
+
+{% if releves is empty %}
+    <p>Aucun relevé disponible pour ce mois.</p>
+{% else %}
+    <table class="table">
+        <thead>
+            <tr><th>Mois</th><th>Heures</th><th>Statut</th></tr>
+        </thead>
+        <tbody>
+        {% for r in releves %}
+            <tr>
+                <td>{{ r.mois ?? '-' }}</td>
+                <td>{{ r.heures ?? '-' }}</td>
+                <td>{{ r.statut ?? '-' }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+{% endblock %}

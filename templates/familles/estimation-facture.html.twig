@@ -1,0 +1,37 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Estimation facture{% endblock %}
+
+{% block body %}
+<h1>Estimation de facture</h1>
+<p>Famille : <strong>{{ famille.nomParents ?? famille.numero ?? '' }}</strong></p>
+<p>Mois : <strong>{{ estimation.mois }}</strong></p>
+
+<ul class="menu">
+    <li><a href="{{ path('famille_detail_mvc', {numFam: famille.numero}) }}">← Retour</a></li>
+</ul>
+
+<div class="stat-card">
+    <h3>{{ estimation.montantTotal|number_format(2, ',', ' ') }} €</h3>
+    <p>Montant estimé</p>
+</div>
+
+{% if estimation.details is not empty %}
+    <h2>Détail</h2>
+    <table class="table">
+        <thead>
+            <tr><th>Type</th><th>Heures</th><th>Taux</th><th>Montant</th></tr>
+        </thead>
+        <tbody>
+        {% for d in estimation.details %}
+            <tr>
+                <td>{{ d.type ?? '-' }}</td>
+                <td>{{ d.heures ?? 0 }}</td>
+                <td>{{ d.taux ?? 0 }} €</td>
+                <td>{{ d.montant ?? 0 }} €</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Tableau de bord Admin{% endblock %}
+
+{% block body %}
+<h1>Tableau de bord Administrateur</h1>
+
+<div class="stats-cards">
+    <div class="stat-card">
+        <h3>{{ stats.total_intervenants ?? '-' }}</h3>
+        <p>Intervenants</p>
+    </div>
+    <div class="stat-card">
+        <h3>{{ stats.total_familles ?? '-' }}</h3>
+        <p>Familles</p>
+    </div>
+    <div class="stat-card">
+        <h3>{{ stats.heures_ce_mois ?? '-' }}</h3>
+        <p>Heures ce mois</p>
+    </div>
+</div>
+
+<div class="menu-sections">
+    <div class="menu-section">
+        <h2>Intervenants</h2>
+        <ul class="menu">
+            <li><a href="{{ path('admin_intervenants_mvc') }}">Liste des intervenants</a></li>
+        </ul>
+    </div>
+    <div class="menu-section">
+        <h2>Familles</h2>
+        <ul class="menu">
+            <li><a href="{{ path('admin_familles_mvc') }}">Liste des familles</a></li>
+            <li><a href="{{ path('admin_signalements_mvc') }}">Signalements familles</a></li>
+        </ul>
+    </div>
+    <div class="menu-section">
+        <h2>Paie et export</h2>
+        <ul class="menu">
+            <li><a href="{{ path('admin_prepare_paie_mvc') }}">Préparation à la paie</a></li>
+            <li><a href="{{ path('admin_recapitulatif_mvc') }}">Récapitulatif des interventions</a></li>
+            <li><a href="{{ path('admin_fiches_vierges_mvc') }}">Fiches relevé vierges</a></li>
+        </ul>
+    </div>
+    <div class="menu-section">
+        <h2>Configuration</h2>
+        <ul class="menu">
+            <li><a href="{{ path('admin_exceptions_facturation_mvc') }}">Exceptions de tarif</a></li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

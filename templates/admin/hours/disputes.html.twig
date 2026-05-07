@@ -1,0 +1,42 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Signalements familles{% endblock %}
+
+{% block body %}
+<h1>Signalements des familles</h1>
+
+{% if signalements is empty %}
+    <p>Aucun signalement en attente.</p>
+{% else %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Intervenant</th>
+                <th>Famille</th>
+                <th>Date</th>
+                <th>Début</th>
+                <th>Fin</th>
+                <th>Type</th>
+                <th>Remarque</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for s in signalements %}
+            <tr>
+                <td>{{ s.numInter }}</td>
+                <td>{{ s.nomFam }}</td>
+                <td>{{ s.datePresta|date('d/m/Y') }}</td>
+                <td>{{ s.heureDebutPresta|date('H:i') }}</td>
+                <td>{{ s.heureFinPresta|date('H:i') }}</td>
+                <td>{{ s.typePresta }}</td>
+                <td>{{ s.remarque }}</td>
+                <td>
+                    <a href="{{ path('intervenant_suivie_mvc', {id: s.numInter}) }}?edite={{ s.id }}" class="btn-vert">Modifier</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+{% endblock %}

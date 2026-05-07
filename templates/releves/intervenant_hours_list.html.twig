@@ -1,0 +1,281 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Liste des heures - Intervenant{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .hours-table {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .hours-header {
+        background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px 10px 0 0;
+        margin: -1.5rem -1.5rem 1.5rem -1.5rem;
+    }
+    
+    .hour-row {
+        transition: background-color 0.3s ease;
+    }
+    
+    .hour-row:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .duration-cell {
+        font-weight: 600;
+        color: #28a745;
+    }
+    
+    .total-row {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        font-weight: bold;
+    }
+    
+    .type-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .type-enfa {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .type-mena {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .type-autre {
+        background: #f8d7da;
+        color: #721c24;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <div class="hours-table">
+        <div class="hours-header">
+            <h3 class="mb-0">
+                <i class="fas fa-clock me-2"></i>
+                Détail des heures d'intervention
+            </h3>
+        </div>
+        
+        {% if prestations is defined and prestations|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover" id="hoursTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Famille</th>
+                            <th>Type</th>
+                            <th>Début</th>
+                            <th>Fin</th>
+                            <th>Durée</th>
+                            <th>KM</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prestation in prestations %}
+                            <tr class="hour-row" 
+                                data-debut="{{ prestation.heureDebutPresta }}" 
+                                data-fin="{{ prestation.heureFinPresta }}">
+                                <td>{{ prestation.datePresta|date('d/m/Y') }}</td>
+                                <td>{{ prestation.nomFam|default('-') }}</td>
+                                <td>
+                                    <span class="type-badge 
+                                        {% if prestation.typePresta == 'ENFA' %}type-enfa
+                                        {% elseif prestation.typePresta == 'MENA' %}type-mena
+                                        {% else %}type-autre{% endif %}">
+                                        {{ prestation.typePresta|default('AUTRE') }}
+                                    </span>
+                                </td>
+                                <td>{{ prestation.heureDebutPresta|default('-') }}</td>
+                                <td>{{ prestation.heureFinPresta|default('-') }}</td>
+                                <td class="duration-cell" data-calculated="false">
+                                    <span class="placeholder-glow">
+                                        <span class="placeholder col-4"></span>
+                                    </span>
+                                </td>
+                                <td>{{ prestation.kmAvecEnfant|default('0') }}</td>
+                                <td>
+                                    {% if prestation.validerFam %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Validé
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-clock me-1"></i>En attente
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="5"><strong>Total</strong></td>
+                            <td class="duration-cell" id="totalHours">
+                                <span class="placeholder-glow">
+                                    <span class="placeholder col-4"></span>
+                                </span>
+                            </td>
+                            <td id="totalKm">{{ prestations|reduce((sum, p) => sum + (p.kmAvecEnfant|default(0)), 0) }}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <!-- Résumé par type -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-pie me-2"></i>
+                                Résumé par type
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="typeSummary">
+                                <div class="placeholder-glow">
+                                    <span class="placeholder col-6 mb-2"></span>
+                                    <span class="placeholder col-4 mb-2"></span>
+                                    <span class="placeholder col-5"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-bar me-2"></i>
+                                Statistiques
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <div class="stat-number" id="avgHours">-</div>
+                                    <div class="stat-label">Moyenne/jour</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="stat-number" id="maxHours">-</div>
+                                    <div class="stat-label">Maximum</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="stat-number" id="minHours">-</div>
+                                    <div class="stat-label">Minimum</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Aucune heure enregistrée</h4>
+                <p class="text-muted">Commencez par ajouter vos heures de travail.</p>
+                <a href="#" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>
+                    Ajouter des heures
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const table = document.getElementById('hoursTable');
+    if (!table) return;
+    
+    const rows = table.querySelectorAll('tbody .hour-row');
+    let totalHours = 0;
+    const hoursByType = {};
+    const allHours = [];
+    
+    // Calculer les durées pour chaque ligne
+    rows.forEach(row => {
+        const debut = row.dataset.debut;
+        const fin = row.dataset.fin;
+        const type = row.querySelector('.type-badge').textContent;
+        
+        if (debut && fin && window.HoursCalculator) {
+            const duree = window.HoursCalculator.calculerDuree(debut, fin);
+            const formatted = window.HoursCalculator.formaterHeures(duree);
+            
+            // Mettre à jour la cellule de durée
+            const durationCell = row.querySelector('.duration-cell');
+            durationCell.innerHTML = `<strong>${formatted}</strong>`;
+            durationCell.dataset.calculated = 'true';
+            
+            // Accumuler pour les totaux
+            totalHours += duree;
+            allHours.push(duree);
+            
+            if (!hoursByType[type]) {
+                hoursByType[type] = 0;
+            }
+            hoursByType[type] += duree;
+        }
+    });
+    
+    // Mettre à jour le total
+    const totalCell = document.getElementById('totalHours');
+    if (totalCell && window.HoursCalculator) {
+        totalCell.innerHTML = `<strong>${window.HoursCalculator.formaterHeures(totalHours)}</strong>`;
+    }
+    
+    // Mettre à jour le résumé par type
+    const summaryDiv = document.getElementById('typeSummary');
+    if (summaryDiv && window.HoursCalculator) {
+        let summaryHtml = '';
+        for (const [type, hours] of Object.entries(hoursByType)) {
+            const badgeClass = type === 'ENFA' ? 'type-enfa' : 
+                              type === 'MENA' ? 'type-mena' : 'type-autre';
+            summaryHtml += `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="type-badge ${badgeClass}">${type}</span>
+                    <strong>${window.HoursCalculator.formaterHeures(hours)}</strong>
+                </div>
+            `;
+        }
+        if (summaryHtml) {
+            summaryHtml += `<hr><small class="text-muted">Total: ${window.HoursCalculator.formaterHeures(totalHours)}</small>`;
+        }
+        summaryDiv.innerHTML = summaryHtml || '<p class="text-muted">Aucune donnée</p>';
+    }
+    
+    // Calculer les statistiques
+    if (allHours.length > 0) {
+        const avg = allHours.reduce((a, b) => a + b, 0) / allHours.length;
+        const max = Math.max(...allHours);
+        const min = Math.min(...allHours);
+        
+        document.getElementById('avgHours').textContent = window.HoursCalculator.formaterHeures(avg);
+        document.getElementById('maxHours').textContent = window.HoursCalculator.formaterHeures(max);
+        document.getElementById('minHours').textContent = window.HoursCalculator.formaterHeures(min);
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

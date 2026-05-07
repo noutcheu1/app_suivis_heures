@@ -1,0 +1,50 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Liste des familles{% endblock %}
+
+{% block body %}
+<h1>Liste des familles</h1>
+
+<div class="search-container">
+    <input
+        type="text"
+        class="search-input"
+        id="searchBar"
+        onkeyup="filterIntervenants()"
+        placeholder="Rechercher une famille..."
+    >
+</div>
+
+<ul class="menu" id="intervenantList">
+    {% if users is not empty %}
+        {% for user in users %}
+            <li class="search-item">
+                <a href="{{ path('admin_famille_detail_mvc', {numFam: user.numeroFamille}) }}">
+                    {% set icons_familles = '/assets/icons/famille-I.png' %}
+
+                    {% if user.prestMenage and user.prestGardeEnfants %}
+                        {% set icons_familles = '/assets/icons/famille-GE&M.png' %}
+                    {% elseif user.prestMenage and not user.prestGardeEnfants %}
+                        {% set icons_familles = '/assets/icons/famille-M.png' %}
+                    {% elseif not user.prestMenage and user.prestGardeEnfants %}
+                        {% set icons_familles = '/assets/icons/famille-GE.png' %}
+                    {% endif %}
+
+                    <img src="{{ asset(icons_familles) }}" alt="Profile Picture">
+
+                    <span class="name">
+                        {{ user.nomFamille }}
+                    </span>
+                </a>
+            </li>
+        {% endfor %}
+    {% else %}
+        <p class="error">Aucune famille trouvée.</p>
+    {% endif %}
+</ul>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="{{ asset('assets/js/search_bar.js') }}" ></script>
+{% endblock %}
