@@ -7,44 +7,144 @@
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
     {% block stylesheets %}
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     {% endblock %}
 </head>
 <body>
-    <header class="container-fluid">
-        <h1>Mon Application</h1>
-        <a style="color:white;" href="https://lamaisondeschaudoudoux.fr">La Maison des Chaudoudoux</a>
-        
-        <nav>
-            <ul>
-            {% if auth %}
-                <li> <a href="{{ path('dashboard') }}"> Accueil </li>
-                <li> <a href="{{ path('app_logout') }}">Se déconnecter</a> </li>
-            {% else %}
-                <li> <a href="{{ path('app_login') }}">Connexion</a> </li>
-                <li> <a href="{{ path('app_register') }}">Inscription</a> </li>
-            {% endif %}
-            </ul>
-        </nav>
+    <header class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="https://lamaisondeschaudoudoux.fr">
+                <i class="fas fa-home me-2"></i>
+                La Maison des Chaudoudoux
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                {# auth peut être un bool ou un objet AuthService #}
+                {% set isConnected = auth is same as(true) or (auth is not same as(false) and auth is not null and auth is not same as(0)) %}
+                
+                {% if isConnected %}
+                    {# Menu pour utilisateurs connectés #}
+                    {% set userRole = auth.userType|default('') %}
+                    
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ path('dashboard') }}">
+                                <i class="fas fa-tachometer-alt me-1"></i>
+                                Tableau de bord
+                            </a>
+                        </li>
+                        
+                        {% if userRole == 'INTER' %}
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-user-tie me-1"></i>
+                                    Intervenant
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ path('intervenant_panel_mvc') }}">Mon espace</a></li>
+                                    <li><a class="dropdown-item" href="{{ path('intervenant_profile_mvc') }}">Mon profil</a></li>
+                                    <li><a class="dropdown-item" href="{{ path('releves_mvc_intervenant', {'id': auth.intervenant_id|default(0)}) }}">Mes heures</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{{ path('intervenants_mvc') }}">Liste des intervenants</a></li>
+                                </ul>
+                            </li>
+                        {% elseif userRole == 'FAMILLE' %}
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-users me-1"></i>
+                                    Famille
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ path('famille_panel_mvc') }}">Mon espace</a></li>
+                                    <li><a class="dropdown-item" href="{{ path('famille_profile_mvc') }}">Mon profil</a></li>
+                                    <li><a class="dropdown-item" href="{{ path('releves_mvc_famille', {'id': auth.famille_id|default(0)}) }}">Nos heures</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{{ path('familles_mvc') }}">Liste des familles</a></li>
+                                </ul>
+                            </li>
+                        {% endif %}
+                        
+                        {% if userRole == 'ADMIN' %}
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-cog me-1"></i>
+                                    Administration
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="/admin/dashboard">Dashboard Admin</a></li>
+                                    <li><a class="dropdown-item" href="/admin/intervenants">Gérer les intervenants</a></li>
+                                    <li><a class="dropdown-item" href="/admin/familles">Gérer les familles</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{{ path('intervenants_mvc') }}">Intervenants (MVC)</a></li>
+                                    <li><a class="dropdown-item" href="{{ path('familles_mvc') }}">Familles (MVC)</a></li>
+                                    <li><a class="dropdown-item" href="{{ path('releves_mvc') }}">Relevés (MVC)</a></li>
+                                </ul>
+                            </li>
+                        {% endif %}
+                    </ul>
+                    
+                    <ul class="navbar-nav">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user-circle me-1"></i>
+                                {{ auth.email|default('Utilisateur') }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><h6 class="dropdown-header">Mon compte</h6></li>
+                                <li><a class="dropdown-item" href="#">
+                                    <i class="fas fa-user-edit me-2"></i>Modifier profil
+                                </a></li>
+                                <li><a class="dropdown-item" href="#">
+                                    <i class="fas fa-key me-2"></i>Changer mot de passe
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="{{ path('app_logout') }}">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Se déconnecter
+                                </a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                {% else %}
+                    {# Menu pour visiteurs #}
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ path('type_selection') }}">
+                                <i class="fas fa-sign-in-alt me-1"></i>
+                                Connexion
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ path('app_register') }}">
+                                <i class="fas fa-user-plus me-1"></i>
+                                Inscription
+                            </a>
+                        </li>
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
     </header>
 
     <main class="container">
         {% block body %}{% endblock %}
     </main>
 
-    {% block modal %} 
-        <div class="modal" id="modalMessage" tabindex="-1" >
+    {% block modal %}
+        <div class="modal" id="modalMessage" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modalTitle">Titre</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-                </div>
-                <div class="modal-body" id="modalBody">
-                    Contenu
-                </div>
-                <div class="modal-footer" id="modalFooter">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                </div>
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalTitle">Titre</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+                    <div class="modal-body" id="modalBody">Contenu</div>
+                    <div class="modal-footer" id="modalFooter">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -53,6 +153,7 @@
     {% block javascripts %}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous" defer></script>
     <script src="{{ asset('/assets/js/app.js') }}"></script>
+    <script src="{{ asset('/assets/js/hours-calculator.js') }}"></script>
     {% endblock %}
 </body>
 </html>

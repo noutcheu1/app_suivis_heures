@@ -121,10 +121,10 @@ class Famille
     private ?bool $enfantHandicape = null;
 
     #[ORM\Column]
-    private ?\DateTimeImmutable $createdAt = null;
+    private ?\DateTime $createdAt = null;
 
     #[ORM\Column]
-    private ?\DateTimeImmutable $updatedAt = null;
+    private ?\DateTime $updatedAt = null;
 
     public function getId(): ?int
     {
@@ -227,29 +227,110 @@ class Famille
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTimeImmutable
+    public function getCreatedAt(): ?\DateTime
     {
         return $this->createdAt;
     }
 
-    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    public function setCreatedAt(\DateTime $createdAt): static
     {
         $this->createdAt = $createdAt;
 
         return $this;
     }
 
-    public function getUpdatedAt(): ?\DateTimeImmutable
+    public function getUpdatedAt(): ?\DateTime
     {
         return $this->updatedAt;
     }
 
-    public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
+    public function setUpdatedAt(\DateTime $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
 
         return $this;
     }
+
+    public function getSecteur(): ?string { return $this->secteur; }
+    public function setSecteur(?string $secteur): static { $this->secteur = $secteur; return $this; }
+
+    public function getQuartier(): ?string { return $this->quartier; }
+    public function setQuartier(?string $quartier): static { $this->quartier = $quartier; return $this; }
+
+    public function getNumAlloc(): ?string { return $this->numAlloc; }
+    public function setNumAlloc(?string $numAlloc): static { $this->numAlloc = $numAlloc; return $this; }
+
+    public function getNumUrssaf(): ?string { return $this->numUrssaf; }
+    public function setNumUrssaf(?string $numUrssaf): static { $this->numUrssaf = $numUrssaf; return $this; }
+
+    public function getDateEntree(): ?\DateTimeInterface { return $this->dateEntree; }
+    public function setDateEntree(?\DateTimeInterface $dateEntree): static { $this->dateEntree = $dateEntree; return $this; }
+
+    public function getDateSortie(): ?\DateTimeInterface { return $this->dateSortie; }
+    public function setDateSortie(?\DateTimeInterface $dateSortie): static { $this->dateSortie = $dateSortie; return $this; }
+
+    public function getTypeLogement(): ?string { return $this->typeLogement; }
+    public function setTypeLogement(?string $typeLogement): static { $this->typeLogement = $typeLogement; return $this; }
+
+    public function getSuperficie(): ?int { return $this->superficie; }
+    public function setSuperficie(?int $superficie): static { $this->superficie = $superficie; return $this; }
+
+    public function getNbEtage(): ?int { return $this->nbEtage; }
+    public function setNbEtage(?int $nbEtage): static { $this->nbEtage = $nbEtage; return $this; }
+
+    public function getNbChambres(): ?int { return $this->nbChambres; }
+    public function setNbChambres(?int $nbChambres): static { $this->nbChambres = $nbChambres; return $this; }
+
+    public function getNbSdb(): ?int { return $this->nbSdb; }
+    public function setNbSdb(?int $nbSdb): static { $this->nbSdb = $nbSdb; return $this; }
+
+    public function getNbSanitaire(): ?int { return $this->nbSanitaire; }
+    public function setNbSanitaire(?int $nbSanitaire): static { $this->nbSanitaire = $nbSanitaire; return $this; }
+
+    public function getArretBus(): ?string { return $this->arretBus; }
+    public function setArretBus(?string $arretBus): static { $this->arretBus = $arretBus; return $this; }
+
+    public function getNumBus(): ?string { return $this->numBus; }
+    public function setNumBus(?string $numBus): static { $this->numBus = $numBus; return $this; }
+
+    public function getVehicule(): ?bool { return $this->vehicule; }
+    public function setVehicule(?bool $vehicule): static { $this->vehicule = $vehicule; return $this; }
+
+    public function getGardePartielle(): ?bool { return $this->gardePartielle; }
+    public function setGardePartielle(?bool $gardePartielle): static { $this->gardePartielle = $gardePartielle; return $this; }
+
+    public function getRepassage(): ?bool { return $this->repassage; }
+    public function setRepassage(?bool $repassage): static { $this->repassage = $repassage; return $this; }
+
+    public function getPrestMenage(): ?bool { return $this->prestMenage; }
+    public function setPrestMenage(?bool $prestMenage): static { $this->prestMenage = $prestMenage; return $this; }
+
+    public function getPrestGardeEnfants(): ?bool { return $this->prestGardeEnfants; }
+    public function setPrestGardeEnfants(?bool $prestGardeEnfants): static { $this->prestGardeEnfants = $prestGardeEnfants; return $this; }
+
+    public function getNbSemVacancesMenage(): ?int { return $this->nbSemVacancesMenage; }
+    public function setNbSemVacancesMenage(?int $nbSemVacancesMenage): static { $this->nbSemVacancesMenage = $nbSemVacancesMenage; return $this; }
+
+    public function getNbSemVacancesGe(): ?int { return $this->nbSemVacancesGe; }
+    public function setNbSemVacancesGe(?int $nbSemVacancesGe): static { $this->nbSemVacancesGe = $nbSemVacancesGe; return $this; }
+
+    public function getOptionsFamille(): ?string { return $this->optionsFamille; }
+    public function setOptionsFamille(?string $optionsFamille): static { $this->optionsFamille = $optionsFamille; return $this; }
+
+    public function getModePaiement(): ?string { return $this->modePaiement; }
+    public function setModePaiement(?string $modePaiement): static { $this->modePaiement = $modePaiement; return $this; }
+
+    public function getMandataire(): ?bool { return $this->mandataire; }
+    public function setMandataire(?bool $mandataire): static { $this->mandataire = $mandataire; return $this; }
+
+    public function getObservationsFamille(): ?string { return $this->observationsFamille; }
+    public function setObservationsFamille(?string $observationsFamille): static { $this->observationsFamille = $observationsFamille; return $this; }
+
+    public function getRemarquesFamille(): ?string { return $this->remarquesFamille; }
+    public function setRemarquesFamille(?string $remarquesFamille): static { $this->remarquesFamille = $remarquesFamille; return $this; }
+
+    public function getEnfantHandicape(): ?bool { return $this->enfantHandicape; }
+    public function setEnfantHandicape(?bool $enfantHandicape): static { $this->enfantHandicape = $enfantHandicape; return $this; }
 
     public function __toString(): string
     {

@@ -4,13 +4,15 @@ namespace App\Service;
 
 use App\Entity\Famille;
 use App\Repository\FamilleRepository;
+use App\Repository\HoraireinterRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 class FamilleService
 {
     public function __construct(
         private FamilleRepository $repository,
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private HoraireinterRepository $horaireRepository
     ) {}
 
     /**
@@ -48,7 +50,7 @@ class FamilleService
     /**
      * Compte le nombre de familles actives
      */
-    public function compterActives(): int
+    public function countFamilles(): int
     {
         return $this->repository->countActives();
     }
@@ -64,7 +66,7 @@ class FamilleService
         }
 
         $famille->setArchive(true);
-        $famille->setUpdatedAt(new \DateTimeImmutable());
+        $famille->setUpdatedAt(new \DateTime());
         
         $this->entityManager->flush();
         return true;
@@ -75,8 +77,27 @@ class FamilleService
      */
     public function mettreAJourFamille(Famille $famille): void
     {
-        $famille->setUpdatedAt(new \DateTimeImmutable());
+        $famille->setUpdatedAt(new \DateTime());
         $this->entityManager->flush();
+    }
+
+    public function calculerMontantDu(string $familleId, string $mois): float
+    {
+        // TODO: implement billing calculation from relevements mensuel
+        return 0.0;
+    }
+
+    public function getFamillesDeIntervenant(int $intervenantId): array
+    {
+        $numFams = $this->horaireRepository->findDistinctFamilleNumsByIntervenant($intervenantId);
+        $familles = [];
+        foreach ($numFams as $numFam) {
+            $famille = $this->repository->findByNumero($numFam);
+            if ($famille) {
+                $familles[] = $famille;
+            }
+        }
+        return $familles;
     }
 
     /**
@@ -97,8 +118,8 @@ class FamilleService
         
         // Champs par défaut
         $famille->setArchive(false);
-        $famille->setCreatedAt(new \DateTimeImmutable());
-        $famille->setUpdatedAt(new \DateTimeImmutable());
+        $famille->setCreatedAt(new \DateTime());
+        $famille->setUpdatedAt(new \DateTime());
         
         $this->entityManager->persist($famille);
         $this->entityManager->flush();

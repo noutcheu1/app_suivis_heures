@@ -54,7 +54,7 @@ function setEdit(data) {
 
 async function getInfoData(id_edit) {
     try {
-        const route = "/api/intervenants/horaire/" + ID + "?id_edit=" + id_edit;
+        const route = "/heures-mvc/get/" + id_edit;
         const res = await fetch(route, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
@@ -154,12 +154,11 @@ form.addEventListener("submit", async (e) => {
     const confirmed = await confirmModal(recap);
 
     if (!confirmed) return;
-
     if (params.has('edite')) {
-        let route = "/api/intervenants/horaire/modifier/" + ID;
+        let route = "/heures-mvc/modifier/" + ID;
         sendData(route, data);
     } else {
-        let route = "/api/intervenants/horaire/ajouter/" + ID;
+        let route = "/heures-mvc/ajouter";
         sendData(route, data);
     }
     

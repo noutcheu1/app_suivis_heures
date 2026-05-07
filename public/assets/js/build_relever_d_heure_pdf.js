@@ -174,9 +174,5 @@ async function genererPDF(type_de_garde, anne_file) {
 
         index++;
     }
-    // Sauvegarde
-    //return
     doc.save(`Feuille d'Heures ${type_de_garde}  ${anne_file}.pdf`);
 }
-
-genererPDF(type_de_garde, anne_file); 

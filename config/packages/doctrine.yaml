@@ -29,6 +29,10 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Entity'
                 prefix: 'App\Entity'
                 alias: App
+        dql:
+            string_functions:
+                TIME_DIFF: App\Doctrine\TimeDiffFunction
+                TIME_TO_SEC: App\Doctrine\TimeToSecFunction
 
 when@test:
     doctrine:

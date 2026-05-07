@@ -29,9 +29,11 @@ class IntervenantService
         return $this->repository->findInfosIntervenant($id);
     }
 
-    /**
-     * Retourne un intervenant par son numéro de salarié
-     */
+    public function getIntervenantParId(int $id): ?Intervenant
+    {
+        return $this->repository->find($id);
+    }
+
     public function getIntervenantParNumSalarie(string $numSalarie): ?Intervenant
     {
         return $this->repository->findByNumSalarie($numSalarie);
@@ -48,7 +50,7 @@ class IntervenantService
     /**
      * Compte le nombre d'intervenants actifs
      */
-    public function compterActifs(): int
+    public function countIntervenants(): int
     {
         return $this->repository->countActifs();
     }
@@ -64,7 +66,7 @@ class IntervenantService
         }
 
         $intervenant->setArchive(true);
-        $intervenant->setUpdatedAt(new \DateTimeImmutable());
+        $intervenant->setUpdatedAt(new \DateTime());
         
         $this->entityManager->flush();
         return true;
@@ -81,7 +83,7 @@ class IntervenantService
         }
 
         $intervenant->setArchive(false);
-        $intervenant->setUpdatedAt(new \DateTimeImmutable());
+        $intervenant->setUpdatedAt(new \DateTime());
         
         $this->entityManager->flush();
         return true;
@@ -92,7 +94,7 @@ class IntervenantService
      */
     public function mettreAJourIntervenant(Intervenant $intervenant): void
     {
-        $intervenant->setUpdatedAt(new \DateTimeImmutable());
+        $intervenant->setUpdatedAt(new \DateTime());
         $this->entityManager->flush();
     }
 
@@ -116,8 +118,8 @@ class IntervenantService
         
         // Champs par défaut
         $intervenant->setArchive(false);
-        $intervenant->setCreatedAt(new \DateTimeImmutable());
-        $intervenant->setUpdatedAt(new \DateTimeImmutable());
+        $intervenant->setCreatedAt(new \DateTime());
+        $intervenant->setUpdatedAt(new \DateTime());
         
         $this->entityManager->persist($intervenant);
         $this->entityManager->flush();

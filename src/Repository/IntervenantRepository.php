@@ -21,9 +21,6 @@ class IntervenantRepository extends ServiceEntityRepository
         parent::__construct($registry, Intervenant::class);
     }
 
-    /**
-     * Retourne tous les intervenants non archivés
-     */
     public function findAllNonArchived(): array
     {
         return $this->createQueryBuilder('i')
@@ -35,9 +32,6 @@ class IntervenantRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    /**
-     * Retourne les informations d'un intervenant
-     */
     public function findInfosIntervenant(int $id): ?Intervenant
     {
         return $this->createQueryBuilder('i')
@@ -49,9 +43,17 @@ class IntervenantRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /**
-     * Recherche un intervenant par son numéro de salarié
-     */
+    public function findByNumSs(string $numSs): ?Intervenant
+    {
+        return $this->createQueryBuilder('i')
+            ->where('i.numSs = :numSs')
+            ->andWhere('i.archive = :archive')
+            ->setParameter('numSs', $numSs)
+            ->setParameter('archive', 0)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function findByNumSalarie(string $numSalarie): ?Intervenant
     {
         return $this->createQueryBuilder('i')
@@ -63,9 +65,6 @@ class IntervenantRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /**
-     * Recherche des intervenants par nom ou prénom
-     */
     public function findByNomOrPrenom(string $search): array
     {
         return $this->createQueryBuilder('i')
@@ -80,9 +79,6 @@ class IntervenantRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    /**
-     * Compte le nombre d'intervenants actifs
-     */
     public function countActifs(): int
     {
         return (int) $this->createQueryBuilder('i')
@@ -93,12 +89,8 @@ class IntervenantRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
-    /**
-     * Retourne les intervenants disponibles pour une date donnée
-     */
     public function findDisponiblesPourDate(\DateTimeInterface $date): array
     {
-        // Cette méthode pourrait être améliorée avec la table de disponibilités
         return $this->createQueryBuilder('i')
             ->where('i.archive = :archive')
             ->andWhere('i.dateEntree <= :date OR i.dateEntree IS NULL')

@@ -1,8 +1,8 @@
 <?php
 namespace App\Security;
 
+use App\Service\AuthService;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
-
 
 class Auth
 {
@@ -41,6 +41,6 @@ class Auth
 
     public function isAdmin(): bool
     {
-        return $this->user() === '9.99.99.99.999.999.99';
+        return $this->user() === AuthService::ADMIN_IDENTIFIANT;
     }
 }

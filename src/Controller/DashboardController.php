@@ -27,7 +27,6 @@ final class DashboardController extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
-        // Afficher le dashboard pour tous les utilisateurs authentifiés
         $stats = [];
         $user = [];
 
@@ -37,23 +36,47 @@ final class DashboardController extends AbstractController
                 'total_familles' => $this->familleService->countFamilles(),
                 'heures_ce_mois' => $this->horaireService->countHeuresMois(date('m/Y')),
             ];
-            $user = ['nomCompletInter' => 'Admin'];
+            $user = ['nomCompletInter' => 'Admin', 'role' => 'ADMIN'];
         } elseif ($this->authService->isIntervenant()) {
             $intervenant = $this->authService->getIntervenant();
             $user = [
                 'nomCompletInter' => $intervenant ? $intervenant->getNomCompletInter() : 'Intervenant',
-                'id' => $this->authService->intervenant_id()
+                'id' => $this->authService->intervenant_id(),
+                'role' => 'INTERVENANT',
+            ];
+            $stats = [
+                'heures_mois' => $this->horaireService->countHeuresParIntervenant(
+                    $this->authService->intervenant_id(),
+                    date('m/Y')
+                ),
+                'heures_total' => $this->horaireService->countHeuresParIntervenant(
+                    $this->authService->intervenant_id()
+                ),
             ];
         } elseif ($this->authService->isFamille()) {
-            // TODO: Récupérer les infos de la famille depuis la session
-            $user = ['Nom de la famille' => 'Famille'];
+            $famille = $this->authService->getFamille();
+            $user = [
+                'nomFamille' => $famille ? $famille->getNomFamille() : 'Famille',
+                'id' => $this->authService->famille_id(),
+                'role' => 'FAMILLE',
+            ];
+            $stats = [
+                'heures_mois' => $this->horaireService->countHeuresMoisParFamille(
+                    $this->authService->famille_id(),
+                    date('m/Y')
+                ),
+                'montant_du' => $this->familleService->calculerMontantDu(
+                    $this->authService->famille_id(),
+                    date('m/Y')
+                ),
+            ];
         }
 
-        return $this->render('dashboard.html.twig', [
-            'auth' => $this->authService->check(),
+        return $this->render('dashboard/index.html.twig', [
+            'auth' => true,
             'authService' => $this->authService,
             'stats' => $stats,
-            'user' => $user
+            'user' => $user,
         ]);
     }
 }
