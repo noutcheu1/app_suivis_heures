@@ -1,0 +1,9 @@
+monolog:
+    handlers:
+        main:
+            type: stream
+            path: "%kernel.logs_dir%/%kernel.environment%.log"
+            level: debug   # ← doit être debug ou info pour voir tes logs
+        console:
+            type: console
+            level: debug

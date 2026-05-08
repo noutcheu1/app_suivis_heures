@@ -1,0 +1,30 @@
+security:
+    password_hashers:
+        App\Entity\UserSuivi:
+            algorithm: bcrypt
+
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Entity\UserSuivi
+                property: username
+
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+
+        main:
+            lazy: true
+            provider: app_user_provider
+            custom_authenticator: App\Security\AppAuthenticator
+            logout:
+                path: app_logout
+                target: app_login
+
+    # ✅ role_hierarchy est bien DANS security
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_INTERVENANT, ROLE_FAMILLE]
+
+    # ✅ Les routes sont maintenant protégées
+   
