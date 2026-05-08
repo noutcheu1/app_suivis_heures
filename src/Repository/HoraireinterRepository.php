@@ -2,7 +2,7 @@
 
 namespace App\Repository;
 
-use App\Entity\Horaireinter;
+use App\Entity\Horaire\Horaireinter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

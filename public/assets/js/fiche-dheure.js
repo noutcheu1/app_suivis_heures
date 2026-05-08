@@ -3,21 +3,45 @@ const params   = new URLSearchParams(window.location.search);
 const mois     = parseInt(params.get('mois') ?? '0', 10);
 const type     = (params.get('type') ?? 'ENFA').toUpperCase();
 
+console.log('=== [fiche-dheure.js] INIT ===');
+console.log('[PARAMS] URL complète :', window.location.href);
+console.log('[PARAMS] mois offset  :', mois);
+console.log('[PARAMS] type         :', type);
+console.log('[PARAMS] ID intervenant (depuis Twig) :', typeof ID !== 'undefined' ? ID : '⚠️ ID NON DÉFINI !');
+
+if (typeof ID === 'undefined') {
+    alert('[fiche-dheure.js] ⚠️ La variable ID est indéfinie ! Vérifier le bloc <script> dans sheet.html.twig');
+}
+
 let periodeFin = null;
 
 // ─── Peuplement select minutes (0, 5, 10 … 55) ───────────────────────────────
 (function () {
     const sel = document.getElementById('minute');
-    for (let i = 0; i <= 55; i += 5) {
-        const opt = document.createElement('option');
-        opt.value = opt.textContent = String(i).padStart(2, '0');
-        sel.appendChild(opt);
+    if (!sel) {
+        console.error('[DOM] ⚠️ #minute introuvable dans le DOM');
+    } else {
+        console.log('[DOM] #minute trouvé, peuplement des options…');
+        for (let i = 0; i <= 55; i += 5) {
+            const opt = document.createElement('option');
+            opt.value = opt.textContent = String(i).padStart(2, '0');
+            sel.appendChild(opt);
+        }
     }
 })();
 
 // ─── Écouteurs ────────────────────────────────────────────────────────────────
-document.getElementById('signerButton').addEventListener('click', signer);
-document.getElementById('saveTime').addEventListener('click', function (e) {
+const _signerBtn = document.getElementById('signerButton');
+const _saveBtn   = document.getElementById('saveTime');
+console.log('[DOM] #signerButton :', _signerBtn ? 'trouvé' : '⚠️ INTROUVABLE');
+console.log('[DOM] #saveTime     :', _saveBtn   ? 'trouvé' : '⚠️ INTROUVABLE');
+console.log('[DOM] #tableContainer :', document.getElementById('tableContainer') ? 'trouvé' : '⚠️ INTROUVABLE');
+console.log('[DOM] #familleRecap   :', document.getElementById('familleRecap')   ? 'trouvé' : '⚠️ INTROUVABLE');
+console.log('[DOM] #heureCumuler   :', document.getElementById('heureCumuler')   ? 'trouvé' : '⚠️ INTROUVABLE');
+console.log('[DOM] #donwload       :', document.getElementById('donwload')       ? 'trouvé' : '⚠️ INTROUVABLE');
+
+if (_signerBtn) _signerBtn.addEventListener('click', signer);
+if (_saveBtn)   _saveBtn.addEventListener('click', function (e) {
     e.preventDefault();
     ajouterHeure(
         document.getElementById('heure').value,
@@ -27,13 +51,30 @@ document.getElementById('saveTime').addEventListener('click', function (e) {
 
 // ─── Chargement du relevé ─────────────────────────────────────────────────────
 async function chargerReleve() {
+    const apiUrl = `/api/intervenants/releve/${ID}?type=${type}&mois=${mois}`;
+    console.log('[API] ▶ GET', apiUrl);
+
     let data;
     try {
-        const res = await fetch(`/api/intervenants/releve/${ID}?type=${type}&mois=${mois}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        data = await res.json();
+        const res = await fetch(apiUrl);
+        console.log('[API] ◀ status HTTP :', res.status, res.statusText);
+        if (!res.ok) {
+            const body = await res.text();
+            console.error('[API] Corps de la réponse d\'erreur :', body);
+            alert(`[chargerReleve] Erreur HTTP ${res.status}\n${body}`);
+            throw new Error(`HTTP ${res.status}`);
+        }
+        const rawText = await res.text();
+        console.log('[API] Corps brut (500 premiers chars) :', rawText.slice(0, 500));
+        try {
+            data = JSON.parse(rawText);
+        } catch (jsonErr) {
+            console.error('[API] ⚠️ Réponse non-JSON :', rawText.slice(0, 200));
+            alert('[chargerReleve] La réponse API n\'est pas du JSON valide !\n' + rawText.slice(0, 200));
+            throw jsonErr;
+        }
     } catch (err) {
-        console.error('Erreur chargement relevé:', err);
+        console.error('[chargerReleve] Erreur chargement relevé :', err);
         if (typeof activerBoutonTelechargement === 'function') activerBoutonTelechargement();
         return;
     }
@@ -51,29 +92,47 @@ async function chargerReleve() {
     console.groupEnd();
 
     const container = document.getElementById('tableContainer');
+    if (!container) {
+        console.error('[DOM] ⚠️ #tableContainer est NULL — impossible d\'insérer les tableaux !');
+        alert('[chargerReleve] #tableContainer introuvable dans le DOM !');
+        if (typeof activerBoutonTelechargement === 'function') activerBoutonTelechargement();
+        return;
+    }
+    console.log('[DOM] #tableContainer trouvé, innerHTML initial :', container.innerHTML.slice(0, 100));
     container.innerHTML = '';
 
     try {
+        console.log('[Rendu] data.familles :', data.familles);
+        console.log('[Rendu] data.jours    :', data.jours?.length, 'jours');
+
         if (!data.familles || data.familles.length === 0) {
-            console.warn('[Relevé] Aucune prestation pour ce mois/type — aucun tableau généré.');
+            console.warn('[Rendu] ⚠️ Aucune famille pour ce mois/type → aucun tableau généré.');
             const msg = document.createElement('p');
             msg.textContent = 'Aucune prestation enregistrée pour ce mois.';
             msg.style.padding = '1rem';
             container.appendChild(msg);
         } else {
             const nbPages = Math.ceil(data.familles.length / 5);
-            console.log(`[Relevé] ${data.familles.length} famille(s) → ${nbPages} page(s)`);
+            console.log(`[Rendu] ${data.familles.length} famille(s) → ${nbPages} page(s)`);
             for (let page = 1; page <= nbPages; page++) {
-                console.log(`[Relevé] Construction page ${page}…`);
-                container.appendChild(buildEnTete(data, page));
-                container.appendChild(buildCorps(data, page));
-                console.log(`[Relevé] Page ${page} ajoutée au DOM.`);
+                console.log(`[Rendu] ▶ Construction page ${page}…`);
+                const enTete = buildEnTete(data, page);
+                console.log(`[Rendu] EnTête page ${page} id="${enTete.id}" rows=${enTete.rows?.length ?? '?'}`);
+                container.appendChild(enTete);
+
+                const corps = buildCorps(data, page);
+                console.log(`[Rendu] Corps page ${page} id="${corps.id}" rows=${corps.rows?.length ?? '?'}`);
+                container.appendChild(corps);
+
+                console.log(`[Rendu] ✅ Page ${page} ajoutée. container.children.length =`, container.children.length);
             }
         }
+        console.log('[Rendu] container.innerHTML final (200 chars) :', container.innerHTML.slice(0, 200));
         renderRecap(data);
         enableSignerButton(data);
     } catch (err) {
-        console.error('[Relevé] Erreur rendu tableaux:', err);
+        console.error('[Rendu] ⚠️ Erreur lors du rendu des tableaux :', err);
+        alert('[chargerReleve] Erreur rendu :\n' + err.message + '\n\n' + err.stack);
         container.textContent = 'Erreur lors du rendu du relevé.';
     }
 
@@ -82,6 +141,7 @@ async function chargerReleve() {
 
 // ─── Tableau en-tête intervenant  (id = monTableau0{page}) ───────────────────
 function buildEnTete(data, page) {
+    console.log(`[buildEnTete] page=${page}, intervenant=`, data.intervenant);
     const table = document.createElement('table');
     table.id    = `monTableau0${page}`;
     const tbody = document.createElement('tbody');
@@ -92,6 +152,7 @@ function buildEnTete(data, page) {
     const titre     = `${typeLabel}  -  RELEVÉ D'HEURES  -  ${data.periode.mois} ${data.periode.anner}`;
     const adresse   = [inter.adresse, inter['ville de résidence']].filter(Boolean).join(', ');
     const tel       = inter['Téléhone'] ?? inter['Telephone'] ?? '';
+    console.log(`[buildEnTete] titre="${titre}", adresse="${adresse}", tel="${tel}"`);
 
     // Titre
     tbody.appendChild(mkRow([mkTh(titre, { colSpan: 4, cls: 'no-borders title' })]));
@@ -127,6 +188,7 @@ function buildEnTete(data, page) {
 
 // ─── Tableau corps jours × familles  (id = monTableau1{page}) ────────────────
 function buildCorps(data, page) {
+    console.log(`[buildCorps] page=${page}, jours=${data.jours?.length}`);
     const table   = document.createElement('table');
     table.id      = `monTableau1${page}`;
     const tbody   = document.createElement('tbody');
@@ -134,6 +196,7 @@ function buildCorps(data, page) {
 
     const offset   = (page - 1) * 5;
     const familles = data.familles.slice(offset, offset + 5);
+    console.log(`[buildCorps] familles sur cette page (${familles.length}) :`, familles.map(f => f?.nomFam));
 
     // ── Ligne titre "FAMILLES" ───────────────────────────────────────────────
     const trFamTitre = document.createElement('tr');
@@ -261,10 +324,15 @@ function buildCorps(data, page) {
 
 // ─── Récap mobile ─────────────────────────────────────────────────────────────
 function renderRecap(data) {
+    console.log('[renderRecap] ▶ début');
     const tbody        = document.getElementById('familleRecap');
     const spanSigner   = document.getElementById('signerMobile');
     const kmParcourue  = document.getElementById('kmParcourue');
     const heureCumuler = document.getElementById('heureCumuler');
+    console.log('[renderRecap] #familleRecap :', tbody   ? 'OK' : '⚠️ MANQUANT');
+    console.log('[renderRecap] #signerMobile :', spanSigner ? 'OK' : '⚠️ MANQUANT');
+    console.log('[renderRecap] #kmParcourue  :', kmParcourue  ? 'OK' : '⚠️ MANQUANT');
+    console.log('[renderRecap] #heureCumuler :', heureCumuler ? 'OK' : '⚠️ MANQUANT');
 
     if (tbody) tbody.innerHTML = '';
     let totalSecondes = 0;
@@ -282,6 +350,7 @@ function renderRecap(data) {
     if (spanSigner)   spanSigner.textContent   = data.signer?.etat ? 'signé' : 'non signé';
     if (kmParcourue)  kmParcourue.textContent  = data.totaux?.kmMois ?? 0;
     if (heureCumuler) heureCumuler.textContent = hm(totalSecondes);
+    console.log('[renderRecap] ✅ total', hm(totalSecondes), '| signé:', data.signer?.etat);
 }
 
 function enableSignerButton(_data) {
@@ -377,4 +446,14 @@ function escHtml(str) {
 }
 
 // ─── Démarrage ────────────────────────────────────────────────────────────────
-chargerReleve();
+console.log('[fiche-dheure.js] ▶ chargerReleve() appelé');
+chargerReleve().then(() => {
+    console.log('[fiche-dheure.js] ✅ chargerReleve() terminé');
+    const container = document.getElementById('tableContainer');
+    console.log('[fiche-dheure.js] tableContainer.children.length après chargement :', container?.children.length ?? 'N/A');
+    console.log('[fiche-dheure.js] monTableau01 dans le DOM :', !!document.getElementById('monTableau01'));
+    console.log('[fiche-dheure.js] monTableau11 dans le DOM :', !!document.getElementById('monTableau11'));
+}).catch(err => {
+    console.error('[fiche-dheure.js] ❌ chargerReleve() rejeté :', err);
+    alert('Erreur inattendue dans chargerReleve() :\n' + err.message);
+});

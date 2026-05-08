@@ -2,7 +2,7 @@
 
 namespace App\Repository;
 
-use App\Entity\Relevemensuelinter;
+use App\Entity\Horaire\Relevemensuelinter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

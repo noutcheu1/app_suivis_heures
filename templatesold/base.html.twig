@@ -16,7 +16,7 @@
         
         <nav>
             <ul>
-            {% if auth %}
+            {% if app.user %}
                 <li> <a href="{{ path('dashboard') }}"> Accueil </li>
                 <li> <a href="{{ path('app_logout') }}">Se déconnecter</a> </li>
             {% else %}

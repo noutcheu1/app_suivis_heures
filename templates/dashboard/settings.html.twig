@@ -1,44 +1,55 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Paramètres {{ type }} {% endblock %}
+{% block title %}Paramètres {{ type }}{% endblock %}
+
 {% block body %}
 
-<div class="">
-    <h1> Paramètres de  {{ user.nom }} {{ user.prenom }} </h1>
+<div class="settings-container">
 
-    <form>
+    <h1>
+        Paramètres de {{ user.nom }} {{ user.prenom }}
+    </h1>
+
+    <form id="passwordForm">
+
         <input type="hidden" id="csrf_token" value="{{ csrf_token('change_password') }}">
 
-        <h2> Modifier le mot de passe </h2>
+        <h2>Modifier le mot de passe</h2>
+
         <div id="error" class="alert alert-danger d-none"></div>
-        <div id="success" class="alert alert-success d-none" role="alert"></div>
+        <div id="success" class="alert alert-success d-none"></div>
 
         <div class="form-group">
             <label for="currentPass">Mot de passe actuel</label>
-            <input type="password" class="form-control" id="currentPass">
+            <input type="password" class="form-control" id="currentPass" autocomplete="current-password">
         </div>
 
         <div class="form-group">
-            <label for="pass1">Mot de passe</label>
-            <input type="password" class="form-control" id="pass1">
+            <label for="pass1">Nouveau mot de passe</label>
+            <input type="password" class="form-control" id="pass1" autocomplete="new-password">
+        </div>
 
-            <label for="pass2">Verification de mot de passe</label>
-            <input type="password" class="form-control" id="pass2">
+        <div class="form-group">
+            <label for="pass2">Confirmation du mot de passe</label>
+            <input type="password" class="form-control" id="pass2" autocomplete="new-password">
         </div>
 
         <button type="submit" class="btn btn-primary" id="submitBtn">
             Envoyer
         </button>
+
     </form>
-    
+
 </div>
+
 {% endblock %}
 
 {% block javascripts %}
 {{ parent() }}
+
 <script>
-    const ID = {{ id }};
+    const USER_ID = {{ id|default('null') }};
 </script>
 
-<script src="{{ asset('/assets/js/settings.js') }}"></script>
+<script src="{{ asset('assets/js/settings.js') }}"></script>
 {% endblock %}

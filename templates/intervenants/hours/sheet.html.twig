@@ -114,25 +114,49 @@
 <script src="https://unpkg.com/jspdf-autotable"></script>
 
 <script>
+console.log('=== [sheet.html.twig] SCRIPT INLINE CHARGÉ ===');
+
 const ID = {{ user.id }};
 const paramsUri = new URLSearchParams(window.location.search);
 const TYPE_PRESTA = paramsUri.get("type");
 
+console.log('[Twig→JS] ID (user.id depuis Twig) :', ID);
+console.log('[Twig→JS] moisOffset (depuis Twig)  :', {{ moisOffset }});
+console.log('[Twig→JS] TYPE_PRESTA (depuis URL)   :', TYPE_PRESTA);
+console.log('[Twig→JS] isAdmin (depuis Twig)      :', {{ isAdmin ? 'true' : 'false' }});
+console.log('[Twig→JS] isMobile (depuis Twig)     :', {{ isMobile is defined and isMobile ? 'true' : 'false' }});
+
 const donwnloadInput = document.getElementById("donwload");
-donwnloadInput.style.opacity = "0.4";
-donwnloadInput.style.pointerEvents = "none";
+console.log('[DOM] #donwload :', donwnloadInput ? 'trouvé' : '⚠️ INTROUVABLE');
+
+if (!donwnloadInput) {
+    alert('[sheet.html.twig] ⚠️ #donwload introuvable dans le DOM !');
+} else {
+    donwnloadInput.style.opacity = "0.4";
+    donwnloadInput.style.pointerEvents = "none";
+}
 
 const targetDate = new Date();
 targetDate.setMonth(targetDate.getMonth() + {{ moisOffset }});
 const ANNEE_COURANTE = String(targetDate.getFullYear());
+console.log('[Twig→JS] ANNEE_COURANTE calculée :', ANNEE_COURANTE);
 
-donwnloadInput.addEventListener("click", () => {
-    genererPDF(TYPE_PRESTA, ANNEE_COURANTE);
-});
+if (donwnloadInput) {
+    donwnloadInput.addEventListener("click", () => {
+        console.log('[PDF] Clic sur bouton téléchargement — TYPE_PRESTA:', TYPE_PRESTA, 'ANNEE:', ANNEE_COURANTE);
+        genererPDF(TYPE_PRESTA, ANNEE_COURANTE);
+    });
+}
 
 function activerBoutonTelechargement() {
-    donwnloadInput.style.opacity = "";
-    donwnloadInput.style.pointerEvents = "";
+    console.log('[activerBoutonTelechargement] ▶ activation du bouton download');
+    if (donwnloadInput) {
+        donwnloadInput.style.opacity = "";
+        donwnloadInput.style.pointerEvents = "";
+        console.log('[activerBoutonTelechargement] ✅ bouton activé');
+    } else {
+        console.warn('[activerBoutonTelechargement] ⚠️ #donwload introuvable, activation ignorée');
+    }
 }
 </script>
 

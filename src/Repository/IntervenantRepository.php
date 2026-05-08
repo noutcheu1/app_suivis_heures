@@ -2,7 +2,7 @@
 
 namespace App\Repository;
 
-use App\Entity\Intervenant;
+use App\Entity\Principal\Intervenant;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -35,7 +35,7 @@ class IntervenantRepository extends ServiceEntityRepository
     public function findInfosIntervenant(int $id): ?Intervenant
     {
         return $this->createQueryBuilder('i')
-            ->where('i.id = :id')
+            ->where('i.numSalarie_Intervenants = :id')
             ->andWhere('i.archive = :archive')
             ->setParameter('id', $id)
             ->setParameter('archive', 0)
@@ -82,7 +82,7 @@ class IntervenantRepository extends ServiceEntityRepository
     public function countActifs(): int
     {
         return (int) $this->createQueryBuilder('i')
-            ->select('COUNT(i.id)')
+            ->select('COUNT(i.numSalarie_Intervenants)')
             ->where('i.archive = :archive')
             ->setParameter('archive', 0)
             ->getQuery()

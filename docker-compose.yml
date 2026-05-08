@@ -1,8 +1,6 @@
-version: "3.9"
-
 services:
 
-  # ─── PHP 8.3 / Apache / Symfony 7.4 ─────────────────────────────────────────
+  # ─── PHP / Apache / Symfony ───────────────────────────────────────────────
   app:
     build:
       context: .
@@ -19,21 +17,19 @@ services:
     environment:
       APP_ENV: dev
       APP_DEBUG: "1"
-      APP_SECRET: ${APP_SECRET:-7480ba10cece01e91403306fd4d14827624de2c6ec2e8cf21fd01ad96800cb3b}
-      DATABASE_URL: "mysql://chaudoudoux:root@db:3306/bdchaudoudoux_horaire?serverVersion=10.11.0-MariaDB&charset=utf8mb4"
+      APP_SECRET: ${APP_SECRET:-change_me}
       DB_HOST: db
       DB_PORT: "3306"
       DB_USER: chaudoudoux
       DB_PASSWORD: root
-      DB_NAME: bdchaudoudoux_horaire
-      DB_NAME_PRINCIPAL: bdchaudoudoux_horaire
+      DB_NAME_PRINCIPAL: bdchaudoudoux
       DB_NAME_SECONDAIRE: bdchaudoudoux_horaire
-      MAILER_DSN: "smtp://noreplychaudoudoux@gmail.com:maiq%20shik%20xooh%20sbzw@smtp.gmail.com:587"
+      MAILER_DSN: smtp://noreplychaudoudoux@gmail.com:password@smtp.gmail.com:587
     restart: unless-stopped
     networks:
       - chaudoudoux_net
 
-  # ─── MariaDB 10.11 ───────────────────────────────────────────────────────────
+  # ─── MariaDB ───────────────────────────────────────────────────────────────
   db:
     image: mariadb:10.11
     container_name: chaudoudoux_mariadb
@@ -46,18 +42,18 @@ services:
       MYSQL_USER: chaudoudoux
       MYSQL_PASSWORD: root
     volumes:
-      - db_data:/var/lib/mysql
-      - ./docker/sql/:/docker-entrypoint-initdb.d/
+      - ./docker/conf/sql/:/docker-entrypoint-initdb.d/
+      - ./docker/conf/dumps/:/dumps/:ro
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 30s
     networks:
       - chaudoudoux_net
 
-  # ─── Adminer ─────────────────────────────────────────────────────────────────
+  # ─── Adminer ───────────────────────────────────────────────────────────────
   adminer:
     image: adminer:latest
     container_name: chaudoudoux_adminer
@@ -69,16 +65,14 @@ services:
         condition: service_healthy
     environment:
       ADMINER_DEFAULT_SERVER: db
-      ADMINER_DEFAULT_USER: chaudoudoux
-      ADMINER_DEFAULT_PASSWORD: root
-      ADMINER_DESIGN: pepa-linha
     networks:
       - chaudoudoux_net
 
+# ─── Volumes ────────────────────────────────────────────────────────────────
 volumes:
-  db_data:
   app_var:
 
+# ─── Réseau ────────────────────────────────────────────────────────────────
 networks:
   chaudoudoux_net:
     driver: bridge

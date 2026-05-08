@@ -2,7 +2,7 @@
 
 namespace App\Repository;
 
-use App\Entity\Famille;
+use App\Entity\Principal\Famille;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -85,7 +85,7 @@ class FamilleRepository extends ServiceEntityRepository
     public function countActives(): int
     {
         return (int) $this->createQueryBuilder('f')
-            ->select('COUNT(f.id)')
+            ->select('COUNT(f.numeroFamille)')
             ->where('f.archive = :archive OR f.archive IS NULL')
             ->setParameter('archive', 0)
             ->getQuery()

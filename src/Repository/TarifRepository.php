@@ -2,7 +2,7 @@
 
 namespace App\Repository;
 
-use App\Entity\Tarif;
+use App\Entity\Horaire\Tarif;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

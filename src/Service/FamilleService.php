@@ -2,7 +2,7 @@
 
 namespace App\Service;
 
-use App\Entity\Famille;
+use App\Entity\Principal\Famille;
 use App\Repository\FamilleRepository;
 use App\Repository\HoraireinterRepository;
 use Doctrine\ORM\EntityManagerInterface;

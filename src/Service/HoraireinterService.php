@@ -2,7 +2,7 @@
 
 namespace App\Service;
 
-use App\Entity\Horaireinter;
+use App\Entity\Horaire\Horaireinter;
 use App\Repository\HoraireinterRepository;
 use App\Repository\RelevemensuelinterRepository;
 use Doctrine\ORM\EntityManagerInterface;

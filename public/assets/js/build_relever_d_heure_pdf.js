@@ -76,9 +76,20 @@ function applyComplexStyleByClass(data) {
 }
 
 async function genererPDF(type_de_garde, anne_file) {
+    console.log('=== [genererPDF] DÉBUT ===');
+    console.log('[PDF] type_de_garde :', type_de_garde);
+    console.log('[PDF] anne_file     :', anne_file);
+    console.log('[PDF] window.jspdf  :', typeof window.jspdf);
+    console.log('[PDF] jsPDF.AutoTable :', typeof window.jspdf?.jsPDF?.API?.autoTable);
+
+    if (!window.jspdf) {
+        alert('[genererPDF] ⚠️ window.jspdf est indéfini ! La lib jsPDF n\'est pas chargée.');
+        return;
+    }
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'mm', 'a4');
-    
+
     let index = 1;
     let premierePage = true;
 
@@ -106,13 +117,22 @@ async function genererPDF(type_de_garde, anne_file) {
 
 
 
+    const firstTable = document.getElementById('monTableau11');
+    console.log('[PDF] Premier tableau monTableau11 :', firstTable ? 'TROUVÉ ✅' : 'INTROUVABLE ⚠️ — aucune page ne sera générée');
+    if (!firstTable) {
+        alert('[genererPDF] ⚠️ Aucun tableau trouvé (monTableau11 manquant).\nLes données ne sont pas encore chargées ou le rendu a échoué.');
+        return;
+    }
+
     while (document.getElementById('monTableau1' + index)) {
+        console.log(`[PDF] Traitement page ${index} : monTableau0${index} + monTableau1${index}`);
         if (!premierePage) {
             doc.addPage();
         }
         premierePage = false;
 
         const tableHeader = document.getElementById('monTableau0' + index);
+        console.log(`[PDF] monTableau0${index} :`, tableHeader ? 'OK' : '⚠️ manquant');
 
         if (tableHeader) {
             doc.autoTable({
@@ -174,5 +194,7 @@ async function genererPDF(type_de_garde, anne_file) {
 
         index++;
     }
+    console.log(`[PDF] ${index - 1} page(s) générée(s). Sauvegarde du fichier…`);
     doc.save(`Feuille d'Heures ${type_de_garde}  ${anne_file}.pdf`);
+    console.log('[genererPDF] ✅ FIN');
 }

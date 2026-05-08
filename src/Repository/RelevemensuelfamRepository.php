@@ -2,7 +2,7 @@
 
 namespace App\Repository;
 
-use App\Entity\Relevemensuelfam;
+use App\Entity\Horaire\Relevemensuelfam;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

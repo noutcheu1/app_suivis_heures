@@ -1,53 +1,92 @@
 doctrine:
     dbal:
-        # Configuration de la base de données
-        driver: 'pdo_mysql'
-        host: '%env(resolve:DB_HOST)%'
-        port: '%env(resolve:DB_PORT)%'
-        dbname: '%env(resolve:DB_NAME)%'
-        user: '%env(resolve:DB_USER)%'
-        password: '%env(resolve:DB_PASSWORD)%'
-        charset: utf8mb4
-        default_table_options:
-            charset: utf8mb4
-            collate: utf8mb4_unicode_ci
+        # ── Deux connexions distinctes ─────────────────────────────────────────
+        default_connection: horaire
 
-        # Configuration pour le refactoring
-        # Les tables sont déjà créées via les scripts SQL
-        # schema_filter: ~
+        connections:
+
+            # Connexion 1 : bdchaudoudoux_horaire
+            # C'est ICI que Doctrine crée et gère ses propres tables.
+            # En dev, ces tables sont créées par 02_horaire.sql au démarrage Docker.
+            # En prod, tu lanceras doctrine:migrations:migrate manuellement.
+            horaire:
+                driver: pdo_mysql
+                host:     '%env(resolve:DB_HOST)%'
+                port:     '%env(resolve:DB_PORT)%'
+                dbname:   '%env(resolve:DB_NAME_SECONDAIRE)%'
+                user:     '%env(resolve:DB_USER)%'
+                password: '%env(resolve:DB_PASSWORD)%'
+                charset: utf8mb4
+                server_version: '10.11.0-MariaDB'
+                default_table_options:
+                    charset: utf8mb4
+                    collate: utf8mb4_unicode_ci
+
+            # Connexion 2 : bdchaudoudoux (base principale)
+            # Doctrine peut lire ces tables (famille, intervenants, etc.)
+            # mais ne les JAMAIS modifier. schema_filter bloque toute migration.
+            principal:
+                driver: pdo_mysql
+                host:     '%env(resolve:DB_HOST)%'
+                port:     '%env(resolve:DB_PORT)%'
+                dbname:   '%env(resolve:DB_NAME_PRINCIPAL)%'
+                user:     '%env(resolve:DB_USER)%'
+                password: '%env(resolve:DB_PASSWORD)%'
+                charset: utf8mb4
+                server_version: '10.11.0-MariaDB'
+                # Ce filtre est la protection clé : il dit à Doctrine
+                # "ne génère jamais de migration pour ces tables".
+                # Le regex ~ signifie "ne correspond à rien" → aucune table migrée.
+                schema_filter: '~^$~'
 
     orm:
+        default_entity_manager: horaire
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true
-        report_fields_where_declared: true
-        validate_xml_mapping: true
-        naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
-        auto_mapping: true
-        mappings:
-            App:
-                type: attribute
-                dir: '%kernel.project_dir%/src/Entity'
-                prefix: 'App\Entity'
-                alias: App
-        dql:
-            string_functions:
-                TIME_DIFF: App\Doctrine\TimeDiffFunction
-                TIME_TO_SEC: App\Doctrine\TimeToSecFunction
+
+        entity_managers:
+
+            horaire:
+                connection: horaire
+                mappings:
+                    Horaire:
+                        type: attribute
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/src/Entity/Horaire'
+                        prefix: 'App\Entity\Horaire'
+                        alias: Horaire
+                dql:
+                    string_functions:
+                        TIME_DIFF:    App\Doctrine\TimeDiffFunction
+                        TIME_TO_SEC:  App\Doctrine\TimeToSecFunction
+
+            principal:
+                connection: principal
+                mappings:
+                    Principal:
+                        type: attribute
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/src/Entity/Principal'
+                        prefix: 'App\Entity\Principal'
+                        alias: Principal
 
 when@test:
     doctrine:
         dbal:
-            # "TEST_TOKEN" est typiquement défini par para-test
-            dbname_suffix: '_test%env(default::TOKEN)%'
+            connections:
+                horaire:
+                    dbname_suffix: '_test%env(default::TOKEN)%'
 
 when@prod:
     doctrine:
         orm:
             auto_generate_proxy_classes: false
             proxy_dir: '%kernel.build_dir%/doctrine/orm/Proxies'
-            query_cache_driver:
-                type: pool
-                pool: doctrine.result_cache_pool
-            result_cache_driver:
-                type: pool
-                pool: doctrine.result_cache_pool
+            entity_managers:
+                horaire:
+                    query_cache_driver:
+                        type: pool
+                        pool: doctrine.result_cache_pool
+                    result_cache_driver:
+                        type: pool
+                        pool: doctrine.result_cache_pool

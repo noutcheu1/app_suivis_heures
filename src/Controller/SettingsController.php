@@ -4,7 +4,7 @@ namespace App\Controller;
 
 use App\Service\AuthService;
 use App\Service\IntervenantService;
-use App\Service\User2Service;
+use App\Service\UserSuiviService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,7 +15,7 @@ final class SettingsController extends AbstractController
     public function __construct(
         private AuthService $authService,
         private IntervenantService $intervenantService,
-        private User2Service $user2Service
+        private UserSuiviService $UserSuiviService
     ) {}
 
     #[Route('/api/changePassword/{id}', name: 'change_password_settings', methods: ['POST'])]
@@ -45,11 +45,11 @@ final class SettingsController extends AbstractController
 
         $numSs = $intervenant->getNumSs();
 
-        if (!$this->user2Service->authentifier($numSs, $oldPass)) {
+        if (!$this->UserSuiviService->authentifier($numSs, $oldPass)) {
             return $this->json(['success' => false, 'message' => 'Mot de passe actuel incorrect'], 401);
         }
 
-        if (!$this->user2Service->mettreAJourMotDePasse($numSs, $newPass)) {
+        if (!$this->UserSuiviService->mettreAJourMotDePasse($numSs, $newPass)) {
             return $this->json(['success' => false, 'message' => 'Erreur lors de la mise à jour'], 500);
         }
 

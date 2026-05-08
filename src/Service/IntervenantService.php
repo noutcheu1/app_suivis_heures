@@ -2,7 +2,7 @@
 
 namespace App\Service;
 
-use App\Entity\Intervenant;
+use App\Entity\Principal\Intervenant;
 use App\Repository\IntervenantRepository;
 use Doctrine\ORM\EntityManagerInterface;
 

@@ -2,7 +2,7 @@
 
 namespace App\Service;
 
-use App\Repository\User2Repository;
+use App\Repository\UserSuiviRepository;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 
@@ -12,7 +12,7 @@ class MdpOublieService
     private const CODE_EXPIRATION = 3600; // 1 heure en secondes
 
     public function __construct(
-        private User2Repository $userRepository,
+        private UserSuiviRepository $userRepository,
         private MailerInterface $mailer
     ) {}
 
