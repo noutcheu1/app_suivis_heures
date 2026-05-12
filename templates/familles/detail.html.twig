@@ -1,80 +1,130 @@
 {% extends 'base.html.twig' %}
-
-{% block title %}Espace famille{% endblock %}
+{% block title %}Mon espace — {{ famille.nomFamille ?? '' }}{% endblock %}
+{% block page_title %}Mon espace famille{% endblock %}
 
 {% block body %}
-<h1>Bienvenue, famille {{ famille.nomFamille ?? famille.numeroFamilleFamille ?? '' }}</h1>
 
-{% for message in app.flashes('success') %}
-    <div class="alert alert-success">{{ message }}</div>
-{% endfor %}
-{% for message in app.flashes('error') %}
-    <div class="alert alert-danger">{{ message }}</div>
-{% endfor %}
+<div class="page-header">
+    <h1>Bienvenue, {{ famille.nomFamille ?? famille.numeroFamille ?? 'famille' }}</h1>
+    <p>Validez les prestations saisies par vos intervenants</p>
+</div>
 
-<h2>Heures à valider</h2>
-{% if prestationsNonValidees is empty %}
-    <p>Aucune heure en attente de validation.</p>
-{% else %}
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Intervenant</th>
-                <th>Date</th>
-                <th>Début</th>
-                <th>Fin</th>
-                <th>Type</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for p in prestationsNonValidees %}
+{# ── À valider ─────────────────────────────────────── #}
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+        <i class="fas fa-clock" style="color:var(--warning);"></i>
+        <span class="card-title">Heures à valider</span>
+        {% if prestationsNonValidees is not empty %}
+        <span class="badge badge-warning" style="margin-left:auto;">{{ prestationsNonValidees|length }}</span>
+        {% endif %}
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+
+        {% if prestationsNonValidees is empty %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-check-circle" style="color:var(--success);"></i></div>
+            <h3>Aucune heure en attente</h3>
+            <p>Toutes vos prestations ont été traitées</p>
+        </div>
+        {% else %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Intervenant</th>
+                    <th>Date</th>
+                    <th>Début</th>
+                    <th>Fin</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in prestationsNonValidees %}
             <tr>
                 <td>{{ p.numInter }}</td>
                 <td>{{ p.datePresta|date('d/m/Y') }}</td>
                 <td>{{ p.heureDebutPresta|date('H:i') }}</td>
                 <td>{{ p.heureFinPresta|date('H:i') }}</td>
-                <td>{{ p.typePresta == 'MENA' ? 'Ménage' : 'Garde d\'enfants' }}</td>
                 <td>
-                    <form method="POST" action="{{ path('famille_valider_prestation_mvc', {numFam: famille.numeroFamille, id: p.id}) }}" style="display:inline;">
-                        <button type="submit" class="btn-vert">Valider</button>
-                    </form>
-                    <form method="POST" action="{{ path('famille_signaler_prestation_mvc', {numFam: famille.numeroFamille, id: p.id}) }}" style="display:inline;">
-                        <input type="text" name="remarque" placeholder="Motif du signalement" required>
-                        <button type="submit" class="btn-rouge">Signaler</button>
-                    </form>
+                    <span class="badge {{ p.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
+                        {{ p.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                    </span>
+                </td>
+                <td>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <form method="POST" action="{{ path('famille_valider_prestation_mvc', {numFam: famille.numeroFamille, id: p.id}) }}">
+                            <button type="submit" class="btn btn-success btn-sm">
+                                <i class="fas fa-check"></i> Valider
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ path('famille_signaler_prestation_mvc', {numFam: famille.numeroFamille, id: p.id}) }}"
+                              style="display:flex;gap:6px;">
+                            <input type="text" name="remarque" placeholder="Motif du signalement"
+                                   required
+                                   style="height:28px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;padding:0 8px;outline:none;font-family:inherit;">
+                            <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger);">
+                                <i class="fas fa-flag"></i>
+                            </button>
+                        </form>
+                    </div>
                 </td>
             </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-{% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
 
-<h2>Heures validées</h2>
-{% if prestationsValidees is empty %}
-    <p>Aucune heure validée ce mois.</p>
-{% else %}
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Début</th>
-                <th>Fin</th>
-                <th>Type</th>
-            </tr>
-        </thead>
-        <tbody>
+    </div>
+</div>
+
+{# ── Validées ──────────────────────────────────────── #}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-check-circle" style="color:var(--success);"></i>
+        <span class="card-title">Heures validées ce mois</span>
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+
+        {% set nbValidees = 0 %}
         {% for p in prestationsValidees %}
-            {% if p.validerFam %}
-            <tr>
-                <td>{{ p.datePresta|date('d/m/Y') }}</td>
-                <td>{{ p.heureDebutPresta|date('H:i') }}</td>
-                <td>{{ p.heureFinPresta|date('H:i') }}</td>
-                <td>{{ p.typePresta == 'MENA' ? 'Ménage' : 'Garde d\'enfants' }}</td>
-            </tr>
-            {% endif %}
+            {% if p.validerFam %}{% set nbValidees = nbValidees + 1 %}{% endif %}
         {% endfor %}
-        </tbody>
-    </table>
-{% endif %}
+
+        {% if nbValidees == 0 %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-calendar"></i></div>
+            <h3>Aucune heure validée ce mois</h3>
+        </div>
+        {% else %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Début</th>
+                    <th>Fin</th>
+                    <th>Type</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in prestationsValidees %}
+                {% if p.validerFam %}
+                <tr>
+                    <td>{{ p.datePresta|date('d/m/Y') }}</td>
+                    <td>{{ p.heureDebutPresta|date('H:i') }}</td>
+                    <td>{{ p.heureFinPresta|date('H:i') }}</td>
+                    <td>
+                        <span class="badge {{ p.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
+                            {{ p.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                        </span>
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+    </div>
+</div>
+
 {% endblock %}

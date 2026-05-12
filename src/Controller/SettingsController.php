@@ -13,9 +13,9 @@ use Symfony\Component\Routing\Attribute\Route;
 final class SettingsController extends AbstractController
 {
     public function __construct(
-        private AuthService $authService,
+        private AuthService        $authService,
         private IntervenantService $intervenantService,
-        private UserSuiviService $UserSuiviService
+        private UserSuiviService   $UserSuiviService
     ) {}
 
     #[Route('/api/changePassword/{id}', name: 'change_password_settings', methods: ['POST'])]
@@ -35,40 +35,48 @@ final class SettingsController extends AbstractController
             return $this->json(['success' => false, 'message' => 'Données manquantes'], 400);
         }
 
-        $oldPass = $data['currentPassword'];
-        $newPass = $data['newPassword'];
-
         $intervenant = $this->intervenantService->getIntervenantParId($id);
-        if (!$intervenant || !$intervenant->getNumSs()) {
+        if (!$intervenant) {
             return $this->json(['success' => false, 'message' => 'Intervenant introuvable'], 404);
         }
 
-        $numSs = $intervenant->getNumSs();
+        // Priorité à numSalarie (identifiant de login), fallback sur numSs
+        $username = $intervenant->getNumSalarie() ?? $intervenant->getNumSs();
+        if (!$username) {
+            return $this->json(['success' => false, 'message' => 'Identifiant de connexion introuvable'], 404);
+        }
 
-        if (!$this->UserSuiviService->authentifier($numSs, $oldPass)) {
+        if (!$this->UserSuiviService->authentifier($username, $data['currentPassword'])) {
             return $this->json(['success' => false, 'message' => 'Mot de passe actuel incorrect'], 401);
         }
 
-        if (!$this->UserSuiviService->mettreAJourMotDePasse($numSs, $newPass)) {
+        if (!$this->UserSuiviService->mettreAJourMotDePasse($username, $data['newPassword'])) {
             return $this->json(['success' => false, 'message' => 'Erreur lors de la mise à jour'], 500);
         }
 
         return $this->json(['success' => true, 'message' => 'Mot de passe modifié avec succès']);
     }
 
-    #[Route('/intervenants/{id}/settings', name: 'intervenant_settings')]
-    public function intervenant_settings(int $id, Request $request): Response
+    #[Route('/intervenant/settings', name: 'intervenant_settings')]
+    public function intervenant_settings(Request $request): Response
     {
-        if (!$this->authService->isAdmin() && $id !== $this->authService->intervenant_id()) {
-            return $this->redirectToRoute('intervenant_settings', ['id' => $this->authService->intervenant_id()]);
+        $id = $this->authService->intervenant_id();
+
+        if (!$id && !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
         }
 
-        $intervenant = $this->intervenantService->getIntervenantParId($id);
+        // Admin peut voir les settings d'un intervenant via ?id=X
+        if ($this->authService->isAdmin()) {
+            $id = $request->query->getInt('id', 0) ?: $id;
+        }
+
+        $intervenant = $id ? $this->intervenantService->getIntervenantParId($id) : null;
 
         return $this->render('dashboard/settings.html.twig', [
             'auth' => $this->authService->check(),
             'user' => $intervenant,
-            'id' => $id,
+            'id'   => $id,
             'type' => 'intervenant',
         ]);
     }

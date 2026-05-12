@@ -22,44 +22,28 @@ class TarifRepository extends ServiceEntityRepository
     }
 
     /**
-     * Retourne tous les tarifs actifs
+     * Retourne le tarif actif pour une date donnée (le plus récent dont dateDebut <= date).
      */
-    public function findAllActifs(): array
+    public function findActif(?\DateTimeInterface $date = null): ?Tarif
     {
-        return $this->createQueryBuilder('t')
-            ->where('t.dateFinValidite IS NULL OR t.dateFinValidite >= :currentDate')
-            ->andWhere('t.dateDebutValidite <= :currentDate')
-            ->setParameter('currentDate', date('Y-m'))
-            ->orderBy('t.typePrestation', 'ASC')
-            ->getQuery()
-            ->getResult();
-    }
+        $moisAnnee = ($date ?? new \DateTime())->format('Y-m');
 
-    /**
-     * Retourne un tarif par type de prestation
-     */
-    public function findByTypePrestation(string $typePrestation): ?Tarif
-    {
         return $this->createQueryBuilder('t')
-            ->where('t.typePrestation = :type')
-            ->andWhere('(t.dateFinValidite IS NULL OR t.dateFinValidite >= :currentDate)')
-            ->andWhere('t.dateDebutValidite <= :currentDate')
-            ->setParameter('type', $typePrestation)
-            ->setParameter('currentDate', date('Y-m'))
+            ->where('t.dateDebut <= :moisAnnee')
+            ->setParameter('moisAnnee', $moisAnnee)
+            ->orderBy('t.dateDebut', 'DESC')
+            ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
     }
 
     /**
-     * Retourne les tarifs valides pour une période donnée
+     * Retourne tous les tarifs par ordre chronologique décroissant.
      */
-    public function findValidForPeriod(string $periode): array
+    public function findAllOrdered(): array
     {
         return $this->createQueryBuilder('t')
-            ->where('t.dateDebutValidite <= :periode')
-            ->andWhere('(t.dateFinValidite IS NULL OR t.dateFinValidite >= :periode)')
-            ->setParameter('periode', $periode)
-            ->orderBy('t.typePrestation', 'ASC')
+            ->orderBy('t.dateDebut', 'DESC')
             ->getQuery()
             ->getResult();
     }

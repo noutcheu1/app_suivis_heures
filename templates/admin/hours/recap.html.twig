@@ -1,45 +1,69 @@
 {% extends 'base.html.twig' %}
-
-{% block title %}Récapitulatif des interventions{% endblock %}
+{% block title %}Récapitulatif — {{ mois }}{% endblock %}
+{% block page_title %}Récapitulatif des interventions{% endblock %}
 
 {% block body %}
-<h1>Récapitulatif des interventions — {{ mois }}</h1>
 
-<ul class="menu">
-    <li>
-        <a href="{{ path('admin_recapitulatif_csv_mvc', {mois: mois}) }}">
-            <img src="{{ asset('/assets/icons/save.png') }}" alt="CSV">
-            Exporter en CSV
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Récapitulatif des interventions</h1>
+            <p>Période : <strong>{{ mois }}</strong></p>
+        </div>
+        <a href="{{ path('admin_recapitulatif_csv_mvc', {mois: mois}) }}"
+           class="btn btn-primary btn-sm">
+            <i class="fas fa-file-csv"></i> Exporter CSV
         </a>
-    </li>
-</ul>
+    </div>
+</div>
 
-{% if recapitulatif is empty %}
-    <p>Aucune intervention pour ce mois.</p>
-{% else %}
-    <table class="table">
-        <thead>
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-table" style="color:var(--primary);"></i>
+        <span class="card-title">Interventions du mois</span>
+        {% if recapitulatif is not empty %}
+        <span class="badge badge-muted" style="margin-left:auto;">{{ recapitulatif|length }} ligne{% if recapitulatif|length > 1 %}s{% endif %}</span>
+        {% endif %}
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+
+        {% if recapitulatif is empty %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-calendar-times"></i></div>
+            <h3>Aucune intervention pour ce mois</h3>
+        </div>
+        {% else %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Intervenant</th>
+                    <th>Type</th>
+                    <th>Famille</th>
+                    <th>Heures</th>
+                    <th>Trajets</th>
+                    <th>Km avec enfants</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for ligne in recapitulatif %}
             <tr>
-                <th>Intervenant</th>
-                <th>Type</th>
-                <th>Famille</th>
-                <th>Heures</th>
-                <th>Trajets</th>
-                <th>Km avec enfants</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for ligne in recapitulatif %}
-            <tr>
-                <td>{{ ligne.nomComplet ?? '-' }}</td>
-                <td>{{ ligne.typePresta == 'MENA' ? 'Ménage' : 'Garde d\'enfants' }}</td>
+                <td style="font-weight:500;">{{ ligne.nomComplet ?? '-' }}</td>
+                <td>
+                    <span class="badge {{ ligne.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
+                        {{ ligne.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                    </span>
+                </td>
                 <td>{{ ligne.nomFam ?? '-' }}</td>
-                <td>{{ ligne.dureeTotale ?? '-' }}</td>
+                <td><strong>{{ ligne.dureeTotale ?? '-' }}</strong></td>
                 <td>{{ ligne.nbrTrajet ?? 0 }}</td>
-                <td>{{ ligne.kmAvecEnfant ?? 0 }}</td>
+                <td>{{ ligne.kmAvecEnfant ?? 0 }} km</td>
             </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-{% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+    </div>
+</div>
+
 {% endblock %}

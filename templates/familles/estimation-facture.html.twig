@@ -1,37 +1,72 @@
 {% extends 'base.html.twig' %}
-
-{% block title %}Estimation facture{% endblock %}
+{% block title %}Estimation facture — {{ mois ?? '' }}{% endblock %}
+{% block page_title %}Estimation de facture{% endblock %}
 
 {% block body %}
-<h1>Estimation de facture</h1>
-<p>Famille : <strong>{{ famille.nomParents ?? famille.numero ?? '' }}</strong></p>
-<p>Mois : <strong>{{ estimation.mois }}</strong></p>
 
-<ul class="menu">
-    <li><a href="{{ path('famille_detail_mvc', {numFam: famille.numero}) }}">← Retour</a></li>
-</ul>
-
-<div class="stat-card">
-    <h3>{{ estimation.montantTotal|number_format(2, ',', ' ') }} €</h3>
-    <p>Montant estimé</p>
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Estimation de facture</h1>
+            <p>
+                {{ famille.nomFamille ?? famille.numero ?? '' }}
+                {% if estimation.mois is defined and estimation.mois %}
+                — <strong>{{ estimation.mois }}</strong>
+                {% endif %}
+            </p>
+        </div>
+        <a href="{{ path('famille_panel_mvc') }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Mon espace
+        </a>
+    </div>
 </div>
 
-{% if estimation.details is not empty %}
-    <h2>Détail</h2>
-    <table class="table">
-        <thead>
-            <tr><th>Type</th><th>Heures</th><th>Taux</th><th>Montant</th></tr>
-        </thead>
-        <tbody>
-        {% for d in estimation.details %}
+{# ── Total ─────────────────────────────────────────── #}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:20px;">
+    <div class="kpi-card">
+        <div class="kpi-label">Montant estimé</div>
+        <div class="kpi-value" style="color:var(--primary);">
+            {% if estimation.montantTotal is defined %}
+                {{ estimation.montantTotal|number_format(2, ',', ' ') }} €
+            {% else %}—{% endif %}
+        </div>
+    </div>
+</div>
+
+{# ── Détail ────────────────────────────────────────── #}
+{% if estimation.details is defined and estimation.details is not empty %}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-list" style="color:var(--primary);"></i>
+        <span class="card-title">Détail du calcul</span>
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Type de service</th>
+                    <th>Heures</th>
+                    <th>Taux horaire</th>
+                    <th>Montant</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for d in estimation.details %}
             <tr>
-                <td>{{ d.type ?? '-' }}</td>
-                <td>{{ d.heures ?? 0 }}</td>
-                <td>{{ d.taux ?? 0 }} €</td>
-                <td>{{ d.montant ?? 0 }} €</td>
+                <td>
+                    <span class="badge {{ d.type == 'MENA' ? 'badge-muted' : 'badge-info' }}">
+                        {{ d.type == 'MENA' ? 'Ménage' : (d.type ?? '-') }}
+                    </span>
+                </td>
+                <td>{{ d.heures ?? 0 }} h</td>
+                <td>{{ d.taux ?? 0 }} €/h</td>
+                <td><strong>{{ d.montant ?? 0 }} €</strong></td>
             </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endif %}
+
 {% endblock %}

@@ -1,31 +1,60 @@
 {% extends 'base.html.twig' %}
-
-{% block title %}Relevés famille{% endblock %}
+{% block title %}Relevés — {{ famille.nomFamille ?? '' }}{% endblock %}
+{% block page_title %}Mes relevés{% endblock %}
 
 {% block body %}
-<h1>Relevés — famille {{ famille.nomParents ?? famille.numero ?? '' }}</h1>
-<p>Mois : <strong>{{ mois }}</strong></p>
 
-<ul class="menu">
-    <li><a href="{{ path('famille_detail_mvc', {numFam: famille.numero}) }}">← Retour</a></li>
-</ul>
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Relevés</h1>
+            <p>Période : <strong>{{ mois }}</strong></p>
+        </div>
+        <a href="{{ path('famille_panel_mvc') }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Mon espace
+        </a>
+    </div>
+</div>
 
-{% if releves is empty %}
-    <p>Aucun relevé disponible pour ce mois.</p>
-{% else %}
-    <table class="table">
-        <thead>
-            <tr><th>Mois</th><th>Heures</th><th>Statut</th></tr>
-        </thead>
-        <tbody>
-        {% for r in releves %}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-file-alt" style="color:var(--primary);"></i>
+        <span class="card-title">Relevés mensuels</span>
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+
+        {% if releves is empty %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-folder-open"></i></div>
+            <h3>Aucun relevé disponible</h3>
+            <p>Aucun relevé pour la période sélectionnée</p>
+        </div>
+        {% else %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Mois</th>
+                    <th>Heures</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in releves %}
             <tr>
                 <td>{{ r.mois ?? '-' }}</td>
-                <td>{{ r.heures ?? '-' }}</td>
-                <td>{{ r.statut ?? '-' }}</td>
+                <td><strong>{{ r.heures ?? '-' }}</strong></td>
+                <td>
+                    {% if r.statut is defined %}
+                    <span class="badge badge-success">{{ r.statut }}</span>
+                    {% else %}—{% endif %}
+                </td>
             </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-{% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+    </div>
+</div>
+
 {% endblock %}

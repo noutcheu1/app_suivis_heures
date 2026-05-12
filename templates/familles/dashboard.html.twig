@@ -1,153 +1,195 @@
 {% extends 'base.html.twig' %}
-
-{% block title %}Mon espace - {{ famille.nomFamille }}{% endblock %}
+{% block title %}Mon espace — {{ famille.nomFamille }}{% endblock %}
+{% block page_title %}Mon espace{% endblock %}
 
 {% block body %}
 
-<div class="famille-container">
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Bonjour, famille {{ famille.nomFamille }}</h1>
+            <p>Tableau de bord — {{ "now"|date('F Y')|capitalize }}</p>
+        </div>
+        <a href="{{ path('famille_detail_mvc', {numFam: famille.numeroFamille}) }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-folder-open"></i> Dossier complet
+        </a>
+    </div>
+</div>
 
-    <h1 class="title">
-        Espace famille : <strong>{{ famille.nomFamille }}</strong>
-    </h1>
+{# ── KPI cards ──────────────────────────────────────────── #}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:28px;">
 
-    {# ================= FLASH ================= #}
-    <div class="flash-zone">
-        {% for message in app.flashes('success') %}
-            <div class="alert alert-success">{{ message }}</div>
-        {% endfor %}
-        {% for message in app.flashes('error') %}
-            <div class="alert alert-danger">{{ message }}</div>
-        {% endfor %}
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background:#eef2ff;">
+            <i class="fas fa-clock" style="color:#4f46e5;"></i>
+        </div>
+        <div class="kpi-value">{{ stats.totalHeures ?? '0h00' }}</div>
+        <div class="kpi-label">Total heures (mois)</div>
     </div>
 
-    {# ================= MENU CARDS ================= #}
-    <div class="menu-grid">
-
-        <a class="menu-card" href="{{ path('famille_profile_mvc') }}">
-            <img src="{{ asset('assets/icons/user.png') }}">
-            <span>Mon profil</span>
-        </a>
-
-        {% if famille.prestGardeEnfants %}
-        <a class="menu-card" href="{{ path('releves_famille_mvc', {numFam: famille.numeroFamille}) }}">
-            <img src="{{ asset('assets/icons/folderENFA.png') }}">
-            <span>Garde d’enfants</span>
-        </a>
-        {% endif %}
-
-        {% if famille.prestMenage %}
-        <a class="menu-card" href="{{ path('releves_famille_mvc', {numFam: famille.numeroFamille}) }}">
-            <img src="{{ asset('assets/icons/folderMENA.png') }}">
-            <span>Ménage</span>
-        </a>
-        {% endif %}
-
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background:#f0fdf4;">
+            <i class="fas fa-check-circle" style="color:#10b981;"></i>
+        </div>
+        <div class="kpi-value">{{ stats.heuresValidees ?? '0h00' }}</div>
+        <div class="kpi-label">Heures validées</div>
     </div>
 
-    {# ================= À VALIDER ================= #}
-    <h2 class="section-title">Heures à valider</h2>
-
-    {% if prestationsNonValidees is empty %}
-
-        <div class="empty-state">
-            Aucune heure en attente de validation
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background:#fffbeb;">
+            <i class="fas fa-hourglass-half" style="color:#f59e0b;"></i>
         </div>
+        <div class="kpi-value">{{ stats.heuresAttente ?? '0h00' }}</div>
+        <div class="kpi-label">En attente de validation</div>
+    </div>
 
-    {% else %}
-
-        <div class="card-list">
-
-            {% for p in prestationsNonValidees %}
-
-                <div class="presta-card">
-
-                    <div class="presta-header">
-                        <div class="date">
-                            {{ p.datePresta|date('d/m/Y') }}
-                        </div>
-
-                        <div class="type">
-                            {{ p.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
-                        </div>
-                    </div>
-
-                    <div class="presta-body">
-                        <div>
-                            <strong>Intervenant :</strong> {{ p.numInter }}
-                        </div>
-                        <div>
-                            {{ p.heureDebutPresta|date('H:i') }} → {{ p.heureFinPresta|date('H:i') }}
-                        </div>
-                    </div>
-
-                    <div class="presta-actions">
-
-                        <form method="POST"
-                              action="{{ path('famille_valider_prestation_mvc', {
-                                  numFam: famille.numeroFamille,
-                                  id: p.id
-                              }) }}">
-                            <button class="btn btn-success">Valider</button>
-                        </form>
-
-                        <form method="POST"
-                              action="{{ path('famille_signaler_prestation_mvc', {
-                                  numFam: famille.numeroFamille,
-                                  id: p.id
-                              }) }}">
-                            <input type="text" name="remarque" placeholder="Motif">
-                            <button class="btn btn-danger">Signaler</button>
-                        </form>
-
-                    </div>
-
-                </div>
-
-            {% endfor %}
-
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background:#fef2f2;">
+            <i class="fas fa-flag" style="color:#ef4444;"></i>
         </div>
-
-    {% endif %}
-
-    {# ================= VALIDÉES ================= #}
-    <h2 class="section-title">Heures validées</h2>
-
-    {% set validees = prestationsValidees|filter(p => p.validerFam) %}
-
-    {% if validees is empty %}
-
-        <div class="empty-state">
-            Aucune heure validée ce mois
-        </div>
-
-    {% else %}
-
-        <div class="card-list">
-
-            {% for p in validees %}
-
-                <div class="mini-card">
-
-                    <div>
-                        {{ p.datePresta|date('d/m/Y') }}
-                    </div>
-
-                    <div>
-                        {{ p.heureDebutPresta|date('H:i') }} → {{ p.heureFinPresta|date('H:i') }}
-                    </div>
-
-                    <div class="badge">
-                        {{ p.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
-                    </div>
-
-                </div>
-
-            {% endfor %}
-
-        </div>
-
-    {% endif %}
+        <div class="kpi-value">{{ stats.nbSignalements ?? 0 }}</div>
+        <div class="kpi-label">Signalements</div>
+    </div>
 
 </div>
+
+{# ── Alertes ────────────────────────────────────────────── #}
+{% if (stats.nbAttente ?? 0) > 0 %}
+<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13.5px;margin-bottom:8px;">
+    <i class="fas fa-exclamation-triangle" style="color:#f59e0b;flex-shrink:0;"></i>
+    <span>
+        <strong>{{ stats.nbAttente }} prestation{% if stats.nbAttente > 1 %}s{% endif %} à valider</strong>
+        — confirmez les heures de vos intervenants pour ce mois.
+        <a href="{{ path('famille_detail_mvc', {numFam: famille.numeroFamille}) }}"
+           style="margin-left:8px;color:#92400e;font-weight:600;">Valider maintenant →</a>
+    </span>
+</div>
+{% endif %}
+
+{% if (stats.nbSignalements ?? 0) > 0 %}
+<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13.5px;margin-bottom:8px;">
+    <i class="fas fa-flag" style="color:#ef4444;flex-shrink:0;"></i>
+    <span>
+        <strong>{{ stats.nbSignalements }} signalement{% if stats.nbSignalements > 1 %}s{% endif %} en cours</strong>
+        — des divergences ont été signalées sur vos prestations.
+        <a href="{{ path('famille_signalements_mvc') }}"
+           style="margin-left:8px;color:#991b1b;font-weight:600;">Voir les signalements →</a>
+    </span>
+</div>
+{% endif %}
+
+{# ── Actions rapides ────────────────────────────────────── #}
+<h2 style="font-size:15px;font-weight:700;margin:0 0 14px;color:var(--text);">Actions rapides</h2>
+<div class="action-grid" style="margin-bottom:28px;">
+
+    <a class="action-card" href="{{ path('famille_detail_mvc', {numFam: famille.numeroFamille}) }}">
+        <div class="action-card-icon" style="background:#fffbeb;">
+            <i class="fas fa-check-square" style="color:#f59e0b;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Valider les heures</p>
+            <p class="action-card-desc">{{ (stats.nbAttente ?? 0) }} en attente</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('famille_signalements_mvc') }}">
+        <div class="action-card-icon" style="background:#fef2f2;">
+            <i class="fas fa-flag" style="color:#ef4444;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Mes signalements</p>
+            <p class="action-card-desc">Divergences & litiges</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('famille_qr_mvc') }}">
+        <div class="action-card-icon" style="background:#eef2ff;">
+            <i class="fas fa-qrcode" style="color:#4f46e5;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Mon QR code</p>
+            <p class="action-card-desc">Pour scanner à l'arrivée</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('famille_releves_mvc', {numFam: famille.numeroFamille}) }}">
+        <div class="action-card-icon" style="background:#f0fdf4;">
+            <i class="fas fa-file-invoice" style="color:#10b981;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Mes relevés</p>
+            <p class="action-card-desc">ENFA / MENA mensuels</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('famille_estimation_facture_mvc', {numFam: famille.numeroFamille}) }}">
+        <div class="action-card-icon" style="background:#fdf4ff;">
+            <i class="fas fa-calculator" style="color:#a21caf;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Estimation facture</p>
+            <p class="action-card-desc">Calcul mensuel estimé</p>
+        </div>
+    </a>
+
+</div>
+
+{# ── Dernières interventions ────────────────────────────── #}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <h2 style="font-size:15px;font-weight:700;margin:0;color:var(--text);">Dernières interventions</h2>
+    <a href="{{ path('famille_detail_mvc', {numFam: famille.numeroFamille}) }}"
+       style="font-size:12px;color:var(--primary);text-decoration:none;font-weight:500;">
+        Tout voir →
+    </a>
+</div>
+
+{% if dernieres is empty %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state" style="padding:30px 20px;">
+            <div class="empty-state-icon"><i class="fas fa-calendar-times"></i></div>
+            <h3>Aucune intervention ce mois</h3>
+            <p>Les interventions validées apparaîtront ici</p>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="table-wrapper">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Horaires</th>
+                <th>Type</th>
+                <th>Intervenant</th>
+                <th>Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for p in dernieres %}
+            <tr>
+                <td>{{ p.datePresta|date('d/m/Y') }}</td>
+                <td>{{ p.heureDebutPresta|date('H:i') }} → {{ p.heureFinPresta|date('H:i') }}</td>
+                <td>
+                    <span class="badge {{ p.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
+                        {{ p.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                    </span>
+                </td>
+                <td>{{ p.numInter }}</td>
+                <td>
+                    {% if p.remarque %}
+                        <span class="badge badge-danger"><i class="fas fa-flag"></i> Signalé</span>
+                    {% elseif p.validerFam %}
+                        <span class="badge badge-success"><i class="fas fa-check"></i> Validé</span>
+                    {% else %}
+                        <span class="badge badge-warning"><i class="fas fa-clock"></i> En attente</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
 
 {% endblock %}

@@ -30,7 +30,9 @@ final class FamillesControllerMVC extends AbstractController
 
         $numFam = $this->authService->famille_id();
         if (!$numFam) {
-            return $this->redirectToRoute('dashboard');
+            throw $this->createNotFoundException(
+                'Aucun dossier famille trouvé pour votre identifiant. Contactez l\'administrateur.'
+            );
         }
 
         $famille = $this->familleService->getFamilleParNumero($numFam);
@@ -39,13 +41,17 @@ final class FamillesControllerMVC extends AbstractController
         }
 
         $prestationsNonValidees = $this->horaireService->getPrestationsNonValidees($numFam);
-        $prestationsValidees = $this->horaireService->getPrestationsParFamille($numFam);
+        $prestationsValidees    = $this->horaireService->getPrestationsParFamille($numFam);
+        $stats                  = $this->horaireService->getDashboardStatsFamille($numFam);
+        $dernieres              = array_slice($prestationsValidees, 0, 5);
 
         return $this->render('familles/dashboard.html.twig', [
-            'auth' => true,
-            'famille' => $famille,
+            'auth'                   => true,
+            'famille'                => $famille,
             'prestationsNonValidees' => $prestationsNonValidees,
-            'prestationsValidees' => $prestationsValidees,
+            'prestationsValidees'    => $prestationsValidees,
+            'stats'                  => $stats,
+            'dernieres'              => $dernieres,
         ]);
     }
 
@@ -58,7 +64,9 @@ final class FamillesControllerMVC extends AbstractController
 
         $numFam = $this->authService->famille_id();
         if (!$numFam) {
-            return $this->redirectToRoute('dashboard');
+            throw $this->createNotFoundException(
+                'Aucun dossier famille trouvé pour votre identifiant. Contactez l\'administrateur.'
+            );
         }
 
         $famille = $this->familleService->getFamilleParNumero($numFam);
@@ -69,6 +77,53 @@ final class FamillesControllerMVC extends AbstractController
         return $this->render('familles/profile.html.twig', [
             'auth' => true,
             'famille' => $famille,
+        ]);
+    }
+
+    #[Route('/famille/mon-qrcode', name: 'famille_qr_mvc')]
+    public function qrCode(Request $request): Response
+    {
+        if (!$this->authService->check()) {
+            return $this->redirectToRoute('app_login');
+        }
+        $numFam = $this->authService->famille_id();
+        if (!$numFam) {
+            throw $this->createNotFoundException(
+                'Aucun dossier famille trouvé pour votre identifiant. Contactez l\'administrateur.'
+            );
+        }
+
+        $famille = $this->familleService->getFamilleParNumero($numFam);
+        if (!$famille) throw $this->createNotFoundException('Famille introuvable');
+
+        return $this->render('familles/qr-code.html.twig', [
+            'auth'    => true,
+            'famille' => $famille,
+        ]);
+    }
+
+    #[Route('/famille/mes-signalements', name: 'famille_signalements_mvc')]
+    public function signalements(Request $request): Response
+    {
+        if (!$this->authService->check()) {
+            return $this->redirectToRoute('app_login');
+        }
+        $numFam = $this->authService->famille_id();
+        if (!$numFam) {
+            throw $this->createNotFoundException(
+                'Aucun dossier famille trouvé pour votre identifiant. Contactez l\'administrateur.'
+            );
+        }
+
+        $famille = $this->familleService->getFamilleParNumero($numFam);
+        if (!$famille) throw $this->createNotFoundException('Famille introuvable');
+
+        $signalements = $this->horaireService->getSignalementsFamille($numFam);
+
+        return $this->render('familles/signalements.html.twig', [
+            'auth'        => true,
+            'famille'     => $famille,
+            'signalements'=> $signalements,
         ]);
     }
 
@@ -166,6 +221,7 @@ final class FamillesControllerMVC extends AbstractController
             'auth' => $this->authService->check(),
             'famille' => $famille,
             'releves' => $releves,
+            'mois' => (new \DateTime())->format('m/Y'),
         ]);
     }
 

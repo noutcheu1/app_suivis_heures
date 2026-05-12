@@ -1,48 +1,25 @@
-# Scripts d'initialisation Docker pour le projet Chaudoudoux
+# docker/sql3/ — ARCHIVÉ — Ne pas utiliser
 
-## Fichiers d'initialisation
+Ce dossier contient des **scripts expérimentaux de refactoring** qui n'ont jamais
+été intégrés au Docker Compose et ne doivent **pas** être exécutés.
 
-### `01-init.sql`
-- Crée les bases de données `bdchaudoudoux` et `bdchaudoudoux_horaire`
-- Configure les permissions complètes pour l'utilisateur `chaudoudoux`
-- Applique les droits de création de vues et procédures stockées
-- Exécuté automatiquement au premier démarrage du container MariaDB
+## Pourquoi ces scripts ne fonctionnent pas
 
-### `03-refactor-bdd.sql`
-- **Refactoring complet de la base de données**
-- Crée les tables unifiées et normalisées
-- Supprime la redondance et respecte les formes normales
-- Structure finale optimisée pour l'application
+| Fichier | Problème |
+|---------|----------|
+| `04-refactor-bdd.sql` | Crée `tarifs_unifiee`, `intervenants_unifie`, `famille_normalisee` — tables jamais utilisées par l'app |
+| `05-migrate-tables-principales.sql` | Copie des tables depuis `bdchaudoudoux` via `CREATE TABLE AS SELECT` — casse les index et les FK |
+| `06-migration-donnees.sql` | Insère dans `tarifs_unifiee` et `intervenants_unifie` — tables qui n'existent pas dans le vrai schéma |
+| `07-migration-succes.sql` | Idem — références à des tables inexistantes |
+| `02-bdchaudoudoux.sql` | Dump de 2.9 MB — non exécuté automatiquement |
+| `03-bdchaudoudoux-horaire.sql` | Dump de 1.1 MB — non exécuté automatiquement |
+| `02-import-dumps.sql` | Fichier vide (juste un SELECT message) |
 
-### `04-migration-donnees-finale.sql`
-- **Migration des données vers la nouvelle structure**
-- Fusion des tables `intervenants` et `candidats`
-- Import des familles et tarifs
-- 4,259 intervenants et 835 familles migrés
+## Ce qui est réellement exécuté au démarrage Docker
 
-### `04-migration-donnees-succes.sql`
-- **Finalisation et validation**
-- Création des tables de normalisation
-- Configuration des tarifs par défaut
-- Validation de la structure finale
+Voir `docker/conf/sql/` — c'est le seul dossier monté dans `docker-entrypoint-initdb.d/`.
 
-### `02-import-dumps.sql`
-- Script de référence pour l'importation des dumps
-- Les dumps SQL sont importés automatiquement via le volume Docker
-
-## Déploiement
-
-Les dumps SQL sont copiés dans le répertoire `docker/sql/` et importés automatiquement :
-- `bdchaudoudoux (12).sql` → base `bdchaudoudoux`
-- `bdchaudoudoux_horaire.sql` → base `bdchaudoudoux_horaire`
-
-## Permissions
-
-L'utilisateur `chaudoudoux` a tous les droits nécessaires sur les deux bases :
-- ALL PRIVILEGES
-- CREATE VIEW
-- CREATE ROUTINE
-
-## Configuration Docker Compose
-
-Le volume `./docker/sql/:/docker-entrypoint-initdb.d/` assure l'exécution automatique de tous les scripts SQL au démarrage.
+Ordre d'exécution :
+1. `01-init.sql`       — crée les DBs + permissions
+2. `02-import-dumps.sh` — importe les dumps production
+3. `02_horaire.sql`    — crée les nouvelles tables + migre les données

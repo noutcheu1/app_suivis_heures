@@ -278,7 +278,7 @@
                 <p class="mb-0">
                     {{ user.nom|default('Nom non spécifié') }} {{ user.prenom|default('') }}
                     <span class="status-badge status-active ms-2">
-                        #{{ user.id_intervenant|default(user.id) }}
+                        #{{ user.id_intervenant|default(app.user.id) }}
                     </span>
                 </p>
             </div>
@@ -330,7 +330,7 @@
             
             <div class="info-item">
                 <label>ID Intervenant</label>
-                <div class="value">{{ user.id_intervenant|default(user.id) }}</div>
+                <div class="value">{{ user.id_intervenant|default(app.user.id) }}</div>
             </div>
             
             {% if user['Numéro de sécurité sociale'] is defined and user['Numéro de sécurité sociale'] %}
@@ -524,27 +524,27 @@
         </h3>
         
         <div class="action-buttons">
-            <a href="{{ path('intervenant_panel_mvc', {id: user.id_intervenant|default(user.id)}) }}" class="btn-action btn-primary">
+            <a href="{{ path('intervenant_panel_mvc', {id: user.id_intervenant|default(app.user.id)}) }}" class="btn-action btn-primary">
                 <i class="fas fa-tachometer-alt"></i>
                 Tableau de bord
             </a>
             
-            <a href="{{ path('intervenant_heures_mvc', {id: user.id_intervenant|default(user.id)}) }}" class="btn-action btn-success">
+            <a href="{{ path('intervenant_heures_mvc', {id: user.id_intervenant|default(app.user.id)}) }}" class="btn-action btn-success">
                 <i class="fas fa-plus-circle"></i>
                 Ajouter des heures
             </a>
             
-            <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(user.id), type: 'ENFA'}) }}" class="btn-action btn-info">
+            <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(app.user.id), type: 'ENFA'}) }}" class="btn-action btn-info">
                 <i class="fas fa-child"></i>
                 Relevés ENFA
             </a>
             
-            <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(user.id), type: 'MENA'}) }}" class="btn-action btn-purple">
+            <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(app.user.id), type: 'MENA'}) }}" class="btn-action btn-purple">
                 <i class="fas fa-broom"></i>
                 Relevés MENA
             </a>
             
-            <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(user.id)}) }}" class="btn-action btn-warning">
+            <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(app.user.id)}) }}" class="btn-action btn-warning">
                 <i class="fas fa-file-alt"></i>
                 Tous les relevés
             </a>

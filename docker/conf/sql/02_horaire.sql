@@ -1,25 +1,21 @@
 -- ============================================================
--- Création de la base secondaire pour l'app suivi heures
--- Ce fichier est exécuté automatiquement par MariaDB au
--- démarrage via docker-entrypoint-initdb.d/
--- À chaque docker compose up, la base repart proprement.
+-- 02_horaire.sql — Tables de l'app + migration des données
 -- ============================================================
-
-CREATE DATABASE IF NOT EXISTS bdchaudoudoux_horaire
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
-
--- Donne tous les droits à l'utilisateur de l'app sur cette base
-GRANT ALL PRIVILEGES ON bdchaudoudoux_horaire.* TO 'chaudoudoux'@'%';
-FLUSH PRIVILEGES;
+-- S'exécute APRÈS :
+--   01-init.sql         (crée les DBs + permissions)
+--   02-import-dumps.sh  (importe les dumps production)
+--
+-- Ce fichier crée uniquement les NOUVELLES tables de l'app
+-- (absentes des dumps) et migre les données depuis les tables
+-- legacy correspondantes.
+-- ============================================================
 
 USE bdchaudoudoux_horaire;
 
--- ── Table des comptes utilisateurs de l'app suivi heures ──
--- username contient selon le rôle :
---   admin       → identifiant libre
---   intervenant → numéro SS (correspond à numSS_Candidats dans bdchaudoudoux)
---   famille     → code PM_Famille ou PGE_Famille dans bdchaudoudoux
+-- ─────────────────────────────────────────────────────────────
+-- TABLE : users_suivi
+-- Remplace users2 (ancien système sans bcrypt ni rôles Symfony)
+-- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS `users_suivi` (
     `id`           INT(11)      NOT NULL AUTO_INCREMENT,
     `username`     VARCHAR(255) NOT NULL,
@@ -30,66 +26,41 @@ CREATE TABLE IF NOT EXISTS `users_suivi` (
     `cree_le`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ── Table des heures saisies par les intervenants ─────────
-CREATE TABLE IF NOT EXISTS `horaireinter` (
-    `id`               INT(15)      NOT NULL AUTO_INCREMENT,
-    `numFam`           VARCHAR(10)  DEFAULT NULL,
-    `nomFam`           VARCHAR(50)  NOT NULL,
-    `numInter`         INT(5)       NOT NULL,
-    `datePresta`       DATE         NOT NULL,
-    `heureDebutPresta` TIME         NOT NULL,
-    `heureFinPresta`   TIME         NOT NULL,
-    `typePresta`       VARCHAR(4)   NOT NULL,
-    `kmAvecEnfant`     DECIMAL(5,1) DEFAULT NULL,
-    `ajouterLe`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `modifierLe`       DATETIME     DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-    `desactiver`       TINYINT(1)   NOT NULL DEFAULT 0,
-    `validerFam`       TINYINT(1)   NOT NULL DEFAULT 0,
-    `validerLe`        DATETIME     DEFAULT NULL,
-    `remarque`         TEXT         DEFAULT NULL,
-    `remarqueLe`       DATETIME     DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_numFam`    (`numFam`),
-    KEY `idx_numInter`  (`numInter`),
-    KEY `idx_datePresta`(`datePresta`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Compte admin par défaut
+-- username : 9.99.99.99.999.999.99  /  password : admin
+INSERT IGNORE INTO `users_suivi` (`username`, `role`, `password`) VALUES (
+    '9.99.99.99.999.999.99',
+    'admin',
+    '$2y$13$n1Nvk59rJbNfdEqLJ.ytJeJUWlOCaaJ3q1VAY8kPpChFONGsoc6FG'
+);
 
--- ── Relevé mensuel intervenant (signature + heures hors structure) ──
-CREATE TABLE IF NOT EXISTS `relevemensuelinter` (
-    `moisannee`            VARCHAR(7)  NOT NULL,
-    `numInter`             INT(5)      NOT NULL,
-    `typePresta`           VARCHAR(4)  NOT NULL,
-    `heureDehors`          TIME        DEFAULT NULL,
-    `heureDehorsAjouterLe` DATETIME   DEFAULT NULL,
-    `signer`               TINYINT(1) NOT NULL DEFAULT 0,
-    `signerLe`             DATETIME   DEFAULT NULL,
-    PRIMARY KEY (`moisannee`, `numInter`, `typePresta`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Migration des comptes existants depuis users2
+-- Règle de détection du rôle :
+--   identifiant commençant par un chiffre suivi d'un point → intervenant (numSS)
+--   identifiant commençant par PM, M, PGE               → famille
+--   admin identifié par son username exact               → déjà inséré ci-dessus
+INSERT IGNORE INTO `users_suivi` (`username`, `role`, `password`)
+SELECT
+    u.`identifiant`,
+    CASE
+        WHEN u.`identifiant` REGEXP '^[0-9]+\\.'   THEN 'intervenant'
+        WHEN u.`identifiant` REGEXP '^(PM|PGE|M)[0-9]' THEN 'famille'
+        ELSE 'intervenant'
+    END AS `role`,
+    u.`mdp`
+FROM `users2` u
+WHERE u.`identifiant` IS NOT NULL
+  AND u.`identifiant` != ''
+  AND u.`identifiant` != '9.99.99.99.999.999.99';
 
--- ── Récapitulatif mensuel famille (règlement + avis + signature) ──
-CREATE TABLE IF NOT EXISTS `relevemensuelfam` (
-    `numFam`            VARCHAR(10)  NOT NULL,
-    `moisannee`         VARCHAR(7)   NOT NULL,
-    `typePresta`        VARCHAR(4)   NOT NULL,
-    `typeReglement`     VARCHAR(15)  DEFAULT NULL,
-    `numCheque`         VARCHAR(15)  DEFAULT NULL,
-    `nbrCESU`           INT(11)      DEFAULT NULL,
-    `montantPrincipal`  DECIMAL(5,2) DEFAULT NULL,
-    `complementCESU`    VARCHAR(15)  DEFAULT NULL,
-    `montantComplement` DECIMAL(5,2) DEFAULT NULL,
-    `libelerSupl`       TEXT         DEFAULT NULL,
-    `montantSupl`       DECIMAL(5,2) DEFAULT NULL,
-    `avisPonctualite`   INT(11)      DEFAULT NULL,
-    `avisReguRela`      INT(11)      DEFAULT NULL,
-    `avisRespectHo`     INT(11)      DEFAULT NULL,
-    `avisQualiteTr`     INT(11)      DEFAULT NULL,
-    `signerLe`          DATETIME     DEFAULT NULL,
-    PRIMARY KEY (`numFam`, `moisannee`, `typePresta`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ── Grilles tarifaires horodatées ─────────────────────────
+-- ─────────────────────────────────────────────────────────────
+-- TABLE : tarifs_suivi
+-- Même structure que tarifs2 (legacy PdoApp).
+-- tarifs2  → lu par PdoApp (couche legacy)
+-- tarifs_suivi → lu par Doctrine (entité Tarif)
+-- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS `tarifs_suivi` (
     `id`                 INT(15)      NOT NULL AUTO_INCREMENT,
     `alheureGE`          TEXT         NOT NULL,
@@ -100,28 +71,30 @@ CREATE TABLE IF NOT EXISTS `tarifs_suivi` (
     `KMenfants`          DECIMAL(5,2) NOT NULL DEFAULT 0.35,
     `abonnement`         DECIMAL(5,2) NOT NULL DEFAULT 2.00,
     `dateDebut`          VARCHAR(7)   NOT NULL,
-    PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_date_debut` (`dateDebut`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ── Données initiales ─────────────────────────────────────
-
--- Compte admin par défaut
--- username : 9.99.99.99.999.999.99
--- password : admin (hashé en bcrypt)
-INSERT IGNORE INTO `users_suivi` (`username`, `role`, `password`) VALUES (
-    '9.99.99.99.999.999.99',
-    'admin',
-    '$2y$13$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'
-);
-
--- Tarif initial (juillet 2025)
+-- Migration : copie tous les tarifs de tarifs2 vers tarifs_suivi
 INSERT IGNORE INTO `tarifs_suivi`
-    (`alheureGE`, `alheureM`, `fraisGestion`, `parIntervention`,
-     `maxParIntervention`, `KMenfants`, `abonnement`, `dateDebut`)
-VALUES (
-    '[["$h >= 16","V"],["$h < 16 && $h >= 13",27.00],["$h < 13 && $h >= 10",30.00],["$h < 10 && $h >= 7",32.00],["$h < 7",35.00]]',
-    '[["$h >= 0","V"],["$h < 0",0.00]]',
-    '[["$age < 6","$h < 19",25.00],["$age >= 6","$h < 8",15.00]]',
-    1.50, 15.00, 0.35, 2.00,
-    '2025-07'
-);
+    (`id`, `alheureGE`, `alheureM`, `fraisGestion`,
+     `parIntervention`, `maxParIntervention`, `KMenfants`, `abonnement`, `dateDebut`)
+SELECT
+    `id`, `alheureGE`, `alheureM`, `fraisGestion`,
+    `parIntervention`, `maxParIntervention`, `KMenfants`, `abonnement`, `dateDebut`
+FROM `tarifs2`;
+
+-- ─────────────────────────────────────────────────────────────
+-- Confirmation
+-- ─────────────────────────────────────────────────────────────
+SELECT
+    'users_suivi'   AS `table`,
+    COUNT(*)        AS `lignes`
+FROM `users_suivi`
+
+UNION ALL
+
+SELECT
+    'tarifs_suivi'  AS `table`,
+    COUNT(*)        AS `lignes`
+FROM `tarifs_suivi`;

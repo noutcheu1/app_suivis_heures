@@ -4,14 +4,14 @@
 
 {% block body %}
 <h1>Liste des heures enregistrées par 
-    <a href="{{ path('intervenant_panel', {'id': user.id}) }}">
+    <a href="{{ path('intervenant_panel', {'id': app.user.id}) }}">
         {{ user.nom_Candidats }} {{ user.prenom_Candidats }}
     </a>
 </h1>
 
 <ul class="menu">
     <li>
-        <a href="{{ path('intervenant_suivie', {'id': user.id}) }}">
+        <a href="{{ path('intervenant_suivie', {'id': app.user.id}) }}">
             <img src="{{ asset('assets/icons/calendar.png') }}" alt="ajouter">
             Ajouter
         </a>
@@ -50,13 +50,13 @@
             <td >{{ presta.typePresta }}</td>
             <td class="d-none d-md-table-cell">{{ presta.ajouterLe }}</td>
             <td class="d-none d-md-table-cell">{{ presta.modifierLe }}
-                <a href="{{ path('intervenant_suivie', {'id': user.id, 'edite': presta.id}) }}" class="btn-vert">Modifier</a>
+                <a href="{{ path('intervenant_suivie', {'id': app.user.id, 'edite': presta.id}) }}" class="btn-vert">Modifier</a>
             </td>
             <td class="d-none d-md-table-cell">
                 {% if presta.desactiver == 1 %}
-                    <a href="{{ path('intervenant_heures', {'id': user.id, 'recup': presta.id}) }}" class="btn-vert">Récupérer</a>
+                    <a href="{{ path('intervenant_heures', {'id': app.user.id, 'recup': presta.id}) }}" class="btn-vert">Récupérer</a>
                 {% else %}
-                    <a href="{{ path('intervenant_heures', {'id': user.id, 'supp': presta.id}) }}" class="btn-rouge">X</a>
+                    <a href="{{ path('intervenant_heures', {'id': app.user.id, 'supp': presta.id}) }}" class="btn-rouge">X</a>
                 {% endif %}
             </td>
             <td class="d-block d-md-table-cell">
@@ -109,7 +109,7 @@
                             <td> Modification </td>
                             <td> 
                                 {{ presta.modifierLe }}
-                                <a href="{{ path('intervenant_suivie', {'id': user.id, 'edite': presta.id}) }}" class="btn-vert">Modifier</a>
+                                <a href="{{ path('intervenant_suivie', {'id': app.user.id, 'edite': presta.id}) }}" class="btn-vert">Modifier</a>
                             </td>
                         </tr>
                         <tr>
@@ -117,9 +117,9 @@
                             <td> 
                             
                                 {% if presta.desactiver == 1 %}
-                                    <a href="{{ path('intervenant_heures', {'id': user.id, 'recup': presta.id}) }}" class="btn-vert">Récupérer</a>
+                                    <a href="{{ path('intervenant_heures', {'id': app.user.id, 'recup': presta.id}) }}" class="btn-vert">Récupérer</a>
                                 {% else %}
-                                    <a href="{{ path('intervenant_heures', {'id': user.id, 'supp': presta.id}) }}" class="btn-rouge">X</a>
+                                    <a href="{{ path('intervenant_heures', {'id': app.user.id, 'supp': presta.id}) }}" class="btn-rouge">X</a>
                                 {% endif %}
                             
                              </td>

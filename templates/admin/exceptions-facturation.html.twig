@@ -1,34 +1,62 @@
 {% extends 'base.html.twig' %}
-
 {% block title %}Exceptions de tarif{% endblock %}
+{% block page_title %}Exceptions de tarif{% endblock %}
 
 {% block body %}
-<h1>Exceptions de tarif</h1>
 
-{% if exceptions is empty %}
-    <p>Aucune exception de tarif configurée.</p>
-{% else %}
-    <table class="table">
-        <thead>
+<div class="page-header">
+    <h1>Exceptions de tarif</h1>
+    <p>Taux horaires personnalisés par famille</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-tags" style="color:var(--primary);"></i>
+        <span class="card-title">Exceptions configurées</span>
+        {% if exceptions is not empty %}
+        <span class="badge badge-muted" style="margin-left:auto;">{{ exceptions|length }}</span>
+        {% endif %}
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+
+        {% if exceptions is empty %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-tag"></i></div>
+            <h3>Aucune exception configurée</h3>
+            <p>Toutes les familles utilisent le taux horaire standard</p>
+        </div>
+        {% else %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Famille</th>
+                    <th>Type</th>
+                    <th>Taux</th>
+                    <th>Date début</th>
+                    <th>Date fin</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for e in exceptions %}
             <tr>
-                <th>Famille</th>
-                <th>Type</th>
-                <th>Taux</th>
-                <th>Date début</th>
-                <th>Date fin</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for e in exceptions %}
-            <tr>
-                <td>{{ e.numFam ?? '-' }}</td>
-                <td>{{ e.typePresta ?? '-' }}</td>
-                <td>{{ e.taux ?? '-' }} €</td>
+                <td style="font-weight:500;">{{ e.numFam ?? '-' }}</td>
+                <td>
+                    {% if e.typePresta is defined and e.typePresta %}
+                    <span class="badge {{ e.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
+                        {{ e.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                    </span>
+                    {% else %}—{% endif %}
+                </td>
+                <td><strong>{{ e.taux ?? '-' }} €/h</strong></td>
                 <td>{{ e.dateDebut ?? '-' }}</td>
                 <td>{{ e.dateFin ?? '-' }}</td>
             </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-{% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+    </div>
+</div>
+
 {% endblock %}

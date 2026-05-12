@@ -10,10 +10,14 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\Routing\RouterInterface;
+
 
 final class DashboardController extends AbstractController
 {
     public function __construct(
+        private RouterInterface $router,
         private AuthService $authService,
         private IntervenantService $intervenantService,
         private FamilleService $familleService,
@@ -53,6 +57,11 @@ final class DashboardController extends AbstractController
                     $this->authService->intervenant_id()
                 ),
             ];
+            return new RedirectResponse(
+                $this->router->generate('intervenant_panel_mvc', [
+                    'id' => $this->authService->getIntervenant()->getId(), // ou méthode équivalente
+                ])
+            );
         } elseif ($this->authService->isFamille()) {
             $famille = $this->authService->getFamille();
             $user = [
@@ -62,7 +71,7 @@ final class DashboardController extends AbstractController
             ];
             $stats = [
                 'heures_mois' => $this->horaireService->countHeuresMoisParFamille(
-                    $this->authService->famille_id(),
+                    ($this->authService->famille_id()),
                     date('m/Y')
                 ),
                 'montant_du' => $this->familleService->calculerMontantDu(
@@ -70,8 +79,9 @@ final class DashboardController extends AbstractController
                     date('m/Y')
                 ),
             ];
+            return new RedirectResponse($this->router->generate('famille_panel_mvc'));
         }
-
+        
         return $this->render('dashboard/index.html.twig', [
             'auth' => true,
             'authService' => $this->authService,

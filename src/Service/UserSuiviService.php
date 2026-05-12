@@ -5,12 +5,14 @@ namespace App\Service;
 use App\Entity\Horaire\UserSuivi;
 use App\Repository\UserSuiviRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserSuiviService
 {
     public function __construct(
         private UserSuiviRepository $repository,
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private UserPasswordHasherInterface $passwordHasher,
     ) {}
 
     /**
@@ -42,11 +44,12 @@ class UserSuiviService
     /**
      * Crée un nouvel utilisateur
      */
-    public function creerUtilisateur(string $identifiant, string $motDePasse): UserSuivi
+    public function creerUtilisateur(string $identifiant, string $motDePasse, string $role = 'intervenant'): UserSuivi
     {
         $user = new UserSuivi();
         $user->setUsername($identifiant);
-        $user->setPassword(password_hash($motDePasse, PASSWORD_DEFAULT));
+        $user->setRole($role);
+        $user->setPassword($this->passwordHasher->hashPassword($user, $motDePasse));
 
         $this->entityManager->persist($user);
         $this->entityManager->flush();
@@ -62,7 +65,7 @@ class UserSuiviService
             return false;
         }
 
-        $user->setPassword(password_hash($nouveauMotDePasse, PASSWORD_DEFAULT));
+        $user->setPassword($this->passwordHasher->hashPassword($user, $nouveauMotDePasse));
         $this->entityManager->flush();
 
         return true;

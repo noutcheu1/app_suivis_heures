@@ -1,123 +1,159 @@
 {% extends 'base.html.twig' %}
-
-{% block title %}Heures de {{ user.nom }}{% endblock %}
+{% block title %}{{ isAdmin ? 'Admin — Saisie heures' : 'Saisir mes heures' }}{% endblock %}
+{% block page_title %}{{ isAdmin ? 'Saisie admin' : 'Saisir des heures' }}{% endblock %}
 
 {% block body %}
 
-{% if isAdmin %}
-    {% if editId %}
-        <h1>ADMIN – Modifier une erreur</h1>
-    {% else %}
-        <h1>ADMIN – Ajouter des heures oubliées</h1>
-    {% endif %}
-{% else %}
-    <p>Indiquez les heures auxquelles vous avez travaillé</p>
-    <p>
-        <strong>ATTENTION :</strong>
-        Vous pouvez ajouter des heures pour les {{ nbrJourSaisie }} derniers jours.
-    </p>
-{% endif %}
-
-<form id="form_ajout_heure" class="form_ajout_heure" action="">
-
-    <div class="form-group">
-        <label for="date">Date</label>
-        <input class="form-control" type="date" class="form-control" id="date" name="date" required value="">
-        <small class="form-text text-muted">Date de la prestation</small>
-    </div>
-
-    <div class="form-group">
-        <label for="famille">Famille de votre planning :</label>
-        <div class="row">
-            <div class="col-auto">
-                <select class="form-control" name="famille" id="famille">
-                            <option value="" disabled selected>Choisir une famille</option>
-                            <option value="0" data-prestations="ENFA">Famille OCCASIONNELLE</option>
-
-                            {% for famille in familles %}
-                                {% set prest = [] %}
-                                {% if famille.prestGardeEnfants %}{% set prest = prest|merge(['ENFA']) %}{% endif %}
-                                {% if famille.prestMenage %}{% set prest = prest|merge(['MENA']) %}{% endif %}
-                                <option
-                                    data-num="{{ famille.numeroFamille }}"
-                                    data-prestations="{{ prest|join(',') }}"
-                                    data-nom="{{ famille.nomFamille }}"
-                                    value="{{ famille.numeroFamille }}">
-                                    {{ famille.nomFamille }}
-                                </option>
-                            {% endfor %}
-                </select>
-                <small class="form-text text-muted">Choisir l'une des familles ou ménages qui vous sont assignés</small>
-            </div>
-            <div class="col-auto">
-                <input type="text" id="nomRemplacement" name="nomRemplacement" class="form-control" placeholder="Saisir le nom ici..." hidden >
-            </div>
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            {% if isAdmin %}
+                <h1>{{ editId ? 'Modifier une prestation' : 'Ajouter des heures oubliées' }}</h1>
+                <p>{{ user.nom }} {{ user.prenom }}</p>
+            {% else %}
+                <h1>Saisir vos heures</h1>
+                <p>
+                    Vous pouvez ajouter des heures pour les
+                    <strong>{{ nbrJourSaisie }} derniers jours</strong>
+                </p>
+            {% endif %}
         </div>
+        <a href="{{ path('intervenant_panel_mvc', {id: app.user.id}) }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
     </div>
+</div>
 
-    <div class="form-group">
-        <label for="type">Type de prestation : </label>
-        <select class="form-control" id="type" name="type" required>
-            <option value="" disabled selected>A choisir</option>
-            <option value="ENFA">Garde d'enfant</option>
-            <option value="MENA">Menage</option>
-        </select>
+<div class="card" style="max-width:540px;">
+    <div class="card-header">
+        <i class="fas fa-clock" style="color:var(--primary);"></i>
+        <span class="card-title">Nouvelle prestation</span>
     </div>
+    <div class="card-body">
 
-    <div class="form-group">
-        <label id="trajetTxt" hidden for="trajetInput">Trajet en voiture AVEC les enfants en Km :</label>
-        <input type="number" id="trajetInput" name="trajet" class="form-control" placeholder="exemple : 4,5" max='100' step="0.1" hidden  ?>
-    </div>
+        <form id="form_ajout_heure" class="form_ajout_heure" action="">
 
-
-
-    <div class="form-group">
-
-        <div class="row">
-            <div class="col">
-                <label  for="famille">Heure de début : </label>
+            {# Date #}
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                    Date de la prestation
+                </label>
+                <input type="date" id="date" name="date" required
+                       style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                       onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
             </div>
-            <div class="col">
-                <label for="famille">Heure de fin : </label>
-            </div>
-        </div>
-        
 
-        <div class="row">
-            <div class="col">
-                <select id="heureDebut" name="heureDebut" required>
-                            <!-- Options ajoutées via JS -->
+            {# Famille #}
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                    Famille
+                </label>
+                <select name="famille" id="famille"
+                        style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                    <option value="" disabled selected>Choisir une famille</option>
+                    <option value="0" data-prestations="ENFA">Famille OCCASIONNELLE</option>
+                    {% for famille in familles %}
+                        {% set prest = [] %}
+                        {% if famille.prestGardeEnfants %}{% set prest = prest|merge(['ENFA']) %}{% endif %}
+                        {% if famille.prestMenage %}{% set prest = prest|merge(['MENA']) %}{% endif %}
+                        <option data-num="{{ famille.numeroFamille }}"
+                                data-prestations="{{ prest|join(',') }}"
+                                data-nom="{{ famille.nomFamille }}"
+                                value="{{ famille.numeroFamille }}">
+                            {{ famille.nomFamille }}
+                        </option>
+                    {% endfor %}
                 </select>
-                <strong>:</strong>
-                <select id="minuteDebut" name="minuteDebut" required>
-                          <!-- Options ajoutées via JS -->
-                </select>
+                <input type="text" id="nomRemplacement" name="nomRemplacement"
+                       placeholder="Saisir le nom ici..." hidden
+                       style="width:100%;height:44px;padding:0 14px;margin-top:8px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;">
             </div>
-            <div class="col">
-                <select id="heureFin" name="heureFin" required>
-                        <!-- Options ajoutées via JS -->
-                </select>
-                <strong>:</strong>
-                <select id="minuteFin" name="minuteFin" required>
-                        <!-- Options ajoutées via JS -->
-                </select> 
-            </div>
-        </div>
-        
-    </div>
 
-    <button type="submit">Valider</button>
-</form>
+            {# Type #}
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                    Type de prestation
+                </label>
+                <select id="type" name="type" required
+                        style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                    <option value="" disabled selected>Choisir un type</option>
+                    <option value="ENFA">Garde d'enfants</option>
+                    <option value="MENA">Ménage</option>
+                </select>
+            </div>
+
+            {# Trajet km #}
+            <div id="trajetGroup" style="margin-bottom:16px;display:none;">
+                <label id="trajetTxt" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                    Km avec les enfants
+                </label>
+                <input type="number" id="trajetInput" name="trajet"
+                       placeholder="Ex. : 4.5" max="100" step="0.1"
+                       style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                       onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+            </div>
+
+            {# Heures #}
+            <div style="margin-bottom:20px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div>
+                        <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                            Heure de début
+                        </label>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <select id="heureDebut" name="heureDebut" required
+                                    style="flex:1;height:44px;padding:0 10px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s;"
+                                    onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                            </select>
+                            <span style="color:var(--text-muted);font-weight:600;">:</span>
+                            <select id="minuteDebut" name="minuteDebut" required
+                                    style="flex:1;height:44px;padding:0 10px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s;"
+                                    onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                            Heure de fin
+                        </label>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <select id="heureFin" name="heureFin" required
+                                    style="flex:1;height:44px;padding:0 10px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s;"
+                                    onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                            </select>
+                            <span style="color:var(--text-muted);font-weight:600;">:</span>
+                            <select id="minuteFin" name="minuteFin" required
+                                    style="flex:1;height:44px;padding:0 10px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s;"
+                                    onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;">
+                <i class="fas fa-check"></i> Valider la prestation
+            </button>
+
+        </form>
+
+    </div>
+</div>
 
 {% endblock %}
 
 {% block javascripts %}
 {{ parent() }}
-
 <script>
-const ID={{user.id}};
+const ID = {{ app.user.id }};
+
+const typeSelect = document.getElementById('type');
+const trajetGroup = document.getElementById('trajetGroup');
+typeSelect.addEventListener('change', () => {
+    trajetGroup.style.display = typeSelect.value === 'ENFA' ? 'block' : 'none';
+});
 </script>
-
 <script src="{{ asset('/assets/js/suivie.js') }}" defer></script>
-
 {% endblock %}

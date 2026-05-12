@@ -2,6 +2,8 @@
 
 namespace App\Controller;
 
+use App\Repository\FamilleRepository;
+use App\Repository\IntervenantRepository;
 use App\Service\AuthService;
 use App\Service\UserSuiviService;
 use Psr\Log\LoggerInterface;
@@ -15,9 +17,11 @@ use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 final class LoginControllerMVC extends AbstractController
 {
     public function __construct(
-        private AuthService $authService,
-        private UserSuiviService $UserSuiviService,
-        private LoggerInterface $logger
+        private AuthService           $authService,
+        private UserSuiviService      $UserSuiviService,
+        private IntervenantRepository $intervenantRepository,
+        private FamilleRepository     $familleRepository,
+        private LoggerInterface       $logger
     ) {}
 
     #[Route('/login', name: 'app_login', methods: ['GET', 'POST'])]
@@ -25,8 +29,7 @@ final class LoginControllerMVC extends AbstractController
         Request $request,
         AuthenticationUtils $authenticationUtils
     ): Response {
-
-        $error = $authenticationUtils->getLastAuthenticationError();
+        $error        = $authenticationUtils->getLastAuthenticationError();
         $lastUsername = $authenticationUtils->getLastUsername();
 
         $type =
@@ -39,9 +42,9 @@ final class LoginControllerMVC extends AbstractController
         }
 
         return $this->render('auth/login.html.twig', [
-            'error' => $error,
+            'error'         => $error,
             'last_username' => $lastUsername,
-            'type' => $type,
+            'type'          => $type,
         ]);
     }
 
@@ -49,157 +52,95 @@ final class LoginControllerMVC extends AbstractController
     public function logout(): never
     {
         $this->logger->info('Déconnexion utilisateur');
-
         throw new \LogicException('Intercepté par le firewall Symfony.');
     }
 
     #[Route('/api/register', name: 'api_register', methods: ['POST'])]
     public function apiRegister(Request $request): JsonResponse
     {
-        $session = $request->getSession();
-        $type = $session->get('type');
-        $data = json_decode($request->getContent(), true);
-
-        $id = $data['id'] ?? null;
-        $password = $data['password'] ?? null;
+        $session   = $request->getSession();
+        $type      = $session->get('type');
+        $data      = json_decode($request->getContent(), true);
+        $id        = $data['id']        ?? null;
+        $password  = $data['password']  ?? null;
         $password2 = $data['password2'] ?? null;
+        $role      = match($type) { 'FAM' => 'famille', default => 'intervenant' };
 
-        $this->logger->info('Tentative inscription API', [
-            'id' => $id,
-            'type' => $type,
-        ]);
+        $this->logger->info('Tentative inscription API', ['id' => $id, 'type' => $type]);
 
         if (!$id || !$password || !$password2) {
-
-            $this->logger->warning('Champs inscription manquants');
-
-            return $this->json([
-                'success' => false,
-                'error' => 'Tous les champs sont requis.'
-            ]);
+            return $this->json(['success' => false, 'error' => 'Tous les champs sont requis.']);
         }
 
         if ($password !== $password2) {
+            return $this->json(['success' => false, 'error' => 'Les mots de passe ne correspondent pas.']);
+        }
 
-            $this->logger->warning('Mots de passe différents', [
-                'id' => $id,
-            ]);
-
-            return $this->json([
-                'success' => false,
-                'error' => 'Les mots de passe ne correspondent pas.'
-            ]);
+        if ($errorDossier = $this->validerExistenceDossier($id, $type)) {
+            return $this->json(['success' => false, 'error' => $errorDossier]);
         }
 
         if ($this->UserSuiviService->identifiantExiste($id)) {
-
-            $this->logger->warning('Utilisateur déjà existant', [
-                'id' => $id,
-            ]);
-
-            return $this->json([
-                'success' => false,
-                'error' => 'Utilisateur déjà inscrit'
-            ]);
+            return $this->json(['success' => false, 'error' => 'Utilisateur déjà inscrit.']);
         }
 
         try {
-
-            $this->UserSuiviService->creerUtilisateur($id, $password);
-
-            $this->logger->info('Utilisateur créé avec succès', [
-                'id' => $id,
-            ]);
-
+            $this->UserSuiviService->creerUtilisateur($id, $password, $role);
+            $this->logger->info('Utilisateur créé via API', ['id' => $id, 'role' => $role]);
         } catch (\Throwable $th) {
-
-            $this->logger->error('Erreur création utilisateur', [
-                'id' => $id,
-                'exception' => $th->getMessage(),
-            ]);
-
-            return $this->json([
-                'success' => false,
-                'error' => "Erreur serveur, réessayez. {$th->getMessage()}"
-            ]);
+            $this->logger->error('Erreur création utilisateur', ['exception' => $th->getMessage()]);
+            return $this->json(['success' => false, 'error' => "Erreur serveur : {$th->getMessage()}"]);
         }
 
-        return $this->json([
-            'success' => true,
-            'message' => 'Inscription réussie.'
-        ]);
+        return $this->json(['success' => true, 'message' => 'Inscription réussie.']);
     }
 
     #[Route('/register', name: 'app_register', methods: ['GET', 'POST'])]
     public function register(Request $request): Response
     {
         $session = $request->getSession();
-        $type = $session->get('type');
+        $type    = $session->get('type');
 
         if ($request->isMethod('POST')) {
-
-            $id = $request->request->get('id');
-            $password = $request->request->get('password');
+            $id        = $request->request->get('id');
+            $password  = $request->request->get('password');
             $password2 = $request->request->get('password2');
-            $typePost = $request->request->get('type');
+            $typePost  = $request->request->get('type');
 
-            $this->logger->info('Tentative inscription FORM', [
-                'id' => $id,
-                'typePost' => $typePost,
-            ]);
+            $this->logger->info('Tentative inscription FORM', ['id' => $id, 'type' => $typePost]);
 
             if ($typePost && in_array($typePost, ['INTER', 'FAM'], true)) {
                 $session->set('type', $typePost);
                 $type = $typePost;
             }
 
+            $role  = match($type) { 'FAM' => 'famille', default => 'intervenant' };
             $error = null;
 
             if (!$id || !$password || !$password2) {
-
                 $error = 'Tous les champs sont requis.';
-                $this->logger->warning($error);
-
             } elseif (strlen($password) < 8) {
-
                 $error = 'Le mot de passe doit contenir au moins 8 caractères.';
-                $this->logger->warning($error);
-
             } elseif ($password !== $password2) {
-
                 $error = 'Les mots de passe ne correspondent pas.';
-                $this->logger->warning($error);
-
+            } elseif ($errorDossier = $this->validerExistenceDossier($id, $type)) {
+                $error = $errorDossier;
             } elseif ($this->UserSuiviService->identifiantExiste($id)) {
-
-                $error = 'Utilisateur déjà inscrit.';
-                $this->logger->warning($error);
-
+                $error = 'Un compte existe déjà avec cet identifiant.';
             } else {
-
                 try {
-
-                    $this->UserSuiviService->creerUtilisateur($id, $password);
-
-                    $this->logger->info('Utilisateur créé via FORM', [
-                        'id' => $id,
-                    ]);
-
-                    return $this->redirectToRoute('app_login');
-
+                    $this->UserSuiviService->creerUtilisateur($id, $password, $role);
+                    $this->logger->info('Utilisateur créé via FORM', ['id' => $id, 'role' => $role]);
+                    return $this->redirectToRoute('app_login', ['type' => $type]);
                 } catch (\Throwable $th) {
-
-                    $error = "Erreur serveur, réessayez. {$th->getMessage()}";
-
-                    $this->logger->error('Erreur inscription FORM', [
-                        'exception' => $th->getMessage(),
-                    ]);
+                    $error = "Erreur serveur : {$th->getMessage()}";
+                    $this->logger->error('Erreur inscription FORM', ['exception' => $th->getMessage()]);
                 }
             }
 
             return $this->render('auth/register.html.twig', [
-                'auth' => false,
-                'type' => $type,
+                'auth'  => false,
+                'type'  => $type,
                 'error' => $error,
             ]);
         }
@@ -208,5 +149,29 @@ final class LoginControllerMVC extends AbstractController
             'auth' => $this->authService->check(),
             'type' => $type,
         ]);
+    }
+
+    /**
+     * Vérifie que l'identifiant correspond à un dossier connu en base.
+     * Retourne un message d'erreur ou null si OK.
+     */
+    private function validerExistenceDossier(string $id, ?string $type): ?string
+    {
+        if ($type === 'FAM') {
+            if (!$this->familleRepository->findByNumero($id)) {
+                return 'Aucune famille trouvée avec ce code client.';
+            }
+            return null;
+        }
+
+        // INTER ou type inconnu — cherche un intervenant
+        $trouve = $this->intervenantRepository->findByNumSalarie($id)
+               ?? $this->intervenantRepository->findByNumSs($id);
+
+        if (!$trouve) {
+            return 'Aucun dossier intervenant trouvé avec cet identifiant.';
+        }
+
+        return null;
     }
 }

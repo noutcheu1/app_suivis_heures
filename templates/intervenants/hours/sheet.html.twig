@@ -1,173 +1,167 @@
 {% extends 'base.html.twig' %}
+{% block title %}Relevé {% if type == 'MENA' %}Ménage{% else %}Garde d'enfants{% endif %} — {{ user.nom }}{% endblock %}
+{% block page_title %}Fiche relevé d'heures{% endblock %}
 
-{% block title %}Heures de {{ user.nom }}{% endblock %}
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="{{ asset('/assets/css/fiche-heure.css') }}">
+{% endblock %}
+
 {% block body %}
 
-{% if isAdmin %}
-<h1> Voici la/les fiche/s de relevé d'heures de {{ user.nom }} {{ user.prenom }}  </h1>
-{% else %}
-<h1> {{ user.nom }} {{ user.prenom }} voici vos/votre fiche/s de relevé d'heures </h1>
-{% endif %}
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            {% if isAdmin %}
+            <h1>Relevé de {{ user.nom }} {{ user.prenom }}</h1>
+            {% else %}
+            <h1>{{ user.nom }} {{ user.prenom }} — votre relevé</h1>
+            {% endif %}
+            <p>
+                <span class="badge badge-{{ type == 'MENA' ? 'muted' : 'info' }}" style="margin-right:6px;">
+                    {{ type == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                </span>
+                Fiche mensuelle
+            </p>
+        </div>
 
-<ul class="menu">
-
-
-    <li>
-        <a href="{{ path('releves_intervenant_fiche_mvc', { intervenantId: user.id, type: type, mois: moisOffset-1 }) }}" >
-            <img src=" {{ asset('/assets/icons/flecheGauche.png') }}">
-            Mois précèdent
-        </a>
-    </li>
-
-    {% if moisOffset < 0 %}
-
-    <li> 
-        <a href="{{ path('releves_intervenant_fiche_mvc', { intervenantId: user.id, type: type, mois: moisOffset+1 }) }}">
-            <img src="{{ asset('/assets/icons/flecheDroite.png') }}">
-            Mois suivant
-        </a>
-    </li>
-
-    {% endif %}
-
-</ul>
-
-<div style="overflow-x:auto;">
-    <div id="tableContainer"></div>
+        {# Navigation mois #}
+        <div style="display:flex;gap:8px;">
+            <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: app.user.id, type: type, mois: moisOffset - 1}) }}"
+               class="btn btn-secondary btn-sm">
+                <i class="fas fa-chevron-left"></i> Mois précédent
+            </a>
+            {% if moisOffset < 0 %}
+            <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: app.user.id, type: type, mois: moisOffset + 1}) }}"
+               class="btn btn-secondary btn-sm">
+                Mois suivant <i class="fas fa-chevron-right"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
-<table class="table mt-3">
-    <thead>
-        <tr>
-            <th scope="col">{% if type=="MENA" %} Ménage {% else %} Famille {% endif %}</th>
-            <th scope="col">Total des heures</th>
-        </tr>
-    </thead>
-    <tbody id="familleRecap"></tbody>
-</table>
+{# ── Tableau des prestations ─────────────────────────── #}
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+        <i class="fas fa-table-list" style="color:var(--primary);"></i>
+        <span class="card-title">Détail des prestations</span>
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+        <div id="tableContainer"></div>
+    </div>
+</div>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th scope="col">Info</th>
-            <th scope="col">État</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <th scope="row">Votre fiche est</th>
-            <td id="signerMobile"></td>
-        </tr>
-        <tr {% if type == "MENA" %} style="display:none;" {% endif %}>
-            <th scope="row">Total des KM (avec enfants)</th>
-            <td id="kmParcourue"></td>
-        </tr>
-        <tr>
-            <th scope="row">Total des heures du mois</th>
-            <td id="heureCumuler"></td>
-        </tr>
-    </tbody>
-</table>
-<ul class="menu">
-    <li>
-        <a id="donwload" >
-            <img src="{{asset('/assets/icons/save.png')}}">
-            {% if isMobile %}
-                Cosulter le relever d'heure en PDF
-            {% else %}
-                Télécharger le relever d'heure
-            {% endif %}
-        </a>
-    </li>
-    
-    <li align="center">
-    
-            
-        <a id="saveTime">
-            <img src="{{asset('/assets/icons/immeuble.png')}}">
-            Saisir les heures travailler en dehors de chaudoudoux, puis cliquer ici pour sauvegarder
-        </a>
-        <input id="heure" type='number' min="0" placeholder="exemple : 4"> h
-        <select id="minute" name="minute" required>
-            <!-- Options ajoutées via JS -->
-        </select> 
-    </li>
+{# ── Récap par famille ───────────────────────────────── #}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;" class="sheet-recap-grid">
 
-    <li>    
-        <a id="signerButton">
-            <img src="{{ asset('/assets/icons/signer.png') }}">
-            Signer
-        </a>
-    </li>
-</ul>
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-users" style="color:var(--text-muted);font-size:13px;"></i>
+            <span class="card-title">{{ type == 'MENA' ? 'Récap ménage' : 'Récap familles' }}</span>
+        </div>
+        <div class="card-body" style="padding:0;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>{{ type == 'MENA' ? 'Ménage' : 'Famille' }}</th>
+                        <th>Total heures</th>
+                    </tr>
+                </thead>
+                <tbody id="familleRecap"></tbody>
+            </table>
+        </div>
+    </div>
 
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-info-circle" style="color:var(--text-muted);font-size:13px;"></i>
+            <span class="card-title">Informations</span>
+        </div>
+        <div class="card-body">
+            <dl style="display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:13.5px;margin:0;">
 
+                <dt style="color:var(--text-muted);font-weight:500;">Statut signature</dt>
+                <dd style="margin:0;" id="signerMobile">—</dd>
+
+                {% if type != 'MENA' %}
+                <dt style="color:var(--text-muted);font-weight:500;">Total KM (avec enfants)</dt>
+                <dd style="margin:0;" id="kmParcourue">—</dd>
+                {% endif %}
+
+                <dt style="color:var(--text-muted);font-weight:500;">Total heures du mois</dt>
+                <dd style="margin:0;font-weight:700;font-size:16px;color:var(--text);" id="heureCumuler">—</dd>
+
+            </dl>
+        </div>
+    </div>
+
+</div>
+
+{# ── Actions ─────────────────────────────────────────── #}
+<div style="display:flex;gap:10px;flex-wrap:wrap;">
+
+    <button id="donwload" class="btn btn-primary" disabled style="opacity:.4;">
+        <i class="fas fa-download"></i>
+        {{ isMobile is defined and isMobile ? 'Consulter le PDF' : 'Télécharger le relevé' }}
+    </button>
+
+    <div style="display:flex;align-items:center;gap:8px;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:0 12px;height:34px;">
+        <i class="fas fa-building" style="color:var(--text-muted);font-size:13px;"></i>
+        <input id="heure" type="number" min="0" placeholder="0" style="width:50px;border:none;outline:none;font-size:13px;font-family:inherit;"> h
+        <select id="minute" name="minute" style="border:none;outline:none;font-size:13px;font-family:inherit;background:transparent;"></select>
+    </div>
+
+    <button id="saveTime" class="btn btn-secondary">
+        <i class="fas fa-save"></i>
+        Sauvegarder heures hors Chaudoudoux
+    </button>
+
+    <button id="signerButton" class="btn btn-success">
+        <i class="fas fa-signature"></i> Signer
+    </button>
+
+</div>
+
+<style>
+@media (max-width:640px) {
+    .sheet-recap-grid { grid-template-columns: 1fr; }
+}
+</style>
 
 {% endblock %}
 
 {% block javascripts %}
 {{ parent() }}
-
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://unpkg.com/jspdf-autotable"></script>
 
 <script>
-console.log('=== [sheet.html.twig] SCRIPT INLINE CHARGÉ ===');
-
-const ID = {{ user.id }};
+const ID = {{ app.user.id }};
 const paramsUri = new URLSearchParams(window.location.search);
 const TYPE_PRESTA = paramsUri.get("type");
-
-console.log('[Twig→JS] ID (user.id depuis Twig) :', ID);
-console.log('[Twig→JS] moisOffset (depuis Twig)  :', {{ moisOffset }});
-console.log('[Twig→JS] TYPE_PRESTA (depuis URL)   :', TYPE_PRESTA);
-console.log('[Twig→JS] isAdmin (depuis Twig)      :', {{ isAdmin ? 'true' : 'false' }});
-console.log('[Twig→JS] isMobile (depuis Twig)     :', {{ isMobile is defined and isMobile ? 'true' : 'false' }});
-
-const donwnloadInput = document.getElementById("donwload");
-console.log('[DOM] #donwload :', donwnloadInput ? 'trouvé' : '⚠️ INTROUVABLE');
-
-if (!donwnloadInput) {
-    alert('[sheet.html.twig] ⚠️ #donwload introuvable dans le DOM !');
-} else {
-    donwnloadInput.style.opacity = "0.4";
-    donwnloadInput.style.pointerEvents = "none";
-}
 
 const targetDate = new Date();
 targetDate.setMonth(targetDate.getMonth() + {{ moisOffset }});
 const ANNEE_COURANTE = String(targetDate.getFullYear());
-console.log('[Twig→JS] ANNEE_COURANTE calculée :', ANNEE_COURANTE);
+
+const donwnloadInput = document.getElementById("donwload");
 
 if (donwnloadInput) {
     donwnloadInput.addEventListener("click", () => {
-        console.log('[PDF] Clic sur bouton téléchargement — TYPE_PRESTA:', TYPE_PRESTA, 'ANNEE:', ANNEE_COURANTE);
         genererPDF(TYPE_PRESTA, ANNEE_COURANTE);
     });
 }
 
 function activerBoutonTelechargement() {
-    console.log('[activerBoutonTelechargement] ▶ activation du bouton download');
     if (donwnloadInput) {
+        donwnloadInput.disabled = false;
         donwnloadInput.style.opacity = "";
-        donwnloadInput.style.pointerEvents = "";
-        console.log('[activerBoutonTelechargement] ✅ bouton activé');
-    } else {
-        console.warn('[activerBoutonTelechargement] ⚠️ #donwload introuvable, activation ignorée');
     }
 }
 </script>
 
 <script src="{{ asset('/assets/js/fiche-dheure.js') }}"></script>
 <script src="{{ asset('/assets/js/build_relever_d_heure_pdf.js') }}"></script>
-
-
-
-{% endblock %}
-
-{% block stylesheets %}
-{{ parent() }}
-    <link rel="stylesheet" href="{{ asset('/assets/css/fiche-heure.css') }}">
 {% endblock %}

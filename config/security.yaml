@@ -1,12 +1,12 @@
 security:
     password_hashers:
-        App\Entity\UserSuivi:
+        App\Entity\Horaire\UserSuivi:
             algorithm: bcrypt
 
     providers:
         app_user_provider:
             entity:
-                class: App\Entity\UserSuivi
+                class: App\Entity\Horaire\UserSuivi
                 property: username
 
     firewalls:
@@ -22,9 +22,16 @@ security:
                 path: app_logout
                 target: app_login
 
-    # ✅ role_hierarchy est bien DANS security
     role_hierarchy:
         ROLE_ADMIN: [ROLE_INTERVENANT, ROLE_FAMILLE]
 
-    # ✅ Les routes sont maintenant protégées
-   
+    access_control:
+        - { path: ^/login,                  roles: PUBLIC_ACCESS }
+        - { path: ^/logout,                 roles: PUBLIC_ACCESS }
+        - { path: ^/register,               roles: PUBLIC_ACCESS }
+        - { path: ^/api/register,           roles: PUBLIC_ACCESS }
+        - { path: ^/mot-de-passe-oublie,    roles: PUBLIC_ACCESS }
+        - { path: ^/admin-mvc,              roles: ROLE_ADMIN }
+        - { path: ^/familles-mvc,           roles: ROLE_ADMIN }
+        - { path: ^/famille/,               roles: ROLE_FAMILLE }
+        - { path: ^/,                       roles: IS_AUTHENTICATED_FULLY }

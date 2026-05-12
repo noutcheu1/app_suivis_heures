@@ -1,0 +1,138 @@
+{% extends 'base.html.twig' %}
+{% block title %}Mon QR code — {{ famille.nomFamille }}{% endblock %}
+{% block page_title %}Mon QR code{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Mon QR code</h1>
+            <p>Présentez ce code à votre intervenant lors de chaque intervention</p>
+        </div>
+        <a href="{{ path('famille_panel_mvc') }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px;max-width:800px;">
+
+    {# ── QR code card ───────────────────────────────────── #}
+    <div class="card">
+        <div class="card-body" style="text-align:center;padding:32px 24px;">
+
+            <div style="margin-bottom:20px;">
+                <div style="width:48px;height:48px;border-radius:50%;background:#eef2ff;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;">
+                    <i class="fas fa-house-user" style="font-size:20px;color:#4f46e5;"></i>
+                </div>
+                <h2 style="font-size:17px;font-weight:700;margin:0 0 4px;">{{ famille.nomFamille }}</h2>
+                <code style="font-size:12px;color:var(--text-muted);background:var(--surface);padding:3px 8px;border-radius:4px;">{{ famille.numeroFamille }}</code>
+            </div>
+
+            {# QR code canvas #}
+            <div id="qrcode" style="display:inline-block;padding:16px;background:#fff;border:1px solid var(--border);border-radius:12px;margin-bottom:20px;"></div>
+
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                <button onclick="downloadQR()" class="btn btn-primary btn-sm">
+                    <i class="fas fa-download"></i> Télécharger
+                </button>
+                <button onclick="window.print()" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-print"></i> Imprimer
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    {# ── Instructions ───────────────────────────────────── #}
+    <div class="card">
+        <div class="card-body" style="padding:24px;">
+            <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;color:var(--text);">
+                <i class="fas fa-info-circle" style="color:#4f46e5;margin-right:6px;"></i>
+                Comment ça marche ?
+            </h3>
+
+            <div style="display:flex;flex-direction:column;gap:14px;">
+
+                <div style="display:flex;gap:12px;align-items:flex-start;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;color:#4f46e5;">1</div>
+                    <div>
+                        <p style="font-size:13px;font-weight:600;margin:0 0 3px;">À l'arrivée de l'intervenant</p>
+                        <p style="font-size:12px;color:var(--text-muted);margin:0;">Présentez ce QR code à votre intervenant pour qu'il le scanne avec son application.</p>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:12px;align-items:flex-start;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;color:#4f46e5;">2</div>
+                    <div>
+                        <p style="font-size:13px;font-weight:600;margin:0 0 3px;">Démarrage automatique</p>
+                        <p style="font-size:12px;color:var(--text-muted);margin:0;">L'heure de début est enregistrée automatiquement lors du premier scan.</p>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:12px;align-items:flex-start;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;color:#4f46e5;">3</div>
+                    <div>
+                        <p style="font-size:13px;font-weight:600;margin:0 0 3px;">Au départ</p>
+                        <p style="font-size:12px;color:var(--text-muted);margin:0;">Un second scan enregistre l'heure de fin et sauvegarde la prestation à valider.</p>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:12px;align-items:flex-start;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;color:#10b981;">4</div>
+                    <div>
+                        <p style="font-size:13px;font-weight:600;margin:0 0 3px;">Vous validez</p>
+                        <p style="font-size:12px;color:var(--text-muted);margin:0;">La prestation apparaît dans votre espace. Vous pouvez la valider ou la signaler.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
+<script>
+const NUM_FAM = {{ famille.numeroFamille|json_encode|raw }};
+
+const qr = new QRCode(document.getElementById('qrcode'), {
+    text: NUM_FAM,
+    width: 220,
+    height: 220,
+    colorDark: '#1e1b4b',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+});
+
+function downloadQR() {
+    const canvas = document.querySelector('#qrcode canvas');
+    if (!canvas) {
+        const img = document.querySelector('#qrcode img');
+        if (img) {
+            const a = document.createElement('a');
+            a.href = img.src;
+            a.download = 'qrcode-{{ famille.numeroFamille }}.png';
+            a.click();
+        }
+        return;
+    }
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'qrcode-{{ famille.numeroFamille }}.png';
+    a.click();
+}
+</script>
+<style>
+@media print {
+    .sidebar, .page-header .btn, .card:last-child { display: none !important; }
+    body { background: white; }
+    #qrcode { margin: 40px auto; display: block; }
+}
+</style>
+{% endblock %}

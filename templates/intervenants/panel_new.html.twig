@@ -223,7 +223,7 @@
                 <p class="mb-0">
                     {{ user.nom|default('Nom non spécifié') }} {{ user.prenom|default('') }}
                     <span class="status-badge status-active ms-2">
-                        #{{ user.id_intervenant|default(user.id) }}
+                        #{{ user.id_intervenant|default(app.user.id) }}
                     </span>
                 </p>
             </div>
@@ -310,7 +310,7 @@
                 <div class="info-item">
                     <i class="fas fa-id-badge"></i>
                     <strong>ID Intervenant :</strong>
-                    {{ user.id_intervenant|default(user.id) }}
+                    {{ user.id_intervenant|default(app.user.id) }}
                 </div>
                 
                 {% if user.date_embauche is defined %}
@@ -342,27 +342,27 @@
                 </h3>
                 
                 <div class="action-grid">
-                    <a href="{{ path('intervenant_heures_mvc', {id: user.id_intervenant|default(user.id)}) }}" class="action-btn btn-hours">
+                    <a href="{{ path('intervenant_heures_mvc', {id: user.id_intervenant|default(app.user.id)}) }}" class="action-btn btn-hours">
                         <i class="fas fa-plus-circle"></i>
                         Ajouter des heures
                     </a>
                     
-                    <a href="{{ path('intervenant_profile_mvc', {id: user.id_intervenant|default(user.id)}) }}" class="action-btn btn-profile">
+                    <a href="{{ path('intervenant_profile_mvc', {id: user.id_intervenant|default(app.user.id)}) }}" class="action-btn btn-profile">
                         <i class="fas fa-user"></i>
                         Mon profil
                     </a>
                     
-                    <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(user.id), type: 'ENFA'}) }}" class="action-btn btn-enfa">
+                    <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(app.user.id), type: 'ENFA'}) }}" class="action-btn btn-enfa">
                         <i class="fas fa-child"></i>
                         Relevés ENFA
                     </a>
                     
-                    <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(user.id), type: 'MENA'}) }}" class="action-btn btn-mena">
+                    <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(app.user.id), type: 'MENA'}) }}" class="action-btn btn-mena">
                         <i class="fas fa-broom"></i>
                         Relevés MENA
                     </a>
                     
-                    <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(user.id)}) }}" class="action-btn btn-reports">
+                    <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(app.user.id)}) }}" class="action-btn btn-reports">
                         <i class="fas fa-file-alt"></i>
                         Tous les relevés
                     </a>
@@ -391,7 +391,7 @@
                         {% endfor %}
                         
                         <div class="text-center mt-3">
-                            <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(user.id)}) }}" class="btn btn-sm btn-outline-success">
+                            <a href="{{ path('releves_intervenant_mvc', {intervenantId: user.id_intervenant|default(app.user.id)}) }}" class="btn btn-sm btn-outline-success">
                                 Voir toutes les heures
                             </a>
                         </div>

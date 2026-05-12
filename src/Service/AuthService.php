@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Principal\Famille;
 use App\Entity\Principal\Intervenant;
 use App\Entity\Horaire\UserSuivi;
+use App\Repository\CandidatRepository;
 use App\Repository\FamilleRepository;
 use App\Repository\IntervenantRepository;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -19,6 +20,7 @@ class AuthService
         private UserSuiviService $UserSuiviService,
         private IntervenantRepository $intervenantRepository,
         private FamilleRepository $familleRepository,
+        private CandidatRepository $candidatRepository,
         private Security $security,
         private RequestStack $requestStack
     ) {}
@@ -58,22 +60,35 @@ class AuthService
 
     public function getUser(): ?UserSuivi
     {
-        $user = $this->security->getUser();
-        return $user instanceof UserSuivi ? $user : null;
+         
+        return $this->security->getUser();
     }
 
     public function getIntervenant(): ?Intervenant
     {
         $user = $this->getUser();
         if (!$user) return null;
-        return $this->intervenantRepository->findByNumSs($user->getUsername());
+
+        $username = $user->getUserIdentifier();
+
+        // Approche principale : trouver le Candidat par numSS (avec normalisation
+        // de format), puis charger l'Intervenant via la FK intervenants → candidats.
+        $candidat = $this->candidatRepository->findByNumSs($username);
+        if ($candidat?->getId()) {
+            $intervenant = $this->intervenantRepository->findByCandidatId($candidat->getId());
+            if ($intervenant) return $intervenant;
+        }
+
+        // Fallback : recherche directe dans vue_intervenants (plusieurs formats)
+        return $this->intervenantRepository->findByAnyIdentifier($username);
     }
+
 
     public function getFamille(): ?Famille
     {
         $user = $this->getUser();
         if (!$user) return null;
-        return $this->familleRepository->findByNumero($user->getUsername());
+        return $this->familleRepository->findByNumero($user->getUserIdentifier());
     }
 
     public function intervenant_id(): ?int

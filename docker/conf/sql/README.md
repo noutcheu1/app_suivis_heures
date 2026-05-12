@@ -1,48 +1,66 @@
-# Scripts d'initialisation Docker pour le projet Chaudoudoux
+# docker/conf/sql/ — Scripts d'initialisation Docker
 
-## Fichiers d'initialisation
+Ce dossier est monté dans `docker-entrypoint-initdb.d/` du conteneur MariaDB.
+MariaDB exécute automatiquement tous les fichiers `.sql` et `.sh` au **premier démarrage**,
+dans l'**ordre alphabétique** des noms de fichier.
+
+---
+
+## Ordre d'exécution
+
+```
+01-init.sql          → Crée les bases + permissions
+02-import-dumps.sh   → Importe les dumps production (si présents)
+02_horaire.sql       → Crée les tables de l'app + migre les données
+```
+
+---
+
+## Détail des fichiers
 
 ### `01-init.sql`
-- Crée les bases de données `bdchaudoudoux` et `bdchaudoudoux_horaire`
-- Configure les permissions complètes pour l'utilisateur `chaudoudoux`
-- Applique les droits de création de vues et procédures stockées
-- Exécuté automatiquement au premier démarrage du container MariaDB
+- Crée `bdchaudoudoux` et `bdchaudoudoux_horaire`
+- Accorde tous les droits à l'utilisateur `chaudoudoux`
+- S'exécute en premier, une seule fois
 
-### `03-refactor-bdd.sql`
-- **Refactoring complet de la base de données**
-- Crée les tables unifiées et normalisées
-- Supprime la redondance et respecte les formes normales
-- Structure finale optimisée pour l'application
+### `02-import-dumps.sh`
+- Importe les dumps de production depuis `/dumps/` (volume Docker)
+- Fichiers attendus :
+  - `bdchaudoudoux (12).sql`  → base principale (intervenants, familles, etc.)
+  - `bdchaudoudoux_horaire.sql` → base secondaire (horaireinter, tarifs2, users2, etc.)
+- **Non bloquant** : si un dump est absent, l'import est ignoré avec un avertissement
 
-### `04-migration-donnees-finale.sql`
-- **Migration des données vers la nouvelle structure**
-- Fusion des tables `intervenants` et `candidats`
-- Import des familles et tarifs
-- 4,259 intervenants et 835 familles migrés
+### `02_horaire.sql`
+- S'exécute après l'import des dumps
+- Crée les nouvelles tables de l'application Symfony :
+  - `users_suivi` — authentification Symfony (remplace `users2`)
+  - `tarifs_suivi` — tarifs Doctrine (même structure que `tarifs2`)
+- **Migre les données** :
+  - `users2` → `users_suivi` (comptes existants, rôle détecté par le format de l'identifiant)
+  - `tarifs2` → `tarifs_suivi` (données copiées à l'identique)
 
-### `04-migration-donnees-succes.sql`
-- **Finalisation et validation**
-- Création des tables de normalisation
-- Configuration des tarifs par défaut
-- Validation de la structure finale
+---
 
-### `02-import-dumps.sql`
-- Script de référence pour l'importation des dumps
-- Les dumps SQL sont importés automatiquement via le volume Docker
+## Prérequis — Dumps
 
-## Déploiement
+Placer les dumps dans `docker/conf/dumps/` avant le premier `docker compose up` :
 
-Les dumps SQL sont copiés dans le répertoire `docker/sql/` et importés automatiquement :
-- `bdchaudoudoux (12).sql` → base `bdchaudoudoux`
-- `bdchaudoudoux_horaire.sql` → base `bdchaudoudoux_horaire`
+```
+docker/conf/dumps/
+├── bdchaudoudoux (12).sql       ← dump de bdchaudoudoux
+└── bdchaudoudoux_horaire.sql    ← dump de bdchaudoudoux_horaire
+```
 
-## Permissions
+Sans ces fichiers, les bases démarrent vides (uniquement le compte admin et les tarifs
+d'exemple ne seront pas disponibles).
 
-L'utilisateur `chaudoudoux` a tous les droits nécessaires sur les deux bases :
-- ALL PRIVILEGES
-- CREATE VIEW
-- CREATE ROUTINE
+---
 
-## Configuration Docker Compose
+## Réinitialiser la base
 
-Le volume `./docker/sql/:/docker-entrypoint-initdb.d/` assure l'exécution automatique de tous les scripts SQL au démarrage.
+Pour repartir d'une base propre :
+
+```bash
+docker compose down -v          # supprime les volumes
+docker compose up -d            # repart de zéro
+```

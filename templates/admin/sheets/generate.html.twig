@@ -1,4 +1,6 @@
 {% extends 'base.html.twig' %}
+{% block title %}Génération fiches — {{ type }}{% endblock %}
+{% block page_title %}Génération des fiches{% endblock %}
 
 {% block stylesheets %}
     {{ parent() }}
@@ -62,7 +64,12 @@
 {% endblock %}
 
 {% block body %}
-<h1>Patienter, ne toucher à rien</h1>
+
+<div class="page-header">
+    <h1>Génération en cours…</h1>
+    <p>Veuillez patienter, ne touchez à rien</p>
+</div>
+
 
 {% for index, fiche in fiches %}
     {% set x = index + 1 %}

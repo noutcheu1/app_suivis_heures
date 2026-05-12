@@ -1,0 +1,440 @@
+{% extends 'base.html.twig' %}
+{% block title %}Scanner QR{% endblock %}
+{% block page_title %}Scanner QR famille{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+.scanner-wrap {
+    max-width: 420px;
+    margin: 0 auto;
+}
+.video-container {
+    position: relative;
+    width: 100%;
+    background: #000;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    aspect-ratio: 1;
+}
+#video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.scan-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+}
+.scan-frame {
+    width: 60%; aspect-ratio: 1;
+    border: 3px solid rgba(79,70,229,.8);
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.35);
+    position: relative;
+}
+.scan-frame::before, .scan-frame::after {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    border-color: #fff;
+    border-style: solid;
+}
+.scan-frame::before { top: -3px; left: -3px; border-width: 3px 0 0 3px; border-radius: 6px 0 0 0; }
+.scan-frame::after  { bottom: -3px; right: -3px; border-width: 0 3px 3px 0; border-radius: 0 0 6px 0; }
+.scan-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    animation: scanMove 2s linear infinite;
+}
+@keyframes scanMove {
+    0%   { top: 5%; }
+    100% { top: 95%; }
+}
+#scanStatus {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    min-height: 20px;
+}
+
+.result-card {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.08);
+    text-align: center;
+}
+.result-fam-name {
+    font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 4px;
+}
+.result-fam-code {
+    font-size: 12px; color: var(--text-muted); font-family: monospace; margin-bottom: 16px;
+}
+.result-time {
+    font-size: 28px; font-weight: 700; color: var(--primary); margin-bottom: 4px;
+}
+.result-date {
+    font-size: 12px; color: var(--text-muted); margin-bottom: 20px;
+}
+.result-type-select {
+    display: flex; gap: 10px; justify-content: center; margin-bottom: 20px;
+}
+.type-pill {
+    padding: 6px 18px; border-radius: 20px; border: 2px solid var(--border);
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s;
+    background: var(--bg);
+}
+.type-pill.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+</style>
+{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Scanner QR famille</h1>
+            <p>Pointage automatique début / fin d'intervention</p>
+        </div>
+        <a href="{{ path('intervenant_panel_mvc', {id: app.user.id}) }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="scanner-wrap">
+
+    {# ── Scanner ────────────────────────────────────── #}
+    <div id="scannerSection">
+        <div class="video-container" style="margin-bottom:12px;">
+            <video id="video" playsinline autoplay muted></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+            <div class="scan-overlay">
+                <div class="scan-frame">
+                    <div class="scan-line"></div>
+                </div>
+            </div>
+        </div>
+        <p id="scanStatus">Initialisation de la caméra…</p>
+
+        <div style="margin-top:14px;text-align:center;">
+            <button id="btnManuel" class="btn btn-ghost btn-sm" onclick="toggleManuel()">
+                <i class="fas fa-keyboard"></i> Saisir le code manuellement
+            </button>
+        </div>
+        <div id="manuelSection" style="display:none;margin-top:12px;">
+            <input type="text" id="manuelCode" placeholder="PGE1234 ou PM1234"
+                   style="width:100%;height:42px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;text-transform:uppercase;"
+                   oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+            <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="scanManuel()">
+                <i class="fas fa-search"></i> Rechercher la famille
+            </button>
+        </div>
+    </div>
+
+    {# ── Résultat scan ──────────────────────────────── #}
+    <div id="resultSection" style="display:none;margin-top:16px;">
+        <div class="result-card">
+            <div style="width:52px;height:52px;background:var(--primary-light);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+                <i class="fas fa-house-user" style="font-size:22px;color:var(--primary);"></i>
+            </div>
+            <div class="result-fam-name" id="resFamNom">—</div>
+            <div class="result-fam-code" id="resFamCode">—</div>
+            <div class="result-time" id="resHeure">—</div>
+            <div class="result-date" id="resDate">—</div>
+
+            <div class="result-type-select" id="typeSelect" style="display:none;">
+                <button class="type-pill active" data-type="ENFA" onclick="selectType(this)">
+                    <i class="fas fa-child"></i> Garde enfants
+                </button>
+                <button class="type-pill" data-type="MENA" onclick="selectType(this)">
+                    <i class="fas fa-broom"></i> Ménage
+                </button>
+            </div>
+
+            <div id="actionDebut" style="display:none;">
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">
+                    Démarrer une intervention pour cette famille ?
+                </p>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-primary" style="flex:1;" onclick="demarrer()">
+                        <i class="fas fa-play"></i> Démarrer
+                    </button>
+                    <button class="btn btn-ghost" style="flex:1;" onclick="annuler()">
+                        Annuler
+                    </button>
+                </div>
+            </div>
+
+            <div id="actionFin" style="display:none;">
+                <div style="background:var(--success-bg);border:1px solid #6ee7b7;border-radius:var(--radius);padding:12px;margin-bottom:14px;font-size:13px;color:#065f46;">
+                    <i class="fas fa-clock" style="margin-right:6px;"></i>
+                    Intervention démarrée à <strong id="heureDebutAffiche">—</strong>
+                    — durée : <strong id="dureeCourante">—</strong>
+                </div>
+
+                <div id="kmSection" style="display:none;margin-bottom:14px;">
+                    <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                        Km avec enfants
+                    </label>
+                    <input type="number" id="kmInput" min="0" step="0.1" placeholder="0.0"
+                           style="width:100%;height:40px;padding:0 12px;border:1.5px solid var(--border);border-radius:var(--radius-md);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;">
+                </div>
+
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-success" style="flex:1;" onclick="terminer()">
+                        <i class="fas fa-stop"></i> Terminer
+                    </button>
+                    <button class="btn btn-ghost" style="flex:1;" onclick="annuler()">
+                        Annuler
+                    </button>
+                </div>
+            </div>
+
+            <div id="actionSaved" style="display:none;text-align:center;">
+                <i class="fas fa-check-circle" style="font-size:36px;color:var(--success);margin-bottom:10px;"></i>
+                <p style="font-weight:600;color:var(--success);margin-bottom:4px;">Prestation enregistrée !</p>
+                <p style="font-size:13px;color:var(--text-muted);" id="savedSummary"></p>
+                <button class="btn btn-primary" style="margin-top:14px;" onclick="rescan()">
+                    <i class="fas fa-qrcode"></i> Nouveau scan
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{# Données familles disponibles pour lookup #}
+<script>
+const FAMILLES = {
+    {% for f in familles %}
+    "{{ f.numeroFamille }}": {
+        nom: {{ f.nomFamille|json_encode|raw }},
+        ge: {{ f.prestGardeEnfants ? 'true' : 'false' }},
+        mena: {{ f.prestMenage ? 'true' : 'false' }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+const INTERVENANT_ID = {{ app.user.id }};
+const QR_API_URL = "{{ path('intervenant_qr_api_mvc', {id: app.user.id}) }}";
+</script>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script>
+let scanning = true;
+let stream = null;
+let scanInterval = null;
+let currentFam = null;
+let selectedType = 'ENFA';
+let timerInterval = null;
+
+const video    = document.getElementById('video');
+const canvas   = document.getElementById('canvas');
+const ctx      = canvas.getContext('2d');
+const status   = document.getElementById('scanStatus');
+
+// ── Démarrage caméra ─────────────────────────────────
+async function startCamera() {
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: 'environment' } }
+        });
+        video.srcObject = stream;
+        video.play();
+        status.textContent = 'Pointez la caméra vers le QR code de la famille';
+        scanInterval = setInterval(scanFrame, 300);
+    } catch (e) {
+        status.textContent = 'Caméra non disponible — utilisez la saisie manuelle';
+        document.getElementById('manuelSection').style.display = 'block';
+    }
+}
+
+function stopCamera() {
+    clearInterval(scanInterval);
+    if (stream) stream.getTracks().forEach(t => t.stop());
+}
+
+function scanFrame() {
+    if (!scanning || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(img.data, img.width, img.height);
+    if (code) handleScan(code.data.trim().toUpperCase());
+}
+
+// ── Traitement du scan ───────────────────────────────
+function handleScan(code) {
+    scanning = false;
+    const fam = FAMILLES[code];
+    if (!fam) {
+        status.textContent = `Code "${code}" non reconnu — réessayez`;
+        setTimeout(() => { scanning = true; }, 1500);
+        return;
+    }
+    currentFam = { code, ...fam };
+    afficherResultat(currentFam);
+}
+
+function afficherResultat(fam) {
+    document.getElementById('scannerSection').style.display = 'none';
+    document.getElementById('resultSection').style.display  = 'block';
+
+    document.getElementById('resFamNom').textContent  = fam.nom;
+    document.getElementById('resFamCode').textContent = fam.code;
+
+    const now = new Date();
+    document.getElementById('resHeure').textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('resDate').textContent  = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    // Check localStorage pour intervention en cours
+    const enCours = getEnCours(fam.code);
+
+    if (enCours) {
+        showFin(enCours);
+    } else {
+        showDebut(fam);
+    }
+}
+
+function showDebut(fam) {
+    // Type selector
+    const ts = document.getElementById('typeSelect');
+    ts.style.display = (fam.ge && fam.mena) ? 'flex' : 'none';
+    if (!fam.ge && fam.mena) selectedType = 'MENA';
+    else selectedType = 'ENFA';
+    document.querySelectorAll('.type-pill').forEach(p => p.classList.toggle('active', p.dataset.type === selectedType));
+
+    document.getElementById('actionDebut').style.display = 'block';
+    document.getElementById('actionFin').style.display   = 'none';
+    document.getElementById('actionSaved').style.display = 'none';
+}
+
+function showFin(enCours) {
+    document.getElementById('actionDebut').style.display = 'none';
+    document.getElementById('actionFin').style.display   = 'block';
+    document.getElementById('actionSaved').style.display = 'none';
+    document.getElementById('typeSelect').style.display  = 'none';
+
+    document.getElementById('heureDebutAffiche').textContent = enCours.heure;
+    document.getElementById('kmSection').style.display = enCours.type === 'ENFA' ? 'block' : 'none';
+    selectedType = enCours.type;
+
+    // Timer durée
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        const diff = Date.now() - enCours.ts;
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        document.getElementById('dureeCourante').textContent = `${h}h${String(m).padStart(2,'0')}`;
+    }, 10000);
+}
+
+// ── Actions ──────────────────────────────────────────
+function selectType(btn) {
+    selectedType = btn.dataset.type;
+    document.querySelectorAll('.type-pill').forEach(p => p.classList.toggle('active', p === btn));
+}
+
+function demarrer() {
+    const now = new Date();
+    const hh  = now.toTimeString().slice(0,5);
+    setEnCours(currentFam.code, {
+        heure: hh,
+        type: selectedType,
+        ts: now.getTime(),
+        date: now.toISOString().slice(0,10),
+        nom: currentFam.nom,
+    });
+    showFin(getEnCours(currentFam.code));
+}
+
+async function terminer() {
+    const enCours = getEnCours(currentFam.code);
+    if (!enCours) return;
+
+    const now  = new Date();
+    const hFin = now.toTimeString().slice(0,5);
+    const km   = document.getElementById('kmInput').value || null;
+
+    try {
+        const res = await fetch(QR_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'fin',
+                numFam: currentFam.code,
+                nomFam: currentFam.nom,
+                heureDebut: enCours.heure,
+                heureFin: hFin,
+                date: enCours.date,
+                type: enCours.type,
+                km: km ? parseFloat(km) : null,
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            clearEnCours(currentFam.code);
+            clearInterval(timerInterval);
+            document.getElementById('actionFin').style.display   = 'none';
+            document.getElementById('actionSaved').style.display = 'block';
+            document.getElementById('savedSummary').textContent =
+                `${enCours.heure} → ${hFin} · ${enCours.type === 'ENFA' ? "Garde d'enfants" : 'Ménage'}`;
+        }
+    } catch {
+        alert('Erreur réseau — réessayez');
+    }
+}
+
+function annuler() {
+    rescan();
+}
+
+function rescan() {
+    currentFam = null;
+    clearInterval(timerInterval);
+    document.getElementById('resultSection').style.display  = 'none';
+    document.getElementById('scannerSection').style.display = 'block';
+    document.getElementById('actionDebut').style.display    = 'none';
+    document.getElementById('actionFin').style.display      = 'none';
+    document.getElementById('actionSaved').style.display    = 'none';
+    scanning = true;
+    status.textContent = 'Pointez la caméra vers le QR code de la famille';
+}
+
+// ── Saisie manuelle ──────────────────────────────────
+function toggleManuel() {
+    const s = document.getElementById('manuelSection');
+    s.style.display = s.style.display === 'none' ? 'block' : 'none';
+}
+function scanManuel() {
+    const v = document.getElementById('manuelCode').value.trim().toUpperCase();
+    if (v) handleScan(v);
+}
+
+// ── LocalStorage helpers ─────────────────────────────
+const LS_KEY = `qr_inter_${INTERVENANT_ID}`;
+function getEnCours(code) {
+    try { const d = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); return d[code] || null; }
+    catch { return null; }
+}
+function setEnCours(code, data) {
+    try { const d = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); d[code] = data; localStorage.setItem(LS_KEY, JSON.stringify(d)); }
+    catch {}
+}
+function clearEnCours(code) {
+    try { const d = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); delete d[code]; localStorage.setItem(LS_KEY, JSON.stringify(d)); }
+    catch {}
+}
+
+startCamera();
+</script>
+{% endblock %}

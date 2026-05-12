@@ -1,41 +1,105 @@
 {% extends 'base.html.twig' %}
-
-{% block title %}Détail Famille{% endblock %}
+{% block title %}Famille {{ famille.nomFamille ?? famille.numeroFamille ?? '' }}{% endblock %}
+{% block page_title %}Détail famille{% endblock %}
 
 {% block body %}
-<h1>Famille {{ famille.nomParents ?? famille.numero ?? '' }}</h1>
 
-<ul class="menu">
-    <li><a href="{{ path('admin_familles_mvc') }}">← Retour à la liste</a></li>
-</ul>
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>{{ famille.nomFamille ?? famille.numeroFamille ?? 'Famille' }}</h1>
+            <p>
+                <code style="font-size:12px;color:var(--text-muted);">{{ famille.numeroFamille }}</code>
+            </p>
+        </div>
+        <a href="{{ path('admin_familles_mvc') }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Retour aux familles
+        </a>
+    </div>
+</div>
 
-<h2>Prestations</h2>
-{% if prestations is empty %}
-    <p>Aucune prestation enregistrée.</p>
-{% else %}
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Intervenant</th>
-                <th>Date</th>
-                <th>Début</th>
-                <th>Fin</th>
-                <th>Type</th>
-                <th>Validé</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for p in prestations %}
+{# ── Info famille ─────────────────────────────────── #}
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+        <i class="fas fa-house-user" style="color:var(--primary);"></i>
+        <span class="card-title">Informations</span>
+    </div>
+    <div class="card-body">
+        <dl style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 24px;font-size:13.5px;margin:0;">
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">N° client</dt>
+                <dd style="margin:0;font-weight:600;">{{ famille.numeroFamille }}</dd>
+            </div>
+            {% if famille.adresse is defined and famille.adresse %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Adresse</dt>
+                <dd style="margin:0;">{{ famille.adresse }}{% if famille.codePostal %}, {{ famille.codePostal }}{% endif %}{% if famille.ville %} {{ famille.ville }}{% endif %}</dd>
+            </div>
+            {% endif %}
+            {% if famille.telDom is defined and famille.telDom %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Téléphone</dt>
+                <dd style="margin:0;">{{ famille.telDom }}</dd>
+            </div>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+
+{# ── Prestations ──────────────────────────────────── #}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-clock" style="color:var(--primary);"></i>
+        <span class="card-title">Prestations</span>
+        {% if prestations is not empty %}
+        <span class="badge badge-muted" style="margin-left:auto;">{{ prestations|length }}</span>
+        {% endif %}
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+
+        {% if prestations is empty %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-calendar-times"></i></div>
+            <h3>Aucune prestation enregistrée</h3>
+        </div>
+        {% else %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Intervenant</th>
+                    <th>Date</th>
+                    <th>Début</th>
+                    <th>Fin</th>
+                    <th>Type</th>
+                    <th>Validé</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in prestations %}
             <tr>
                 <td>{{ p.numInter }}</td>
                 <td>{{ p.datePresta|date('d/m/Y') }}</td>
                 <td>{{ p.heureDebutPresta|date('H:i') }}</td>
                 <td>{{ p.heureFinPresta|date('H:i') }}</td>
-                <td>{{ p.typePresta }}</td>
-                <td>{{ p.validerFam ? 'Oui' : 'Non' }}</td>
+                <td>
+                    <span class="badge {{ p.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
+                        {{ p.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                    </span>
+                </td>
+                <td>
+                    {% if p.validerFam %}
+                        <span class="badge badge-success">Validé</span>
+                    {% else %}
+                        <span class="badge badge-warning">En attente</span>
+                    {% endif %}
+                </td>
             </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-{% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+    </div>
+</div>
+
 {% endblock %}

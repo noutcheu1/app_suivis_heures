@@ -76,7 +76,11 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
         }
         if (in_array('ROLE_INTERVENANT', $roles)) {
             $this->logger->debug('Redirection vers le tableau de bord intervenant', ['username' => $username]);
-            return new RedirectResponse($this->router->generate('intervenants_mvc'));
+            return new RedirectResponse(
+                $this->router->generate('intervenant_panel_mvc', [
+                    'id' => $token->getUser()->getId() // ou méthode équivalente
+                ])
+            );
         }
         if (in_array('ROLE_FAMILLE', $roles)) {
             $this->logger->debug('Redirection vers le tableau de bord famille', ['username' => $username]);

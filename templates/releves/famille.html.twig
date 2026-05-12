@@ -1,44 +1,79 @@
 {% extends 'base.html.twig' %}
-
-{% block title %}Relevés famille{% endblock %}
+{% block title %}Relevés famille — {{ mois }}{% endblock %}
+{% block page_title %}Relevés famille{% endblock %}
 
 {% block body %}
-<h1>Relevés — mois {{ mois }}</h1>
 
-<ul class="menu">
-    <li><a href="{{ path('famille_detail_mvc', {numFam: numFam}) }}">← Retour</a></li>
-    <li>
-        <a href="{{ path('releves_famille_pdf_mvc', {numFam: numFam, mois: mois}) }}">
-            <img src="{{ asset('/assets/icons/save.png') }}" alt="PDF">
-            Télécharger en PDF
-        </a>
-    </li>
-</ul>
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Relevés famille</h1>
+            <p>Mois : <strong>{{ mois }}</strong></p>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <a href="{{ path('famille_panel_mvc') }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Retour
+            </a>
+            <a href="{{ path('releves_famille_pdf_mvc', {numFam: numFam, mois: mois}) }}"
+               class="btn btn-primary btn-sm">
+                <i class="fas fa-file-pdf"></i> Télécharger PDF
+            </a>
+        </div>
+    </div>
+</div>
 
-{% if heures is empty %}
-    <p>Aucune heure enregistrée pour ce mois.</p>
-{% else %}
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Début</th>
-                <th>Fin</th>
-                <th>Type</th>
-                <th>Validé</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for h in heures %}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-clock" style="color:var(--primary);"></i>
+        <span class="card-title">Détail des heures</span>
+        {% if heures is not empty %}
+        <span class="badge badge-muted" style="margin-left:auto;">{{ heures|length }} prestation{% if heures|length > 1 %}s{% endif %}</span>
+        {% endif %}
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+
+        {% if heures is empty %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-calendar-times"></i></div>
+            <h3>Aucune heure enregistrée</h3>
+            <p>Aucune prestation pour ce mois</p>
+        </div>
+        {% else %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Début</th>
+                    <th>Fin</th>
+                    <th>Type</th>
+                    <th>Validé</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for h in heures %}
             <tr>
                 <td>{{ h.datePresta|date('d/m/Y') }}</td>
                 <td>{{ h.heureDebutPresta|date('H:i') }}</td>
                 <td>{{ h.heureFinPresta|date('H:i') }}</td>
-                <td>{{ h.typePresta == 'MENA' ? 'Ménage' : 'Garde d\'enfants' }}</td>
-                <td>{{ h.validerFam ? 'Oui' : 'Non' }}</td>
+                <td>
+                    <span class="badge {{ h.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
+                        {{ h.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                    </span>
+                </td>
+                <td>
+                    {% if h.validerFam %}
+                        <span class="badge badge-success">Validé</span>
+                    {% else %}
+                        <span class="badge badge-warning">En attente</span>
+                    {% endif %}
+                </td>
             </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-{% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+    </div>
+</div>
+
 {% endblock %}

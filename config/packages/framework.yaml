@@ -10,7 +10,12 @@ framework:
         cookie_httponly: true
         cookie_path: /
         cookie_domain: localhost
-
+    
+        # cookie_secure: auto
+        # cookie_httponly: auto
+        # csamesite: lax
+   
+    
     #esi: true
     #fragments: true
 

@@ -54,11 +54,14 @@ class HoraireinterService
     {
         $dateDebut = new \DateTime($debut);
         $dateFin = new \DateTime($fin);
-        $interval = $dateDebut->diff($dateFin);
-        
-        // Convertir en heures décimales
-        $heures = $interval->h + ($interval->i / 60);
-        return round($heures, 2);
+
+        $seconds = $dateFin->getTimestamp() - $dateDebut->getTimestamp();
+
+            if ($seconds < 0) {
+                $seconds += 24 * 3600;
+            }
+
+            return round($seconds / 3600, 2);
     }
 
     /**
@@ -389,6 +392,130 @@ class HoraireinterService
         $this->releveRepository->signerReleve($moisAnnee, $numInter, $type);
 
         return ['success' => true];
+    }
+
+    /**
+     * Statistiques du mois courant pour le dashboard intervenant
+     */
+    public function getDashboardStats(int $numInter): array
+    {
+        $start = new \DateTime('first day of this month 00:00:00');
+        $end   = new \DateTime('last day of this month 23:59:59');
+        $prestations = $this->getPrestationsParIntervenant($numInter, $start, $end);
+        $cmptvalider = 0;
+        $cmpt = 0;
+        $totalSec = 0; $validesSec = 0; $attenteSec = 0; $nbSignalements = 0;
+        foreach ($prestations as $p) {
+            $d = (int)$p->getHeureDebutPresta()->format('H') * 3600 + (int)$p->getHeureDebutPresta()->format('i') * 60;
+            $f = (int)$p->getHeureFinPresta()->format('H')   * 3600 + (int)$p->getHeureFinPresta()->format('i')   * 60;
+            $dur = max(0, $f - $d);
+            $totalSec += $dur;
+            $cmpt++;
+            if ($p->isValiderFam()) { $validesSec += $dur;  $cmptvalider++; } else { $attenteSec += $dur; }
+            if ($p->getRemarque())  { $nbSignalements++; }
+        }
+
+        return [
+            'totalHeures'    => $this->secToHhMm($totalSec),
+            'heuresValidees' => $this->secToHhMm($validesSec),
+            'heuresAttente'  => $this->secToHhMm($attenteSec),
+            'nbSignalements' => $nbSignalements,
+            'cmptvalider' => $cmptvalider,
+            'cmpt' => $cmpt,
+            'nbPrestations'  => count($prestations),
+        ];
+    }
+
+    /**
+     * Relevés du mois courant et précédent non encore signés
+     */
+    public function getRelevesASigner(int $numInter): array
+    {
+        $now  = new \DateTime();
+        $prev = (clone $now)->modify('-1 month');
+        $nonSignes = [];
+
+        foreach ([$now, $prev] as $date) {
+            $mois  = $date->format('m/Y');
+            $start = new \DateTime($date->format('Y-m-01'));
+            $end   = (clone $start)->modify('last day of this month');
+
+            foreach (['ENFA', 'MENA'] as $type) {
+                $nb = count($this->repository->findByIntervenantPeriodType($numInter, $start, $end, $type));
+                if ($nb === 0) continue;
+                $releve = $this->releveRepository->findByMoisAnneeIntervenant($mois, $numInter, $type);
+                if (!$releve || !$releve->isSigner()) {
+                    $nonSignes[] = [
+                        'mois'         => $mois,
+                        'type'         => $type,
+                        'libelle'      => $type === 'ENFA' ? "Garde d'enfants" : 'Ménage',
+                        'nbPrestations'=> $nb,
+                    ];
+                }
+            }
+        }
+        return $nonSignes;
+    }
+
+    /**
+     * Statistiques du mois courant pour le dashboard famille
+     */
+    public function getDashboardStatsFamille(string $numFam): array
+    {
+        $start = new \DateTime('first day of this month 00:00:00');
+        $end   = new \DateTime('last day of this month 23:59:59');
+
+        $all = $this->repository->createQueryBuilder('h')
+            ->where('h.numFam = :numFam')
+            ->andWhere('h.desactiver = :d')
+            ->andWhere('h.datePresta BETWEEN :s AND :e')
+            ->setParameter('numFam', $numFam)
+            ->setParameter('d', false)
+            ->setParameter('s', $start)
+            ->setParameter('e', $end)
+            ->getQuery()->getResult();
+
+        $totalSec = 0; $validesSec = 0; $attenteSec = 0; $nbSignalements = 0;
+        foreach ($all as $p) {
+            $d = (int)$p->getHeureDebutPresta()->format('H') * 3600 + (int)$p->getHeureDebutPresta()->format('i') * 60;
+            $f = (int)$p->getHeureFinPresta()->format('H')   * 3600 + (int)$p->getHeureFinPresta()->format('i')   * 60;
+            $dur = max(0, $f - $d);
+            $totalSec += $dur;
+            if ($p->isValiderFam()) { $validesSec += $dur; } else { $attenteSec += $dur; }
+            if ($p->getRemarque())  { $nbSignalements++; }
+        }
+
+        return [
+            'totalHeures'    => $this->secToHhMm($totalSec),
+            'heuresValidees' => $this->secToHhMm($validesSec),
+            'heuresAttente'  => $this->secToHhMm($attenteSec),
+            'nbSignalements' => $nbSignalements,
+            'nbPrestations'  => count($all),
+            'nbAttente'      => count(array_filter($all, fn($p) => !$p->isValiderFam() && !$p->getRemarque())),
+        ];
+    }
+
+    /**
+     * Toutes les prestations signalées (avec remarque) d'une famille
+     */
+    public function getSignalementsFamille(string $numFam): array
+    {
+        return $this->repository->createQueryBuilder('h')
+            ->where('h.numFam = :numFam')
+            ->andWhere('h.desactiver = :d')
+            ->andWhere('h.remarque IS NOT NULL')
+            ->andWhere("h.remarque != ''")
+            ->setParameter('numFam', $numFam)
+            ->setParameter('d', false)
+            ->orderBy('h.datePresta', 'DESC')
+            ->getQuery()->getResult();
+    }
+
+    private function secToHhMm(int $sec): string
+    {
+        $h = intdiv($sec, 3600);
+        $m = intdiv($sec % 3600, 60);
+        return sprintf('%dh%02d', $h, $m);
     }
 
     /**

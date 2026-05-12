@@ -7,7 +7,11 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: HoraireinterRepository::class)]
-#[ORM\Table(name: 'horaireinter')]
+#[ORM\Table(name: 'horaireinter', indexes: [
+    new ORM\Index(name: 'idx_numFam',     columns: ['numFam']),
+    new ORM\Index(name: 'idx_numInter',   columns: ['numInter']),
+    new ORM\Index(name: 'idx_datePresta', columns: ['datePresta']),
+])]
 
 class Horaireinter
 {
