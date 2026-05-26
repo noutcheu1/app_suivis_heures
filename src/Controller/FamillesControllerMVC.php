@@ -2,9 +2,18 @@
 
 namespace App\Controller;
 
+use App\Repository\HoraireinterRepository;
+use App\Repository\ParentFamilleRepository;
+use App\Repository\ProposerRepository;
+use App\Repository\VacancesConfigRepository;
 use App\Service\AuthService;
+use App\Service\FactureService;
+use App\Service\FamilleIntervenantService;
 use App\Service\FamilleService;
 use App\Service\HoraireinterService;
+use App\Service\IntervenantService;
+use App\Service\ReleveFamilleBuilder;
+use App\Service\ReleveMensuelFamilleService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,9 +25,18 @@ use Symfony\Component\Routing\Attribute\Route;
 final class FamillesControllerMVC extends AbstractController
 {
     public function __construct(
-        private AuthService $authService,
-        private FamilleService $familleService,
-        private HoraireinterService $horaireService
+        private AuthService                 $authService,
+        private FamilleService              $familleService,
+        private HoraireinterService         $horaireService,
+        private FamilleIntervenantService   $familleIntervenantService,
+        private ReleveMensuelFamilleService $releveMensuelFamilleService,
+        private FactureService              $factureService,
+        private ReleveFamilleBuilder        $releveFamilleBuilder,
+        private VacancesConfigRepository    $vacancesRepo,
+        private IntervenantService          $intervenantService,
+        private ProposerRepository          $proposerRepo,
+        private HoraireinterRepository      $horaireRepo,
+        private ParentFamilleRepository     $parentRepo,
     ) {}
 
     #[Route('/famille/mon-espace', name: 'famille_panel_mvc')]
@@ -26,6 +44,10 @@ final class FamillesControllerMVC extends AbstractController
     {
         if (!$this->authService->check()) {
             return $this->redirectToRoute('app_login');
+        }
+
+        if ($this->authService->isAdmin()) {
+            return $this->redirectToRoute('admin_dashboard_mvc');
         }
 
         $numFam = $this->authService->famille_id();
@@ -40,10 +62,14 @@ final class FamillesControllerMVC extends AbstractController
             throw $this->createNotFoundException('Famille introuvable');
         }
 
-        $prestationsNonValidees = $this->horaireService->getPrestationsNonValidees($numFam);
+        $prestationsNonValidees = $this->horaireService->getPrestationsNonDeclarees($numFam);
         $prestationsValidees    = $this->horaireService->getPrestationsParFamille($numFam);
         $stats                  = $this->horaireService->getDashboardStatsFamille($numFam);
         $dernieres              = array_slice($prestationsValidees, 0, 5);
+
+        // Uniquement les intervenants assignés à cette famille dans proposer
+        $intervenants  = $this->familleIntervenantService->getIntervenantsForFamille($numFam);
+        $assignations  = $this->familleIntervenantService->getAssignationsFamille($numFam);
 
         return $this->render('familles/dashboard.html.twig', [
             'auth'                   => true,
@@ -52,6 +78,50 @@ final class FamillesControllerMVC extends AbstractController
             'prestationsValidees'    => $prestationsValidees,
             'stats'                  => $stats,
             'dernieres'              => $dernieres,
+            'intervenants'           => $intervenants,
+            'assignations'           => $assignations,
+        ]);
+    }
+
+
+    #[Route('/famille/adminpanel/{numFam}', name: 'famille_admin_panel_mvc')]
+    public function adminpanel(string $numFam, Request $request): Response
+    {
+        if (!$this->authService->check()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        
+        
+        if (!$numFam) {
+            throw $this->createNotFoundException(
+                'Aucun dossier famille trouvé pour votre identifiant. Contactez l\'administrateur.'
+            );
+        }
+
+        $famille = $this->familleService->getFamilleParNumero($numFam);
+        if (!$famille) {
+            throw $this->createNotFoundException('Famille introuvable');
+        }
+
+        $prestationsNonValidees = $this->horaireService->getPrestationsNonDeclarees($numFam);
+        $prestationsValidees    = $this->horaireService->getPrestationsParFamille($numFam);
+        $stats                  = $this->horaireService->getDashboardStatsFamille($numFam);
+        $dernieres              = array_slice($prestationsValidees, 0, 5);
+
+        // Uniquement les intervenants assignés à cette famille dans proposer
+        $intervenants  = $this->familleIntervenantService->getIntervenantsForFamille($numFam);
+        $assignations  = $this->familleIntervenantService->getAssignationsFamille($numFam);
+
+        return $this->render('familles/dashboard.html.twig', [
+            'auth'                   => true,
+            'famille'                => $famille,
+            'prestationsNonValidees' => $prestationsNonValidees,
+            'prestationsValidees'    => $prestationsValidees,
+            'stats'                  => $stats,
+            'dernieres'              => $dernieres,
+            'intervenants'           => $intervenants,
+            'assignations'           => $assignations,
         ]);
     }
 
@@ -74,9 +144,12 @@ final class FamillesControllerMVC extends AbstractController
             throw $this->createNotFoundException('Famille introuvable');
         }
 
+        $parents = $this->parentRepo->findByFamille($numFam);
+
         return $this->render('familles/profile.html.twig', [
-            'auth' => true,
+            'auth'    => true,
             'famille' => $famille,
+            'parents' => $parents,
         ]);
     }
 
@@ -130,7 +203,7 @@ final class FamillesControllerMVC extends AbstractController
     #[Route('/familles-mvc', name: 'familles_mvc')]
     public function liste(Request $request): Response
     {
-        if (!$this->authService->check()) {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
             return $this->redirectToRoute('app_login');
         }
 
@@ -148,57 +221,119 @@ final class FamillesControllerMVC extends AbstractController
         if (!$this->authService->check()) {
             return $this->redirectToRoute('app_login');
         }
+        if (!$this->authService->isAdmin() && $this->authService->famille_id() !== $numFam) {
+            return $this->redirectToRoute('app_login');
+        }
 
         $famille = $this->familleService->getFamilleParNumero($numFam);
-        
         if (!$famille) {
             throw $this->createNotFoundException('Famille introuvable');
         }
 
-        // Récupérer les prestations à valider
-        $prestationsNonValidees = $this->horaireService->getPrestationsNonValidees($numFam);
-        $prestationsValidees = $this->horaireService->getPrestationsParFamille($numFam);
+        $isAdmin = $this->authService->isAdmin();
+        $now     = new \DateTime();
+        $year    = (int)$now->format('Y');
+        $month   = (int)$now->format('m');
+
+        // Uniquement les prestations du mois courant non encore déclarées par la famille
+        $horairesBruts = array_filter(
+            $this->horaireRepo->findByFamilleForMonth($numFam, $year, $month),
+            fn($h) => $h->getDeclarerLeFam() === null && !$h->isDesactiver()
+        );
+
+        // Index des proposers actifs par (numSalarie|jour) pour retrouver les heures planifiées
+        $jourMap = [
+            1 => 'lundi', 2 => 'mardi', 3 => 'mercredi', 4 => 'jeudi',
+            5 => 'vendredi', 6 => 'samedi', 7 => 'dimanche',
+        ];
+        $proposerIndex = [];
+        foreach ($this->proposerRepo->findActivesByFamille($numFam) as $p) {
+            $key = $p->getNumSalarie() . '|' . mb_strtolower(trim($p->getJour()));
+            $proposerIndex[$key] = $p;
+        }
+
+        // Charger les noms des intervenants concernés
+        $intervenantsMap = [];
+        foreach ($horairesBruts as $h) {
+            $id = $h->getNumInter();
+            if ($id && !isset($intervenantsMap[$id])) {
+                $intervenantsMap[$id] = $this->intervenantService->getInfosIntervenant($id);
+            }
+        }
+
+        // Associer chaque horaireinter à son proposer (heures planifiées)
+        $lignes = [];
+        foreach ($horairesBruts as $h) {
+            $jour   = $jourMap[(int)$h->getDatePresta()->format('N')] ?? '';
+            $key    = $h->getNumInter() . '|' . $jour;
+            $lignes[] = [
+                'horaire'      => $h,
+                'proposer'     => $proposerIndex[$key] ?? null,
+                'intervenant'  => $intervenantsMap[$h->getNumInter()] ?? null,
+            ];
+        }
+
+        // Trier par date puis heure de début
+        usort($lignes, fn($a, $b) =>
+            $a['horaire']->getDatePresta() <=> $b['horaire']->getDatePresta()
+            ?: ($a['horaire']->getHeureDebutPresta() <=> $b['horaire']->getHeureDebutPresta())
+        );
 
         return $this->render('familles/detail.html.twig', [
-            'auth' => $this->authService->check(),
-            'famille' => $famille,
-            'prestationsNonValidees' => $prestationsNonValidees,
-            'prestationsValidees' => $prestationsValidees,
+            'auth'       => $this->authService->check(),
+            'famille'    => $famille,
+            'lignes'     => $lignes,
+            'moisLabel'  => $now->format('F Y'),
+            'isAdmin'    => $isAdmin,
         ]);
     }
 
-    #[Route('/familles-mvc/{numFam}/valider/{id}', name: 'famille_valider_prestation_mvc', methods: ['POST'])]
-    public function validerPrestation(string $numFam, int $id, Request $request): Response
+    #[Route('/familles-mvc/{numFam}/declarer/{id}', name: 'famille_declarer_heures_mvc', methods: ['POST'])]
+    public function declarerHeures(string $numFam, int $id, Request $request): Response
     {
         if (!$this->authService->check()) {
             return $this->redirectToRoute('app_login');
         }
+        if (!$this->authService->isAdmin() && $this->authService->famille_id() !== $numFam) {
+            return $this->redirectToRoute('app_login');
+        }
 
-        if ($this->horaireService->validerPrestation($id, $numFam)) {
-            $this->addFlash('success', 'Prestation validée avec succès');
+        $heureDebut = $request->request->get('heureDebut');
+        $heureFin   = $request->request->get('heureFin');
+
+        if ($this->horaireService->declarerHeuresFam($id, $numFam, $heureDebut, $heureFin)) {
+            $this->addFlash('success', 'Heures confirmées');
         } else {
-            $this->addFlash('error', 'Impossible de valider cette prestation');
+            $this->addFlash('error', 'Impossible d\'enregistrer ces heures');
         }
 
         return $this->redirectToRoute('famille_detail_mvc', ['numFam' => $numFam]);
     }
 
-    #[Route('/familles-mvc/{numFam}/signaler/{id}', name: 'famille_signaler_prestation_mvc', methods: ['POST'])]
-    public function signalerPrestation(string $numFam, int $id, Request $request): Response
+    #[Route('/familles-mvc/{numFam}/declarer-nouvelle', name: 'famille_declarer_nouvelle_mvc', methods: ['POST'])]
+    public function declarerNouvellePrestation(string $numFam, Request $request): Response
     {
         if (!$this->authService->check()) {
             return $this->redirectToRoute('app_login');
         }
-
-        $remarque = $request->request->get('remarque');
-        
-        if ($this->horaireService->ajouterRemarque($id, $remarque, $numFam)) {
-            $this->addFlash('success', 'Signalement enregistré avec succès');
-        } else {
-            $this->addFlash('error', 'Impossible d\'enregistrer le signalement');
+        if (!$this->authService->isAdmin() && $this->authService->famille_id() !== $numFam) {
+            return $this->redirectToRoute('app_login');
         }
 
-        return $this->redirectToRoute('famille_detail_mvc', ['numFam' => $numFam]);
+        $heureDebut   = $request->request->get('heureDebut');
+        $heureFin     = $request->request->get('heureFin');
+        $dateStr      = $request->request->get('date');
+        $typePresta   = $request->request->get('typePresta');
+        $numInter     = (int)$request->request->get('numInter');
+        $nomFam       = $request->request->get('nomFam', '');
+        $moisOffset   = (int)$request->request->get('moisOffset', 0);
+
+        $this->horaireService->declarerNouvellePresation(
+            $numFam, $nomFam, $numInter, $dateStr, $typePresta, $heureDebut, $heureFin
+        );
+
+        $this->addFlash('success', 'Heures enregistrées');
+        return $this->redirectToRoute('famille_detail_mvc', ['numFam' => $numFam, 'mois' => $moisOffset]);
     }
 
     #[Route('/familles-mvc/{numFam}/releves', name: 'famille_releves_mvc')]
@@ -207,6 +342,9 @@ final class FamillesControllerMVC extends AbstractController
         if (!$this->authService->check()) {
             return $this->redirectToRoute('app_login');
         }
+        if (!$this->authService->isAdmin() && $this->authService->famille_id() !== $numFam) {
+            return $this->redirectToRoute('app_login');
+        }
 
         $famille = $this->familleService->getFamilleParNumero($numFam);
         
@@ -214,14 +352,13 @@ final class FamillesControllerMVC extends AbstractController
             throw $this->createNotFoundException('Famille introuvable');
         }
 
-        // TODO: Implémenter le service pour les relevés mensuels familles
-        $releves = []; // $this->releveFamilleService->getRelevesParFamille($numFam);
+        $historique = $this->releveMensuelFamilleService->getHistoriqueReleves($numFam);
 
         return $this->render('familles/releves.html.twig', [
-            'auth' => $this->authService->check(),
-            'famille' => $famille,
-            'releves' => $releves,
-            'mois' => (new \DateTime())->format('m/Y'),
+            'auth'           => $this->authService->check(),
+            'famille'        => $famille,
+            'historique'     => $historique,
+            'vacancesConfig' => $this->vacancesRepo->findActif(),
         ]);
     }
 
@@ -232,26 +369,9 @@ final class FamillesControllerMVC extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
-        $famille = $this->familleService->getFamilleParNumero($numFam);
-        
-        if (!$famille) {
-            throw $this->createNotFoundException('Famille introuvable');
-        }
+        $mois = $request->query->get('mois', date('Y-m'));
 
-        $mois = $request->query->get('mois', date('m/Y'));
-        
-        // TODO: Implémenter le calcul d'estimation de facture
-        $estimation = [
-            'mois' => $mois,
-            'montantTotal' => 0,
-            'details' => []
-        ];
-
-        return $this->render('familles/estimation-facture.html.twig', [
-            'auth' => $this->authService->check(),
-            'famille' => $famille,
-            'estimation' => $estimation,
-        ]);
+        return $this->redirectToRoute('famille_ma_facture_mvc', ['mois' => $mois]);
     }
 
     #[Route('/familles-mvc/{numFam}/avis', name: 'famille_avis_mvc', methods: ['POST'])]
@@ -260,19 +380,216 @@ final class FamillesControllerMVC extends AbstractController
         if (!$this->authService->check()) {
             return $this->redirectToRoute('app_login');
         }
+        if (!$this->authService->isAdmin() && $this->authService->famille_id() !== $numFam) {
+            return $this->redirectToRoute('app_login');
+        }
 
-        $avis = [
-            'ponctualite' => $request->request->get('ponctualite'),
-            'relationnel' => $request->request->get('relationnel'),
-            'respectHoraires' => $request->request->get('respectHoraires'),
-            'qualiteTravail' => $request->request->get('qualiteTravail'),
-        ];
+        $moisAnnee  = $request->request->get('moisAnnee', date('Y-m'));
+        $typePresta = strtoupper($request->request->get('typePresta', 'ENFA'));
 
-        // TODO: Implémenter le service pour enregistrer les avis
-        // $this->avisService->enregistrerAvis($numFam, $avis);
+        $this->releveMensuelFamilleService->sauvegarderQuestionnaire($numFam, $moisAnnee, [$typePresta], [
+            'avisPonctualite' => $request->request->get('ponctualite'),
+            'avisReguRela'    => $request->request->get('relationnel'),
+            'avisRespectHo'   => $request->request->get('respectHoraires'),
+            'avisQualiteTr'   => $request->request->get('qualiteTravail'),
+        ]);
 
-        $this->addFlash('success', 'Votre avis a été enregistré avec succès');
+        $this->addFlash('success', 'Votre avis a été enregistré avec succès.');
 
         return $this->redirectToRoute('famille_detail_mvc', ['numFam' => $numFam]);
+    }
+
+    // ── Admin : taux horaire spécifique à une famille ─────────────────────────
+
+    #[Route('/familles-mvc/{numFam}/tarif', name: 'famille_tarif_mvc')]
+    public function tarifFamille(string $numFam, Request $request): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $famille = $this->familleService->getFamilleParNumero($numFam);
+        if (!$famille) {
+            throw $this->createNotFoundException('Famille introuvable');
+        }
+
+        $tarifsGE = $this->releveMensuelFamilleService->getTarifsFamille($numFam);
+
+        return $this->render('admin/familles/tarif.html.twig', [
+            'auth'    => true,
+            'famille' => $famille,
+            'tarifs'  => $tarifsGE,
+            'tarifGEActif' => $this->releveMensuelFamilleService->getTarifActifFamille($numFam, 'GE'),
+            'tarifMActif'  => $this->releveMensuelFamilleService->getTarifActifFamille($numFam, 'M'),
+        ]);
+    }
+
+    #[Route('/familles-mvc/{numFam}/tarif/creer', name: 'famille_tarif_creer_mvc', methods: ['POST'])]
+    public function creerTarifFamille(string $numFam, Request $request): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $typePresta = $request->request->get('typePresta', 'GE');
+        $taux       = (float)$request->request->get('tauxHoraire', 0);
+        $dateDebut  = $request->request->get('dateDebut', date('Y-m'));
+
+        try {
+            $this->releveMensuelFamilleService->creerTarifFamille($numFam, $typePresta, $taux, $dateDebut);
+            $this->addFlash('success', 'Taux horaire enregistré pour cette famille.');
+        } catch (\Throwable $e) {
+            $this->addFlash('error', 'Erreur : ' . $e->getMessage());
+        }
+
+        return $this->redirectToRoute('famille_tarif_mvc', ['numFam' => $numFam]);
+    }
+
+    // ── Admin : exceptions de facturation d'une famille ───────────────────────
+
+    #[Route('/familles-mvc/{numFam}/exception/ajouter', name: 'famille_exception_ajouter_mvc', methods: ['POST'])]
+    public function ajouterException(string $numFam, Request $request): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $moisAnnee  = $request->request->get('moisAnnee');
+        $typePresta = $request->request->get('typePresta', 'GE');
+        $libele     = $request->request->get('libele', '');
+        $montant    = (float)$request->request->get('montant', 0);
+
+        if (!$moisAnnee || !$libele) {
+            $this->addFlash('error', 'Le mois et le libellé sont obligatoires.');
+            return $this->redirectToRoute('admin_famille_detail_mvc', ['numFam' => $numFam]);
+        }
+
+        try {
+            $this->releveMensuelFamilleService->ajouterOuModifierException(
+                $numFam, $moisAnnee, $typePresta, $libele, $montant
+            );
+            $this->addFlash('success', 'Exception de facturation enregistrée.');
+        } catch (\Throwable $e) {
+            $this->addFlash('error', 'Erreur : ' . $e->getMessage());
+        }
+
+        return $this->redirectToRoute('admin_famille_detail_mvc', ['numFam' => $numFam]);
+    }
+
+    #[Route('/familles-mvc/{numFam}/exception/supprimer', name: 'famille_exception_supprimer_mvc', methods: ['POST'])]
+    public function supprimerException(string $numFam, Request $request): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $moisAnnee  = $request->request->get('moisAnnee');
+        $typePresta = $request->request->get('typePresta', 'GE');
+
+        if ($moisAnnee) {
+            $this->releveMensuelFamilleService->supprimerException($numFam, $moisAnnee, $typePresta);
+            $this->addFlash('success', 'Exception supprimée.');
+        }
+
+        return $this->redirectToRoute('admin_famille_detail_mvc', ['numFam' => $numFam]);
+    }
+
+    // ── Facture famille (espace famille) ─────────────────────────────────────
+
+    #[Route('/famille/ma-facture', name: 'famille_ma_facture_mvc')]
+    public function maFacture(Request $request): Response
+    {
+        if (!$this->authService->check()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $numFam  = $this->authService->famille_id();
+        $famille = $this->authService->getFamille();
+
+        if (!$numFam) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $moisAnnee  = $request->query->get('mois', date('Y-m'));
+        $typeFilter = strtoupper(trim($request->query->get('type', ''))) ?: null;
+        if ($typeFilter && !in_array($typeFilter, ['GE', 'MENA'], true)) {
+            $typeFilter = null;
+        }
+
+        $facture = $this->factureService->calculerFacture($numFam, $moisAnnee);
+        $releves = $this->releveFamilleBuilder->buildReleves($numFam, $famille, $moisAnnee, $facture, $typeFilter);
+
+        return $this->render('familles/facture.html.twig', [
+            'releves'        => $releves,
+            'moisAnnee'      => $moisAnnee,
+            'typeFilter'     => $typeFilter,
+            'numFam'         => $numFam,
+            'facture'        => $facture,
+            'vacancesConfig' => $this->vacancesRepo->findActif(),
+        ]);
+    }
+
+    #[Route('/famille/ma-facture/sauvegarder', name: 'famille_ma_facture_sauvegarder_mvc', methods: ['POST'])]
+    public function sauvegarderFacture(Request $request): Response
+    {
+        if (!$this->authService->check()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $numFam = $this->authService->famille_id();
+
+        if (!$numFam) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $moisAnnee = $request->request->get('moisAnnee', date('Y-m'));
+        $facture   = $this->factureService->calculerFacture($numFam, $moisAnnee);
+        $prestTypes = [];
+        if (!empty($facture['prestationsGE']))   $prestTypes[] = 'ENFA';
+        if (!empty($facture['prestationsMENA'])) $prestTypes[] = 'MENA';
+        if (empty($prestTypes)) $prestTypes[] = 'ENFA';
+
+        $this->releveMensuelFamilleService->sauvegarderQuestionnaire($numFam, $moisAnnee, $prestTypes, [
+            'avisPonctualite'  => $request->request->get('avisPonctualite'),
+            'avisReguRela'     => $request->request->get('avisReguRela'),
+            'avisRespectHo'    => $request->request->get('avisRespectHo'),
+            'avisQualiteTr'    => $request->request->get('avisQualiteTr'),
+            'typeReglement'    => $request->request->get('typeReglement'),
+            'numCheque'        => $request->request->get('numCheque'),
+            'nbrCESU'          => $request->request->get('nbrCESU'),
+            'montantPrincipal' => $request->request->get('montantPrincipal'),
+            'complementCESU'   => $request->request->get('complementCESU'),
+            'montantComplement' => $request->request->get('montantComplement'),
+            'signer'           => $request->request->get('signer'),
+        ]);
+
+        $this->addFlash('success', 'Questionnaire enregistré avec succès.');
+
+        return $this->redirectToRoute('famille_ma_facture_mvc', ['mois' => $moisAnnee]);
+    }
+
+    #[Route('/famille/ma-facture/imprimer', name: 'famille_ma_facture_print_mvc')]
+    public function maFacturePrint(Request $request): Response
+    {
+        if (!$this->authService->check()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $numFam  = $this->authService->famille_id();
+        $famille = $this->authService->getFamille();
+
+        if (!$numFam) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $moisAnnee = $request->query->get('mois', date('Y-m'));
+        $facture   = $this->factureService->calculerFacture($numFam, $moisAnnee);
+
+        return $this->render('admin/factures/print.html.twig', [
+            'famille'   => $famille,
+            'facture'   => $facture,
+            'moisAnnee' => $moisAnnee,
+            'backUrl'   => $this->generateUrl('famille_ma_facture_mvc', ['mois' => $moisAnnee]),
+        ]);
     }
 }

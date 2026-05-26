@@ -9,7 +9,7 @@
 </div>
 
 {# KPIs #}
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:28px;">
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;margin-bottom:28px;">
 
     <div class="kpi-card">
         <div class="kpi-icon" style="background:#eef2ff;">
@@ -67,7 +67,7 @@
             <i class="fas fa-flag" style="color:#ef4444;"></i>
         </div>
         <div>
-            <p class="action-card-label">Signalements</p>
+            <p class="action-card-label">Écarts d'heures</p>
             <p class="action-card-desc">Litiges familles</p>
         </div>
     </a>
@@ -109,6 +109,26 @@
         <div>
             <p class="action-card-label">Exceptions tarifs</p>
             <p class="action-card-desc">Tarification spéciale</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('admin_vacances_mvc') }}">
+        <div class="action-card-icon" style="background:#fef9c3;">
+            <i class="fas fa-umbrella-beach" style="color:#ca8a04;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Formulaires vacances</p>
+            <p class="action-card-desc">Ajouter sur les relevés</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('admin_tarifs_mvc') }}">
+        <div class="action-card-icon" style="background:#fff7ed;">
+            <i class="fas fa-tags" style="color:#ea580c;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Tarifs</p>
+            <p class="action-card-desc">Grilles tarifaires</p>
         </div>
     </a>
 

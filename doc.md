@@ -472,3 +472,17 @@ JOIN (
 ---
 
 *Document généré le mai 2026 — Association Chaudoudoux*
+
+
+
+Fonctionnalité	Fichier
+Estimation facture famille (calcul tarifs)	FamilleService::calculerMontantDu → return 0.0 toujours
+Questionnaire satisfaction + sauvegarde avis	FamillesControllerMVC::donnerAvis → flash sans save
+Calcul km trajet intervenant	RelevesControllerMVC::kmIntervenant → $kmTotal = 0
+Signalements admin (tous)	AdminControllerMVC::signalements → $signalements = []
+Exceptions facturation admin	AdminControllerMVC::exceptionsFacturation → $exceptions = []
+Récapitulatif global heures + CSV	AdminControllerMVC::recapitulatifHeures/Csv → vide
+Préparation paie + CSV	AdminControllerMVC::preparationPaie/Csv → vide
+PDF relevés (intervenant + famille)	RelevesControllerMVC::*Pdf → texte brut
+PDF fiches vierges	AdminControllerMVC::fichesViergesPdf → texte brut
+Gestion tarifs admin	Aucun controller — TarifRepository existe mais pas de routes CRUD

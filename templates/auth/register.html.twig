@@ -84,6 +84,17 @@
 }
 .login-cta { text-align: center; font-size: 13px; color: #64748b; margin-top: 18px; }
 .login-cta a { color: #10b981; font-weight: 600; }
+.type-selector { display:flex; gap:10px; margin-bottom:20px; }
+.type-btn {
+    flex:1; padding:12px 8px; border:2px solid #e2e8f0;
+    border-radius:10px; background:#f8fafc; cursor:pointer;
+    font-size:13px; font-weight:600; font-family:inherit;
+    color:#64748b; text-align:center; transition:all .2s;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+}
+.type-btn i { font-size:20px; }
+.type-btn:hover { border-color:#10b981; color:#10b981; background:#f0fdf4; }
+.type-btn.selected { border-color:#10b981; background:#ecfdf5; color:#065f46; box-shadow:0 0 0 3px rgba(16,185,129,.15); }
 .register-footer {
     padding: 14px 36px;
     border-top: 1px solid #f1f5f9;
@@ -124,19 +135,30 @@
         <form id="create_login_form" method="POST" action="{{ path('app_register') }}">
             <input type="hidden" id="type" name="type" value="{{ type }}">
 
+            <div class="type-selector">
+                <button type="button" class="type-btn {% if type == 'INTER' %}selected{% endif %}"
+                        id="btn-inter" onclick="selectType('INTER')">
+                    <i class="fas fa-user-tie"></i>Intervenant
+                </button>
+                <button type="button" class="type-btn {% if type == 'FAM' %}selected{% endif %}"
+                        id="btn-fam" onclick="selectType('FAM')">
+                    <i class="fas fa-users"></i>Famille
+                </button>
+            </div>
+
             <div class="mb-3">
-                <label class="field-label">
-                    {{ type == 'INTER' ? 'Identifiant salarié' : 'Code client (PM ou PGE)' }}
+                <label class="field-label" id="id-label">
+                    {% if type == 'INTER' %}Identifiant salarié{% else %}Code client (PM ou PGE){% endif %}
                 </label>
                 <div class="input-wrap">
-                    <i class="fas {{ type == 'INTER' ? 'fa-id-card' : 'fa-users' }} input-icon"></i>
+                    <i class="fas fa-id-card input-icon" id="id-icon"></i>
                     <input type="text" id="id_conexion" name="id"
                            maxlength="{{ type == 'INTER' ? '21' : '7' }}"
                            placeholder="{{ type == 'INTER' ? '9.xx.xx.xx.xxx.xxx.xx' : 'PGE1234' }}"
                            autocomplete="username" required>
                 </div>
-                <p class="field-hint">
-                    {{ type == 'INTER' ? 'Format : 9.xx.xx.xx.xxx.xxx.xx' : 'Format : PGE1234 ou PM1234' }}
+                <p class="field-hint" id="id-hint">
+                    {% if type == 'INTER' %}Format : 9.xx.xx.xx.xxx.xxx.xx{% else %}Format : PGE1234 ou PM1234{% endif %}
                 </p>
             </div>
 
@@ -194,6 +216,29 @@ const pass2     = document.getElementById('password2');
 const matchHint = document.getElementById('matchHint');
 const errorBox  = document.getElementById('errorBox');
 const errorText = document.getElementById('errorText');
+let currentType = '{{ type }}' || null;
+
+function selectType(t) {
+    currentType = t;
+    document.getElementById('type').value = t;
+    document.getElementById('btn-inter').classList.toggle('selected', t === 'INTER');
+    document.getElementById('btn-fam').classList.toggle('selected', t === 'FAM');
+
+    if (t === 'INTER') {
+        document.getElementById('id-label').textContent = 'Identifiant salarié';
+        document.getElementById('id-icon').className = 'fas fa-id-card input-icon';
+        idInput.maxLength = 21;
+        idInput.placeholder = '9.xx.xx.xx.xxx.xxx.xx';
+        document.getElementById('id-hint').textContent = 'Format : 9.xx.xx.xx.xxx.xxx.xx';
+    } else {
+        document.getElementById('id-label').textContent = 'Code client (PM ou PGE)';
+        document.getElementById('id-icon').className = 'fas fa-users input-icon';
+        idInput.maxLength = 7;
+        idInput.placeholder = 'PGE1234';
+        document.getElementById('id-hint').textContent = 'Format : PGE1234 ou PM1234';
+    }
+    idInput.value = '';
+}
 
 function toggleVis(inputId, iconId) {
     const i = document.getElementById(inputId);
@@ -222,6 +267,12 @@ pass1.addEventListener('input', checkMatch);
 pass2.addEventListener('input', checkMatch);
 
 document.getElementById('create_login_form').addEventListener('submit', e => {
+    if (!currentType) {
+        e.preventDefault();
+        errorBox.style.display = 'flex';
+        errorText.textContent = 'Veuillez choisir un type de compte (Intervenant ou Famille)';
+        return;
+    }
     if (pass1.value.length < 8) {
         e.preventDefault();
         errorBox.style.display = 'flex';
@@ -238,19 +289,19 @@ document.getElementById('create_login_form').addEventListener('submit', e => {
 });
 
 idInput.addEventListener('input', () => {
-    {% if type == 'INTER' %}
-    let v = idInput.value.replace(/\D/g, '');
-    const b = [1,2,2,2,3,3,2];
-    let r = '', pos = 0;
-    for (let i = 0; i < b.length && pos < v.length; i++) {
-        if (i > 0) r += '.';
-        r += v.slice(pos, pos + b[i]);
-        pos += b[i];
+    if (currentType === 'INTER') {
+        let v = idInput.value.replace(/\D/g, '');
+        const b = [1,2,2,2,3,3,2];
+        let r = '', pos = 0;
+        for (let i = 0; i < b.length && pos < v.length; i++) {
+            if (i > 0) r += '.';
+            r += v.slice(pos, pos + b[i]);
+            pos += b[i];
+        }
+        idInput.value = r;
+    } else if (currentType === 'FAM') {
+        idInput.value = idInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     }
-    idInput.value = r;
-    {% elseif type == 'FAM' %}
-    idInput.value = idInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    {% endif %}
 });
 </script>
 {% endblock %}

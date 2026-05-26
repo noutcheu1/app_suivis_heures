@@ -14,10 +14,10 @@
             </div>
             <div>
                 <h1>{{ user.titre in ['MME','Mel'] ? 'Bonjour Mme' : 'Bonjour M.' }} {{ user.prenom }} {{ user.nom }}</h1>
-                <p>N° salarié {{ user.numSalarie ?? '—' }}{% if user.tauxHoraire %} · {{ user.tauxHoraire }} €/h{% endif %}</p>
+                <p>N° salarié {{ user.numSalarie ?? '—' }}</p>
             </div>
         </div>
-        <a href="{{ path('intervenant_profile_mvc', {id: app.user.id}) }}" class="btn btn-secondary btn-sm">
+        <a href="{{ path('intervenant_profile_mvc', {id: user.id}) }}" class="btn btn-secondary btn-sm">
             <i class="fas fa-edit"></i> Mon profil
         </a>
     </div>
@@ -29,20 +29,24 @@
         <div class="kpi-value">{{ stats.totalHeures }}</div>
     </div>
     <div class="kpi-card">
-        <div class="kpi-label">Heures validées</div>
+        <div class="kpi-label">Saisies famille</div>
         <div class="kpi-value" style="color:var(--success);">{{ stats.heuresValidees }}</div>
     </div>
     <div class="kpi-card">
-        <div class="kpi-label">En attente famille</div>
+        <div class="kpi-label">Non saisies famille</div>
         <div class="kpi-value" style="color:var(--warning);">{{ stats.heuresAttente }}</div>
     </div>
     <div class="kpi-card">
-        <div class="kpi-label">Signalement</div>
+        <div class="kpi-label">Écarts</div>
         <div class="kpi-value" style="color:var(--warning);">{{ stats.nbSignalements }}</div>
     </div>
     <div class="kpi-card">
         <div class="kpi-label">Prestations</div>
         <div class="kpi-value" style="color:var(--info);">{{ stats.nbPrestations }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Km avec enfants</div>
+        <div class="kpi-value" style="color:var(--primary);">{{ stats.totalKm|number_format(1, ',', ' ') }} km</div>
     </div>
 </div>
 
@@ -56,7 +60,7 @@
             Relevé <strong>{{ alerte.libelle }}</strong> — <strong>{{ alerte.mois }}</strong>
             ({{ alerte.nbPrestations }} prestation{% if alerte.nbPrestations > 1 %}s{% endif %}) non signé
         </div>
-        <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: app.user.id, type: alerte.type}) }}"
+        <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: user.id, type: alerte.type}) }}"
            class="btn btn-secondary btn-sm" style="flex-shrink:0;">
             Signer <i class="fas fa-arrow-right"></i>
         </a>
@@ -70,7 +74,7 @@
 
 <div class="action-grid" style="margin-bottom:28px;">
 
-    <a class="action-card" href="{{ path('intervenant_suivie_mvc', {id: app.user.id}) }}">
+    <a class="action-card" href="{{ path('intervenant_suivie_mvc', {id: user.id}) }}">
         <div class="action-card-icon" style="background:#eef2ff;">
             <i class="fas fa-plus-circle" style="color:#4f46e5;"></i>
         </div>
@@ -80,7 +84,7 @@
         </div>
     </a>
 
-    <a class="action-card" href="{{ path('intervenant_qr_mvc', {id: app.user.id}) }}">
+    <a class="action-card" href="{{ path('intervenant_qr_mvc', {id: user.id}) }}">
         <div class="action-card-icon" style="background:#f0fdf4;">
             <i class="fas fa-qrcode" style="color:#10b981;"></i>
         </div>
@@ -90,7 +94,7 @@
         </div>
     </a>
 
-    <a class="action-card" href="{{ path('intervenant_planning_mvc', {id: app.user.id}) }}">
+    <a class="action-card" href="{{ path('intervenant_planning_mvc', {id: user.id}) }}">
         <div class="action-card-icon" style="background:#f0f9ff;">
             <i class="fas fa-calendar-days" style="color:#0ea5e9;"></i>
         </div>
@@ -100,7 +104,7 @@
         </div>
     </a>
 
-    <a class="action-card" href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: app.user.id, type: 'ENFA'}) }}">
+    <a class="action-card" href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: user.id, type: 'ENFA'}) }}">
         <div class="action-card-icon" style="background:#fff7ed;">
             <i class="fas fa-child" style="color:#f59e0b;"></i>
         </div>
@@ -110,7 +114,7 @@
         </div>
     </a>
 
-    <a class="action-card" href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: app.user.id, type: 'MENA'}) }}">
+    <a class="action-card" href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: user.id, type: 'MENA'}) }}">
         <div class="action-card-icon" style="background:#fdf4ff;">
             <i class="fas fa-broom" style="color:#a21caf;"></i>
         </div>
@@ -128,7 +132,7 @@
     <div class="card-header">
         <i class="fas fa-history" style="color:var(--primary);font-size:13px;"></i>
         <span class="card-title">Dernières interventions</span>
-        <a href="{{ path('intervenant_heures_mvc', {id: app.user.id}) }}"
+        <a href="{{ path('intervenant_heures_mvc', {id: user.id}) }}"
            style="margin-left:auto;font-size:12px;color:var(--primary);font-weight:500;">
             Tout voir <i class="fas fa-arrow-right" style="font-size:10px;"></i>
         </a>
@@ -148,20 +152,18 @@
             <tbody>
             {% for p in dernieres %}
             <tr>
-                <td style="font-weight:500;">{{ p.nomFam }}</td>
+                <td style="font-weight:500;">{{ p.numFam ? famille_label(p.numFam) : (p.nomFam ?: '—') }}</td>
                 <td>{{ p.datePresta|date('d/m/Y') }}</td>
-                <td>{{ p.heureDebutPresta|date('H:i') }}</td>
-                <td>{{ p.heureFinPresta|date('H:i') }}</td>
+                <td>{{ p.heureDebutPresta ? p.heureDebutPresta|date('H:i') : '—' }}</td>
+                <td>{{ p.heureFinPresta ? p.heureFinPresta|date('H:i') : '—' }}</td>
                 <td>
                     <span class="badge {{ p.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
                         {{ p.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
                     </span>
                 </td>
                 <td>
-                    {% if p.remarque %}
-                        <span class="badge badge-danger">Signalé</span>
-                    {% elseif p.validerFam %}
-                        <span class="badge badge-success">Validé</span>
+                    {% if p.declarerLeFam %}
+                        <span class="badge badge-success">Déclaré</span>
                     {% else %}
                         <span class="badge badge-warning">En attente</span>
                     {% endif %}

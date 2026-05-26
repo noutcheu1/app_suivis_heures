@@ -1,13 +1,13 @@
 {% extends 'base.html.twig' %}
-{% block title %}Mes signalements — {{ famille.nomFamille }}{% endblock %}
-{% block page_title %}Mes signalements{% endblock %}
+{% block title %}Mes écarts — {{ famille.nomFamille }}{% endblock %}
+{% block page_title %}Mes écarts{% endblock %}
 
 {% block body %}
 
 <div class="page-header">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
-            <h1>Mes signalements</h1>
+            <h1>Mes écarts</h1>
             <p>Prestations avec divergences ou remarques</p>
         </div>
         <a href="{{ path('famille_panel_mvc') }}" class="btn btn-secondary btn-sm">
@@ -22,7 +22,7 @@
         <div class="empty-state" style="padding:50px 20px;">
             <div class="empty-state-icon"><i class="fas fa-check-circle" style="color:var(--success);"></i></div>
             <h3>Aucun signalement</h3>
-            <p>Vous n'avez signalé aucune prestation. Tout est en ordre !</p>
+            <p>Vos heures correspondent à celles de vos intervenants. Tout est en ordre !</p>
             <a href="{{ path('famille_detail_mvc', {numFam: famille.numeroFamille}) }}"
                class="btn btn-primary" style="margin-top:14px;">
                 <i class="fas fa-calendar-check"></i> Voir mes prestations
@@ -61,30 +61,31 @@
                         {% endif %}
                     </span>
                     <span style="font-size:12px;color:var(--text-muted);">
-                        {{ p.heureDebutPresta|date('H:i') }} → {{ p.heureFinPresta|date('H:i') }}
-                    </span>
-                    <span style="font-size:12px;color:var(--text-muted);">
                         · Intervenant {{ p.numInter }}
                     </span>
                 </div>
 
-                {# Remarque #}
+                {# Écart heures #}
                 <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-top:6px;">
                     <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
-                        <i class="fas fa-flag" style="color:#ef4444;font-size:11px;"></i>
-                        <span style="font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:.5px;">Votre signalement</span>
+                        <i class="fas fa-exclamation-triangle" style="color:#ef4444;font-size:11px;"></i>
+                        <span style="font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:.5px;">Écart constaté</span>
                     </div>
-                    <p style="font-size:13px;color:var(--text);margin:0;">{{ p.remarque }}</p>
+                    {% if p.heureDebutFam and p.heureFinFam %}
+                    <p style="font-size:13px;color:var(--text);margin:0;">
+                        Vos heures saisies : {{ p.heureDebutFam|date('H:i') }} → {{ p.heureFinFam|date('H:i') }}
+                    </p>
+                    {% endif %}
                 </div>
 
             </div>
 
             {# Statut #}
             <div style="flex-shrink:0;text-align:right;">
-                {% if p.validerFam %}
-                    <span class="badge badge-success"><i class="fas fa-check"></i> Validé malgré tout</span>
+                {% if p.declarerLeFam %}
+                    <span class="badge badge-success"><i class="fas fa-check"></i> Déclaré (avec écart)</span>
                 {% else %}
-                    <span class="badge badge-danger"><i class="fas fa-exclamation-circle"></i> En cours</span>
+                    <span class="badge badge-danger"><i class="fas fa-exclamation-circle"></i> En attente admin</span>
                 {% endif %}
                 <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">{{ p.datePresta|date('d/m/Y') }}</div>
             </div>

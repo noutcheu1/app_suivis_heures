@@ -6,8 +6,8 @@
 class HoursCalculator {
     /**
      * Calcule la durée en heures entre deux heures
-     * @param {string} heureDebut - Format "HH:MM:SS"
-     * @param {string} heureFin - Format "HH:MM:SS"
+     * @param {string} heureDebut - Format "H:i:SS"
+     * @param {string} heureFin - Format "H:i:SS"
      * @returns {number} - Durée en heures avec décimales
      */
     static calculerDuree(heureDebut, heureFin) {
@@ -82,7 +82,7 @@ class HoursCalculator {
     }
     
     /**
-     * Valide une heure au format HH:MM ou HH:MM:SS
+     * Valide une heure au format H:i:sou H:i:SS
      * @param {string} heure - Heure à valider
      * @returns {boolean} - True si valide
      */

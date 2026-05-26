@@ -32,11 +32,11 @@ class Horaireinter
     #[ORM\Column(name: 'datePresta', type: 'date')]
     private \DateTimeInterface $datePresta;
 
-    #[ORM\Column(name: 'heureDebutPresta', type: 'time')]
-    private \DateTimeInterface $heureDebutPresta;
+    #[ORM\Column(name: 'heureDebutPresta', type: 'time', nullable: true)]
+    private ?\DateTimeInterface $heureDebutPresta = null;
 
-    #[ORM\Column(name: 'heureFinPresta', type: 'time')]
-    private \DateTimeInterface $heureFinPresta;
+    #[ORM\Column(name: 'heureFinPresta', type: 'time', nullable: true)]
+    private ?\DateTimeInterface $heureFinPresta = null;
 
     #[ORM\Column(name: 'typePresta', length: 4)]
     private ?string $typePresta = null;
@@ -53,17 +53,18 @@ class Horaireinter
     #[ORM\Column(options: ['default' => 0])]
     private ?bool $desactiver = false;
 
-    #[ORM\Column(name: 'validerFam', options: ['default' => 0])]
-    private ?bool $validerFam = false;
+    #[ORM\Column(name: 'heureDebutFam', type: 'time', nullable: true)]
+    private ?\DateTimeInterface $heureDebutFam = null;
 
-    #[ORM\Column(name: 'validerLe', type: Types::DATETIME_MUTABLE, nullable: true)]
-    private ?\DateTimeInterface $validerLe = null;
+    #[ORM\Column(name: 'heureFinFam', type: 'time', nullable: true)]
+    private ?\DateTimeInterface $heureFinFam = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $remarque = null;
+    #[ORM\Column(name: 'declarerLeFam', type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $declarerLeFam = null;
 
-    #[ORM\Column(name: 'remarqueLe', type: Types::DATETIME_MUTABLE, nullable: true)]
-    private ?\DateTimeInterface $remarqueLe = null;
+    /** 'inter' | 'fam' | null — choix admin pour la facturation */
+    #[ORM\Column(name: 'sourceFacturation', length: 5, nullable: true)]
+    private ?string $sourceFacturation = null;
 
     /** Computed field — not stored in DB */
     private float $heuresTotal = 0.0;
@@ -122,7 +123,7 @@ class Horaireinter
         return $this->heureDebutPresta;
     }
 
-    public function setHeureDebutPresta(\DateTimeInterface $heureDebutPresta): static
+    public function setHeureDebutPresta(?\DateTimeInterface $heureDebutPresta): static
     {
         $this->heureDebutPresta = $heureDebutPresta;
         return $this;
@@ -133,7 +134,7 @@ class Horaireinter
         return $this->heureFinPresta;
     }
 
-    public function setHeureFinPresta(\DateTimeInterface $heureFinPresta): static
+    public function setHeureFinPresta(?\DateTimeInterface $heureFinPresta): static
     {
         $this->heureFinPresta = $heureFinPresta;
         return $this;
@@ -194,47 +195,47 @@ class Horaireinter
         return $this;
     }
 
-    public function isValiderFam(): ?bool
+    public function getHeureDebutFam(): ?\DateTimeInterface
     {
-        return $this->validerFam;
+        return $this->heureDebutFam;
     }
 
-    public function setValiderFam(bool $validerFam): static
+    public function setHeureDebutFam(?\DateTimeInterface $heureDebutFam): static
     {
-        $this->validerFam = $validerFam;
+        $this->heureDebutFam = $heureDebutFam;
         return $this;
     }
 
-    public function getValiderLe(): ?\DateTimeInterface
+    public function getHeureFinFam(): ?\DateTimeInterface
     {
-        return $this->validerLe;
+        return $this->heureFinFam;
     }
 
-    public function setValiderLe(?\DateTimeInterface $validerLe): static
+    public function setHeureFinFam(?\DateTimeInterface $heureFinFam): static
     {
-        $this->validerLe = $validerLe;
+        $this->heureFinFam = $heureFinFam;
         return $this;
     }
 
-    public function getRemarque(): ?string
+    public function getDeclarerLeFam(): ?\DateTimeInterface
     {
-        return $this->remarque;
+        return $this->declarerLeFam;
     }
 
-    public function setRemarque(?string $remarque): static
+    public function setDeclarerLeFam(?\DateTimeInterface $declarerLeFam): static
     {
-        $this->remarque = $remarque;
+        $this->declarerLeFam = $declarerLeFam;
         return $this;
     }
 
-    public function getRemarqueLe(): ?\DateTimeInterface
+    public function getSourceFacturation(): ?string
     {
-        return $this->remarqueLe;
+        return $this->sourceFacturation;
     }
 
-    public function setRemarqueLe(?\DateTimeInterface $remarqueLe): static
+    public function setSourceFacturation(?string $sourceFacturation): static
     {
-        $this->remarqueLe = $remarqueLe;
+        $this->sourceFacturation = $sourceFacturation;
         return $this;
     }
 

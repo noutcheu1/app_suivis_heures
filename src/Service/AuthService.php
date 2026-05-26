@@ -78,7 +78,6 @@ class AuthService
             $intervenant = $this->intervenantRepository->findByCandidatId($candidat->getId());
             if ($intervenant) return $intervenant;
         }
-
         // Fallback : recherche directe dans vue_intervenants (plusieurs formats)
         return $this->intervenantRepository->findByAnyIdentifier($username);
     }
@@ -94,6 +93,34 @@ class AuthService
     public function intervenant_id(): ?int
     {
         return $this->getIntervenant()?->getId();
+    }
+
+    /**
+     * Returns true only when the logged-in user is linked to an intervenant
+     * whose candidature has been accepted (not 'En attente').
+     */
+    public function isIntervenantAccepted(): bool
+    {
+        return $this->getIntervenant()?->isAccepted() ?? false;
+    }
+
+    /**
+     * Returns true when the intervenant is not archived (permanently or temporarily today).
+     */
+    public function isIntervenantActif(): bool
+    {
+        $iv = $this->getIntervenant();
+        if (!$iv) return false;
+        if ($iv->getArchive()) return false;
+        if ($iv->getArchiveTemporaire()) {
+            $today = new \DateTime('today');
+            $debut = $iv->getDateDebutArchiveTemporaire();
+            $fin   = $iv->getDateFinArchiveTemporaire();
+            if ($debut && $today >= $debut && (!$fin || $today <= $fin)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public function famille_id(): ?string

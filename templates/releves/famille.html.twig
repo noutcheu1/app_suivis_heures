@@ -46,25 +46,25 @@
                     <th>Début</th>
                     <th>Fin</th>
                     <th>Type</th>
-                    <th>Validé</th>
+                    <th>Déclaré famille</th>
                 </tr>
             </thead>
             <tbody>
             {% for h in heures %}
             <tr>
                 <td>{{ h.datePresta|date('d/m/Y') }}</td>
-                <td>{{ h.heureDebutPresta|date('H:i') }}</td>
-                <td>{{ h.heureFinPresta|date('H:i') }}</td>
+                <td>{{ h.heureDebutPresta ? h.heureDebutPresta|date('H:i') : '—' }}</td>
+                <td>{{ h.heureFinPresta ? h.heureFinPresta|date('H:i') : '—' }}</td>
                 <td>
                     <span class="badge {{ h.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
                         {{ h.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
                     </span>
                 </td>
                 <td>
-                    {% if h.validerFam %}
-                        <span class="badge badge-success">Validé</span>
+                    {% if h.declarerLeFam %}
+                        <span class="badge badge-success">Déclaré</span>
                     {% else %}
-                        <span class="badge badge-warning">En attente</span>
+                        <span class="badge badge-warning">Non déclaré</span>
                     {% endif %}
                 </td>
             </tr>

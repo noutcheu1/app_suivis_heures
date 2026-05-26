@@ -34,13 +34,7 @@ class IntervenantRepository extends ServiceEntityRepository
 
     public function findInfosIntervenant(int $id): ?Intervenant
     {
-        return $this->createQueryBuilder('i')
-            ->where('i.numSalarie_Intervenants = :id')
-            ->andWhere('i.archive = :archive')
-            ->setParameter('id', $id)
-            ->setParameter('archive', 0)
-            ->getQuery()
-            ->getOneOrNullResult();
+        return $this->find($id);
     }
 
     public function findByNumSs(string $numSs): ?Intervenant
@@ -158,6 +152,23 @@ class IntervenantRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /**
+     * Compte les intervenants ayant un planning actif dans proposer.
+     */
+    public function countAvecPlanningActif(): int
+    {
+        $conn = $this->getEntityManager()->getConnection();
+        return (int) $conn->fetchOne(
+            'SELECT COUNT(DISTINCT p.numSalarie_Intervenants)
+             FROM proposer p
+             INNER JOIN vue_intervenants i ON i.numSalarie_Intervenants = p.numSalarie_Intervenants
+             WHERE i.archive_Intervenants = 0
+               AND (p.dateFin_Proposer IS NULL
+                    OR p.dateFin_Proposer = "0000-00-00"
+                    OR p.dateFin_Proposer >= CURDATE())'
+        );
+    }
+
     public function findDisponiblesPourDate(\DateTimeInterface $date): array
     {
         return $this->createQueryBuilder('i')
@@ -166,6 +177,73 @@ class IntervenantRepository extends ServiceEntityRepository
             ->andWhere('(i.dateSortie >= :date OR i.dateSortie IS NULL)')
             ->setParameter('archive', 0)
             ->setParameter('date', $date)
+            ->orderBy('i.nom', 'ASC')
+            ->addOrderBy('i.prenom', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Intervenants non archivés ayant au moins une assignation active dans `proposer`.
+     * Seuls ces intervenants sont affichés dans l'application (planning réel).
+     *
+     * @return Intervenant[]
+     */
+    public function findWithActivePlanning(): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $ids = $conn->fetchFirstColumn(
+            'SELECT DISTINCT p.numSalarie_Intervenants
+             FROM proposer p
+             WHERE (p.dateFin_Proposer IS NULL
+                    OR p.dateFin_Proposer = "0000-00-00"
+                    OR p.dateFin_Proposer >= CURDATE())'
+        );
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('i')
+            ->where('i.numSalarie_Intervenants IN (:ids)')
+            ->andWhere('i.archive = :archive')
+            ->setParameter('ids', array_map('intval', $ids))
+            ->setParameter('archive', 0)
+            ->orderBy('i.nom', 'ASC')
+            ->addOrderBy('i.prenom', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Intervenants assignés à une famille précise via proposer (actif).
+     *
+     * @return Intervenant[]
+     */
+    public function findByFamilleActif(string $numeroFamille): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $ids = $conn->fetchFirstColumn(
+            'SELECT DISTINCT p.numSalarie_Intervenants
+             FROM proposer p
+             WHERE p.numero_Famille = ?
+               AND (p.dateFin_Proposer IS NULL
+                    OR p.dateFin_Proposer = "0000-00-00"
+                    OR p.dateFin_Proposer >= CURDATE())',
+            [$numeroFamille]
+        );
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('i')
+            ->where('i.numSalarie_Intervenants IN (:ids)')
+            ->andWhere('i.archive = :archive')
+            ->setParameter('ids', array_map('intval', $ids))
+            ->setParameter('archive', 0)
             ->orderBy('i.nom', 'ASC')
             ->addOrderBy('i.prenom', 'ASC')
             ->getQuery()

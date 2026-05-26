@@ -99,7 +99,7 @@
                     <th>Début</th>
                     <th>Fin</th>
                     <th>Type</th>
-                    <th>Validé</th>
+                    <th>Déclaré famille</th>
                 </tr>
             </thead>
             <tbody>
@@ -107,22 +107,22 @@
             <tr>
                 <td>
                     <a href="{{ path('admin_famille_detail_mvc', {numFam: p.numFam}) }}" style="font-weight:500;">
-                        {{ p.nomFam }}
+                        {{ famille_label(p.numFam) }}
                     </a>
                 </td>
                 <td>{{ p.datePresta|date('d/m/Y') }}</td>
-                <td>{{ p.heureDebutPresta|date('H:i') }}</td>
-                <td>{{ p.heureFinPresta|date('H:i') }}</td>
+                <td>{{ p.heureDebutPresta ? p.heureDebutPresta|date('H:i') : '—' }}</td>
+                <td>{{ p.heureFinPresta ? p.heureFinPresta|date('H:i') : '—' }}</td>
                 <td>
                     <span class="badge {{ p.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
                         {{ p.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
                     </span>
                 </td>
                 <td>
-                    {% if p.validerFam %}
-                        <span class="badge badge-success">Validé</span>
+                    {% if p.declarerLeFam %}
+                        <span class="badge badge-success">Déclaré</span>
                     {% else %}
-                        <span class="badge badge-warning">En attente</span>
+                        <span class="badge badge-warning">Non déclaré</span>
                     {% endif %}
                 </td>
             </tr>

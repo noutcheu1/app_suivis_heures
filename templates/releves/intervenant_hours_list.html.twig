@@ -33,24 +33,24 @@
             <tbody>
             {% for prestation in prestations %}
             <tr class="hour-row"
-                data-debut="{{ prestation.heureDebutPresta }}"
-                data-fin="{{ prestation.heureFinPresta }}">
+                data-debut="{{ prestation.heureDebutPresta ? prestation.heureDebutPresta|date('H:i') : '' }}"
+                data-fin="{{ prestation.heureFinPresta ? prestation.heureFinPresta|date('H:i') : '' }}">
                 <td>{{ prestation.datePresta|date('d/m/Y') }}</td>
-                <td style="font-weight:500;">{{ prestation.nomFam|default('-') }}</td>
+                <td style="font-weight:500;">{{ prestation.numFam ? famille_label(prestation.numFam) : '-' }}</td>
                 <td>
                     <span class="badge {{ prestation.typePresta == 'ENFA' ? 'badge-info' : (prestation.typePresta == 'MENA' ? 'badge-muted' : 'badge-warning') }}">
                         {{ prestation.typePresta == 'ENFA' ? "Garde d'enfants" : (prestation.typePresta == 'MENA' ? 'Ménage' : (prestation.typePresta|default('Autre'))) }}
                     </span>
                 </td>
-                <td>{{ prestation.heureDebutPresta|default('-') }}</td>
-                <td>{{ prestation.heureFinPresta|default('-') }}</td>
+                <td>{{ prestation.heureDebutPresta ? prestation.heureDebutPresta|date('H:i') : '—' }}</td>
+                <td>{{ prestation.heureFinPresta ? prestation.heureFinPresta|date('H:i') : '—' }}</td>
                 <td class="duration-cell" style="font-weight:600;color:var(--success);" data-calculated="false">—</td>
                 <td>{{ prestation.kmAvecEnfant|default(0) }}</td>
                 <td>
-                    {% if prestation.validerFam %}
-                        <span class="badge badge-success">Validé</span>
+                    {% if prestation.declarerLeFam %}
+                        <span class="badge badge-success">Déclaré</span>
                     {% else %}
-                        <span class="badge badge-warning">En attente</span>
+                        <span class="badge badge-warning">Non déclaré</span>
                     {% endif %}
                 </td>
             </tr>

@@ -9,7 +9,6 @@ framework:
         cookie_samesite: lax
         cookie_httponly: true
         cookie_path: /
-        cookie_domain: localhost
     
         # cookie_secure: auto
         # cookie_httponly: auto

@@ -6,7 +6,7 @@
 set -e
 
 DUMP_DIR="/dumps"
-DUMP_PRINCIPAL="${DUMP_DIR}/bdchaudoudoux (12).sql"
+DUMP_PRINCIPAL="${DUMP_DIR}/02-bdchaudoudoux.sql"
 DUMP_HORAIRE="${DUMP_DIR}/bdchaudoudoux_horaire.sql"
 
 # ── Vérification de la présence des dumps ──────────────────

@@ -98,15 +98,44 @@ class RelevemensuelfamRepository extends ServiceEntityRepository
     public function signerReleve(string $moisAnnee, string $numFam, string $typePresta): bool
     {
         $releve = $this->findByMoisAnneeFamille($moisAnnee, $numFam, $typePresta);
-        
+
         if (!$releve) {
             return false;
         }
 
         $releve->setSignerLe(new \DateTime());
-        
+
         $this->getEntityManager()->flush();
-        
+
         return true;
+    }
+
+    /**
+     * Tous les relevés ayant une exception de facturation (libelerSupl non nul).
+     */
+    public function findAvecException(): array
+    {
+        return $this->createQueryBuilder('r')
+            ->where('r.libelerSupl IS NOT NULL')
+            ->andWhere("r.libelerSupl != ''")
+            ->orderBy('r.moisannee', 'DESC')
+            ->addOrderBy('r.numFam', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Exceptions de facturation d'une famille.
+     */
+    public function findExceptionsByFamille(string $numFam): array
+    {
+        return $this->createQueryBuilder('r')
+            ->where('r.numFam = :numFam')
+            ->andWhere('r.libelerSupl IS NOT NULL')
+            ->andWhere("r.libelerSupl != ''")
+            ->setParameter('numFam', $numFam)
+            ->orderBy('r.moisannee', 'DESC')
+            ->getQuery()
+            ->getResult();
     }
 }

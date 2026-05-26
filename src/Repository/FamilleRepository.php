@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Principal\Famille;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -21,74 +22,283 @@ class FamilleRepository extends ServiceEntityRepository
         parent::__construct($registry, Famille::class);
     }
 
+    // -------------------------------------------------------------------------
+    // Méthodes privées utilitaires
+    // -------------------------------------------------------------------------
+
     /**
-     * Retourne toutes les familles non archivées
+     * Applique les conditions communes : non archivée et numéro != 9999.
+     * Centralise la logique répétée dans toutes les requêtes DQL.
+     */
+    private function addBaseConditions(QueryBuilder $qb, string $alias = 'f'): QueryBuilder
+    {
+        return $qb
+            ->andWhere("($alias.archive = :archive OR $alias.archive IS NULL)")
+            ->andWhere("$alias.numeroFamille != 9999")
+            ->setParameter('archive', 0);
+    }
+
+    /**
+     * Calcule la période du 25 du mois précédent au 24 du mois en cours.
+     *
+     * @return array{debutPeriode: string, finPeriode: string}
+     */
+    private function getPeriodeCourante(): array
+    {
+        $now   = new \DateTimeImmutable();
+        $annee = (int) $now->format('Y');
+        $mois  = (int) $now->format('m');
+
+        // 25 du mois précédent
+        $moisPrec    = $mois === 1 ? 12 : $mois - 1;
+        $anneePrec   = $mois === 1 ? $annee - 1 : $annee;
+        $debutPeriode = \DateTimeImmutable::createFromFormat('Y-m-d', sprintf('%04d-%02d-25', $anneePrec, $moisPrec));
+
+        // 24 du mois en cours
+        $finPeriode = \DateTimeImmutable::createFromFormat('Y-m-d', sprintf('%04d-%02d-24', $annee, $mois));
+
+        return [
+            'debutPeriode' => $debutPeriode->format('Y-m-d'),
+            'finPeriode'   => $finPeriode->format('Y-m-d'),
+        ];
+    }
+
+    // -------------------------------------------------------------------------
+    // Requêtes publiques
+    // -------------------------------------------------------------------------
+
+    /**
+     * Retourne toutes les familles non archivées, excluant le numéro 9999.
+     *
+     * @return Famille[]
      */
     public function findAllNonArchived(): array
     {
-        return $this->createQueryBuilder('f')
-            ->where('f.archive = :archive OR f.archive IS NULL')
-            ->setParameter('archive', 0)
-            ->orderBy('f.nomFamille', 'ASC')
-            ->getQuery()
-            ->getResult();
+        $qb = $this->createQueryBuilder('f')
+            ->orderBy('f.nomFamille', 'ASC');
+
+        $this->addBaseConditions($qb);
+
+        return $qb->getQuery()->getResult();
     }
 
     /**
-     * Retourne une famille par son numéro
+     * Retourne une famille par son numéro, non archivée et non factice.
      */
     public function findByNumero(string $numero): ?Famille
     {
-        return $this->createQueryBuilder('f')
-            ->where('f.numeroFamille = :numero')
-            ->andWhere('f.archive = :archive OR f.archive IS NULL')
-            ->setParameter('numero', $numero)
-            ->setParameter('archive', 0)
-            ->getQuery()
-            ->getOneOrNullResult();
+        $qb = $this->createQueryBuilder('f')
+            ->andWhere('f.numeroFamille = :numero')
+            ->setParameter('numero', $numero);
+
+        $this->addBaseConditions($qb);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     /**
-     * Recherche des familles par nom ou ville
+     * Recherche des familles par nom ou ville (non archivées, excluant 9999).
+     *
+     * CORRECTIF : parenthèses autour du OR pour éviter un bug de priorité
+     * d'opérateurs avec les andWhere() suivants.
+     *
+     * @return Famille[]
      */
     public function findByNomOrVille(string $search): array
     {
-        return $this->createQueryBuilder('f')
-            ->where('f.nomFamille LIKE :search')
-            ->orWhere('f.ville LIKE :search')
-            ->andWhere('f.archive = :archive OR f.archive IS NULL')
+        $qb = $this->createQueryBuilder('f')
+            ->andWhere('(f.nomFamille LIKE :search OR f.ville LIKE :search)')
             ->setParameter('search', '%' . $search . '%')
-            ->setParameter('archive', 0)
-            ->orderBy('f.nomFamille', 'ASC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('f.nomFamille', 'ASC');
+
+        $this->addBaseConditions($qb);
+
+        return $qb->getQuery()->getResult();
     }
 
     /**
-     * Retourne les familles par ville
+     * Retourne les familles par ville (non archivées, excluant 9999).
+     *
+     * @return Famille[]
      */
     public function findByVille(string $ville): array
     {
-        return $this->createQueryBuilder('f')
-            ->where('f.ville = :ville')
-            ->andWhere('f.archive = :archive OR f.archive IS NULL')
+        $qb = $this->createQueryBuilder('f')
+            ->andWhere('f.ville = :ville')
             ->setParameter('ville', $ville)
-            ->setParameter('archive', 0)
+            ->orderBy('f.nomFamille', 'ASC');
+
+        $this->addBaseConditions($qb);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Compte le nombre de familles actives (non archivées, excluant 9999).
+     */
+    public function countActives(): int
+    {
+        $qb = $this->createQueryBuilder('f')
+            ->select('COUNT(f.numeroFamille)');
+
+        $this->addBaseConditions($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Compte les familles ayant un planning actif dans proposer (excluant 9999).
+     *
+     * CORRECTIF : noms de colonnes harmonisés en camelCase (numeroFamille,
+     * archive_Famille) conformément au reste du fichier.
+     */
+    public function countAvecPlanningActif(): int
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        return (int) $conn->fetchOne(
+            'SELECT COUNT(DISTINCT f.numero_Famille)
+             FROM famille f
+             INNER JOIN proposer p ON p.numero_Famille = f.numero_Famille
+             WHERE (f.archive_Famille = 0 OR f.archive_Famille IS NULL)
+               AND f.numero_Famille != 9999
+               AND (p.dateFin_Proposer IS NULL
+                    OR p.dateFin_Proposer = "0000-00-00"
+                    OR p.dateFin_Proposer >= CURDATE())'
+        );
+    }
+
+    /**
+     * Familles non archivées ayant au moins une assignation active dans `proposer`.
+     * Exclut le numéro 9999.
+     *
+     * @return Famille[]
+     */
+    public function findWithActivePlanning(): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $numeros = $conn->fetchFirstColumn(
+            'SELECT DISTINCT f.numero_Famille
+             FROM famille f
+             INNER JOIN proposer p ON p.numero_Famille = f.numero_Famille
+             INNER JOIN intervenants i ON i.numSalarie_Intervenants = p.numSalarie_Intervenants
+             WHERE (f.archive_Famille = 0 OR f.archive_Famille IS NULL)
+               AND f.numero_Famille != 9999
+               AND (f.dateEntree_Famille IS NULL OR f.dateEntree_Famille <= CURDATE())
+               AND (f.dateSortie_Famille IS NULL OR f.dateSortie_Famille = "0000-00-00" OR f.dateSortie_Famille >= CURDATE())
+               AND (i.archive_Intervenants = 0 OR i.archive_Intervenants IS NULL)
+               AND (i.dateEntree_Intervenants IS NULL OR i.dateEntree_Intervenants <= CURDATE())
+               AND (i.dateSortie_Intervenants IS NULL OR i.dateSortie_Intervenants = "0000-00-00" OR i.dateSortie_Intervenants >= CURDATE())
+               AND (p.dateFin_Proposer IS NULL
+                    OR p.dateFin_Proposer = "0000-00-00"
+                    OR p.dateFin_Proposer >= CURDATE())
+               ORDER BY f.numero_Famille ASC'
+        );
+
+        if (empty($numeros)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('f')
+            ->where('f.numero_Famille IN (:numeros)')
+            ->setParameter('numeros', $numeros)
             ->orderBy('f.nomFamille', 'ASC')
             ->getQuery()
             ->getResult();
     }
 
     /**
-     * Compte le nombre de familles actives
+     * Familles ayant un planning actif PENDANT le mois sélectionné.
+     * Contrairement à findWithActivePlanning(), ne compare pas à CURDATE()
+     * — utile pour les mois passés ou futurs. Exclut 9999.
+     *
+     * @return Famille[]
      */
-    public function countActives(): int
+    public function findWithPlanningForMonth(int $year, int $month): array
     {
-        return (int) $this->createQueryBuilder('f')
-            ->select('COUNT(f.numeroFamille)')
-            ->where('f.archive = :archive OR f.archive IS NULL')
-            ->setParameter('archive', 0)
+        $firstDay = \DateTimeImmutable::createFromFormat('Y-m-d', sprintf('%04d-%02d-01', $year, $month));
+        $lastDay  = $firstDay->modify('last day of this month');
+
+        $conn    = $this->getEntityManager()->getConnection();
+        $numeros = $conn->fetchFirstColumn(
+            'SELECT DISTINCT f.numero_Famille
+             FROM famille f
+             INNER JOIN proposer p ON p.numero_Famille = f.numero_Famille
+             INNER JOIN intervenants i ON i.numSalarie_Intervenants = p.numSalarie_Intervenants
+             WHERE (f.archive_Famille = 0 OR f.archive_Famille IS NULL)
+               AND f.numero_Famille != 9999
+               AND (f.dateEntree_Famille IS NULL OR f.dateEntree_Famille <= :last)
+               AND (f.dateSortie_Famille IS NULL
+                    OR f.dateSortie_Famille = "0000-00-00"
+                    OR f.dateSortie_Famille >= :first)
+               AND (i.archive_Intervenants = 0 OR i.archive_Intervenants IS NULL)
+               AND (i.dateEntree_Intervenants IS NULL OR i.dateEntree_Intervenants <= :last)
+               AND (i.dateSortie_Intervenants IS NULL
+                    OR i.dateSortie_Intervenants = "0000-00-00"
+                    OR i.dateSortie_Intervenants >= :first)
+               AND p.dateDeb_Proposer <= :last
+               AND (p.dateFin_Proposer IS NULL
+                    OR p.dateFin_Proposer = "0000-00-00"
+                    OR p.dateFin_Proposer >= :first)
+               ',
+            [
+                'first' => $firstDay->format('Y-m-d'),
+                'last'  => $lastDay->format('Y-m-d'),
+            ]
+        );
+
+        if (empty($numeros)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('f')
+            ->where('f.numeroFamille IN (:numeros)')
+            ->setParameter('numeros', $numeros)
+            ->orderBy('f.nomFamille', 'ASC')
             ->getQuery()
-            ->getSingleScalarResult();
+            ->getResult();
+    }
+
+    /**
+     * Familles assignées à un intervenant précis via proposer (actif).
+     * Période du 25 du mois précédent au 24 du mois en cours.
+     * Exclut le numéro 9999.
+     *
+     * CORRECTIF : noms de colonnes harmonisés (numeroFamille, archive_Famille)
+     * et calcul de dates refactorisé via getPeriodeCourante().
+     *
+     * @return Famille[]
+     */
+    public function findByIntervenantActif(int $numSalarie): array
+    {
+        $periode = $this->getPeriodeCourante();
+        $conn    = $this->getEntityManager()->getConnection();
+ 
+        $numeros = $conn->fetchFirstColumn(
+            'SELECT DISTINCT p.numero_Famille
+             FROM proposer p
+             INNER JOIN famille f ON f.numero_Famille = p.numero_Famille
+             WHERE p.numSalarie_Intervenants = :numSalarie
+               AND (f.archive_Famille = 0 OR f.archive_Famille IS NULL)
+               AND f.numero_Famille != 9999
+              
+              ',
+            [
+                'numSalarie'   => $numSalarie,
+               
+            ]
+        );
+ 
+        if (empty($numeros)) {
+            return [];
+        }
+ 
+        return $this->createQueryBuilder('f')
+            ->where('f.numeroFamille IN (:numeros)')
+            ->setParameter('numeros', $numeros)
+            ->orderBy('f.nomFamille', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 }

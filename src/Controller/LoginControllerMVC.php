@@ -89,7 +89,7 @@ final class LoginControllerMVC extends AbstractController
             $this->logger->info('Utilisateur créé via API', ['id' => $id, 'role' => $role]);
         } catch (\Throwable $th) {
             $this->logger->error('Erreur création utilisateur', ['exception' => $th->getMessage()]);
-            return $this->json(['success' => false, 'error' => "Erreur serveur : {$th->getMessage()}"]);
+            return $this->json(['success' => false, 'error' => "Erreur  : {$th->getMessage()}"]);
         }
 
         return $this->json(['success' => true, 'message' => 'Inscription réussie.']);
@@ -133,7 +133,7 @@ final class LoginControllerMVC extends AbstractController
                     $this->logger->info('Utilisateur créé via FORM', ['id' => $id, 'role' => $role]);
                     return $this->redirectToRoute('app_login', ['type' => $type]);
                 } catch (\Throwable $th) {
-                    $error = "Erreur serveur : {$th->getMessage()}";
+                    $error = "Erreur  : {$th->getMessage()}";
                     $this->logger->error('Erreur inscription FORM', ['exception' => $th->getMessage()]);
                 }
             }

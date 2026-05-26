@@ -58,10 +58,10 @@
             </td>
             <td>
                 <div style="display:flex;gap:6px;">
-                    <a href="{{ path('intervenant_panel_mvc', {id: app.user.id}) }}" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-eye"></i> Voir
+                    <a href="{{ path('intervenant_panel_mvc', {id: user.id}) }}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-eye"> {{user.id}}  </i> Voir
                     </a>
-                    <a href="{{ path('intervenant_heures_mvc', {id: app.user.id}) }}" class="btn btn-ghost btn-sm">
+                    <a href="{{ path('intervenant_heures_mvc', {id: user.id}) }}" class="btn btn-ghost btn-sm">
                         <i class="fas fa-clock"></i>
                     </a>
                 </div>

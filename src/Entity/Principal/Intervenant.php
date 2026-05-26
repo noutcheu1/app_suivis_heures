@@ -825,6 +825,16 @@ class Intervenant
         return $this;
     }
 
+    /**
+     * Returns true when the linked candidate's application has been accepted.
+     * 'En attente' (the default) means the application is still pending.
+     */
+    public function isAccepted(): bool
+    {
+        $retenue = trim((string)$this->candidatureRetenue);
+        return $retenue !== '' && strtolower($retenue) !== 'en attente';
+    }
+
     public function __toString(): string
     {
         return $this->getNomCompletInter();

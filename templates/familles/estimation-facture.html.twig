@@ -9,7 +9,7 @@
         <div>
             <h1>Estimation de facture</h1>
             <p>
-                {{ famille.nomFamille ?? famille.numero ?? '' }}
+                {{ famille_label(famille) }}
                 {% if estimation.mois is defined and estimation.mois %}
                 — <strong>{{ estimation.mois }}</strong>
                 {% endif %}

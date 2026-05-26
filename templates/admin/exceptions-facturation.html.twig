@@ -1,18 +1,22 @@
 {% extends 'base.html.twig' %}
-{% block title %}Exceptions de tarif{% endblock %}
-{% block page_title %}Exceptions de tarif{% endblock %}
+{% block title %}Exceptions de facturation{% endblock %}
+{% block page_title %}Exceptions de facturation{% endblock %}
 
 {% block body %}
 
 <div class="page-header">
-    <h1>Exceptions de tarif</h1>
-    <p>Taux horaires personnalisés par famille</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Exceptions de facturation</h1>
+            <p>Ajustements ponctuels sur relevés mensuels (supplément ou remise)</p>
+        </div>
+    </div>
 </div>
 
 <div class="card">
     <div class="card-header">
-        <i class="fas fa-tags" style="color:var(--primary);"></i>
-        <span class="card-title">Exceptions configurées</span>
+        <i class="fas fa-file-invoice-dollar" style="color:var(--primary);"></i>
+        <span class="card-title">Exceptions enregistrées</span>
         {% if exceptions is not empty %}
         <span class="badge badge-muted" style="margin-left:auto;">{{ exceptions|length }}</span>
         {% endif %}
@@ -21,35 +25,51 @@
 
         {% if exceptions is empty %}
         <div class="empty-state">
-            <div class="empty-state-icon"><i class="fas fa-tag"></i></div>
-            <h3>Aucune exception configurée</h3>
-            <p>Toutes les familles utilisent le taux horaire standard</p>
+            <div class="empty-state-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+            <h3>Aucune exception enregistrée</h3>
+            <p>Les ajustements de facturation ponctuels ajoutés sur les fiches famille apparaîtront ici</p>
         </div>
         {% else %}
         <table class="data-table">
             <thead>
                 <tr>
                     <th>Famille</th>
+                    <th>Mois</th>
                     <th>Type</th>
-                    <th>Taux</th>
-                    <th>Date début</th>
-                    <th>Date fin</th>
+                    <th>Libellé</th>
+                    <th>Montant</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
-            {% for e in exceptions %}
+            {% for ex in exceptions %}
             <tr>
-                <td style="font-weight:500;">{{ e.numFam ?? '-' }}</td>
                 <td>
-                    {% if e.typePresta is defined and e.typePresta %}
-                    <span class="badge {{ e.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
-                        {{ e.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                    <a href="{{ path('admin_famille_detail_mvc', {numFam: ex.numFam}) }}"
+                       style="font-weight:500;color:var(--primary);text-decoration:none;">
+                        {{ ex.numFam }}
+                    </a>
+                </td>
+                <td><strong>{{ ex.moisannee }}</strong></td>
+                <td>
+                    {% if ex.typePresta %}
+                    <span class="badge {{ ex.typePresta in ['GE','ENFA'] ? 'badge-info' : 'badge-muted' }}">
+                        {{ ex.typePresta in ['GE','ENFA'] ? "Garde d'enfants" : 'Ménage' }}
                     </span>
                     {% else %}—{% endif %}
                 </td>
-                <td><strong>{{ e.taux ?? '-' }} €/h</strong></td>
-                <td>{{ e.dateDebut ?? '-' }}</td>
-                <td>{{ e.dateFin ?? '-' }}</td>
+                <td>{{ ex.libelerSupl }}</td>
+                <td>
+                    {% if ex.montantSupl is not null %}
+                    <strong>{{ ex.montantSupl }} €</strong>
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    <a href="{{ path('admin_famille_detail_mvc', {numFam: ex.numFam}) }}"
+                       class="btn btn-ghost btn-sm" title="Voir la famille">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </td>
             </tr>
             {% endfor %}
             </tbody>

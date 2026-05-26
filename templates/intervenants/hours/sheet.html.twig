@@ -17,26 +17,37 @@
             {% else %}
             <h1>{{ user.nom }} {{ user.prenom }} — votre relevé</h1>
             {% endif %}
-            <p>
-                <span class="badge badge-{{ type == 'MENA' ? 'muted' : 'info' }}" style="margin-right:6px;">
-                    {{ type == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
-                </span>
-                Fiche mensuelle
-            </p>
+            <p style="margin:4px 0 0;">Fiche mensuelle</p>
         </div>
 
-        {# Navigation mois #}
-        <div style="display:flex;gap:8px;">
-            <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: app.user.id, type: type, mois: moisOffset - 1}) }}"
-               class="btn btn-secondary btn-sm">
-                <i class="fas fa-chevron-left"></i> Mois précédent
-            </a>
-            {% if moisOffset < 0 %}
-            <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: app.user.id, type: type, mois: moisOffset + 1}) }}"
-               class="btn btn-secondary btn-sm">
-                Mois suivant <i class="fas fa-chevron-right"></i>
-            </a>
-            {% endif %}
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+
+            {# Onglets type prestation #}
+            <div style="display:flex;gap:6px;">
+                <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: user.id, type: 'ENFA', mois: moisOffset}) }}"
+                   class="btn btn-sm {{ type != 'MENA' ? 'btn-primary' : 'btn-secondary' }}">
+                    <i class="fas fa-child"></i> Garde d'enfants
+                </a>
+                <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: user.id, type: 'MENA', mois: moisOffset}) }}"
+                   class="btn btn-sm {{ type == 'MENA' ? 'btn-primary' : 'btn-secondary' }}">
+                    <i class="fas fa-broom"></i> Ménage
+                </a>
+            </div>
+
+            {# Navigation mois #}
+            <div style="display:flex;gap:8px;">
+                <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: user.id, type: type, mois: moisOffset - 1}) }}"
+                   class="btn btn-secondary btn-sm">
+                    <i class="fas fa-chevron-left"></i> Mois précédent
+                </a>
+                {% if moisOffset < 0 %}
+                <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: user.id, type: type, mois: moisOffset + 1}) }}"
+                   class="btn btn-secondary btn-sm">
+                    Mois suivant <i class="fas fa-chevron-right"></i>
+                </a>
+                {% endif %}
+            </div>
+
         </div>
     </div>
 </div>
@@ -101,10 +112,12 @@
 {# ── Actions ─────────────────────────────────────────── #}
 <div style="display:flex;gap:10px;flex-wrap:wrap;">
 
-    <button id="donwload" class="btn btn-primary" disabled style="opacity:.4;">
+    <a id="donwload" href="{{ path('releves_intervenant_pdf_mvc', {intervenantId: user.id, type: type, mois: moisOffset}) }}"
+       class="btn btn-primary" target="_blank"
+       style="pointer-events:none;opacity:.4;text-decoration:none;">
         <i class="fas fa-download"></i>
         {{ isMobile is defined and isMobile ? 'Consulter le PDF' : 'Télécharger le relevé' }}
-    </button>
+    </a>
 
     <div style="display:flex;align-items:center;gap:8px;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:0 12px;height:34px;">
         <i class="fas fa-building" style="color:var(--text-muted);font-size:13px;"></i>
@@ -133,35 +146,28 @@
 
 {% block javascripts %}
 {{ parent() }}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://unpkg.com/jspdf-autotable"></script>
-
 <script>
-const ID = {{ app.user.id }};
+const ID = {{ user.id }};
 const paramsUri = new URLSearchParams(window.location.search);
-const TYPE_PRESTA = paramsUri.get("type");
-
-const targetDate = new Date();
-targetDate.setMonth(targetDate.getMonth() + {{ moisOffset }});
-const ANNEE_COURANTE = String(targetDate.getFullYear());
+const TYPE_PRESTA = (paramsUri.get("type") || 'ENFA').toUpperCase();
 
 const donwnloadInput = document.getElementById("donwload");
 
-if (donwnloadInput) {
-    donwnloadInput.addEventListener("click", () => {
-        genererPDF(TYPE_PRESTA, ANNEE_COURANTE);
-    });
-}
-
 function activerBoutonTelechargement() {
     if (donwnloadInput) {
-        donwnloadInput.disabled = false;
-        donwnloadInput.style.opacity = "";
+        donwnloadInput.style.opacity = '';
+        donwnloadInput.style.pointerEvents = '';
     }
 }
 </script>
 
 <script src="{{ asset('/assets/js/fiche-dheure.js') }}"></script>
-<script src="{{ asset('/assets/js/build_relever_d_heure_pdf.js') }}"></script>
+<script>
+const VACANCES_CONFIG = {% if vacancesConfig is defined and vacancesConfig %}{
+  titre: {{ vacancesConfig.titre|json_encode|raw }},
+  moisPeriodes: {{ (vacancesConfig.moisPeriodes ?? '')|json_encode|raw }},
+  message: {{ (vacancesConfig.message ?? '')|json_encode|raw }},
+  annee: {{ vacancesConfig.dateApparitionDebut ? vacancesConfig.dateApparitionDebut|date('Y') : "now"|date('Y') }}
+}{% else %}null{% endif %};
+</script>
 {% endblock %}

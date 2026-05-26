@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Service\AuthService;
+use App\Service\FamilleIntervenantService;
 use App\Service\HoraireinterService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -12,8 +13,9 @@ use Symfony\Component\Routing\Attribute\Route;
 final class HeuresControllerMVC extends AbstractController
 {
     public function __construct(
-        private AuthService $authService,
-        private HoraireinterService $horaireService
+        private AuthService              $authService,
+        private HoraireinterService      $horaireService,
+        private FamilleIntervenantService $familleIntervenantService,
     ) {}
 
     /**
@@ -46,15 +48,30 @@ final class HeuresControllerMVC extends AbstractController
             ], 400);
         }
 
+        $numFam   = $data['famille'] ?? $data['numFam'] ?? null;
+        $numInter = $this->authService->intervenant_id();
+
+        // Famille occasionnelle : value "0" côté JS → numFam null ou "0"
+        $isFamilleOccasionnelle = ($numFam === null || $numFam === '' || $numFam === '0' || $numFam == 0);
+
+        if (!$isFamilleOccasionnelle && !$this->authService->isAdmin()) {
+            if (!$this->familleIntervenantService->peutPointer((int) $numInter, (string) $numFam)) {
+                return $this->json([
+                    'success' => false,
+                    'error'   => 'Vous n\'êtes pas assigné à cette famille.',
+                ]);
+            }
+        }
+
         $donnees = [
-            'numFam' => $data['famille'] ?? $data['numFam'] ?? null,
-            'nomFam' => $data['nomRemplacement'] ?? $data['nomFam'] ?? null,
-            'numInter' => $this->authService->intervenant_id(),
-            'datePresta' => $data['date'] ?? $data['datePresta'] ?? null,
+            'numFam'           => $isFamilleOccasionnelle ? null : $numFam,
+            'nomFam'           => $data['nomRemplacement'] ?? $data['nomFam'] ?? null,
+            'numInter'         => $numInter,
+            'datePresta'       => $data['date'] ?? $data['datePresta'] ?? null,
             'heureDebutPresta' => ($data['heureDebut'] ?? '') . ':' . ($data['minuteDebut'] ?? ''),
-            'heureFinPresta' => ($data['heureFin'] ?? '') . ':' . ($data['minuteFin'] ?? ''),
-            'typePresta' => $data['type'] ?? $data['typePresta'] ?? null,
-            'kmAvecEnfant' => $data['trajet'] ?? $data['kmAvecEnfant'] ?? 0,
+            'heureFinPresta'   => ($data['heureFin'] ?? '') . ':' . ($data['minuteFin'] ?? ''),
+            'typePresta'       => $data['type'] ?? $data['typePresta'] ?? null,
+            'kmAvecEnfant'     => $data['trajet'] ?? $data['kmAvecEnfant'] ?? 0,
         ];
 
         try {
@@ -79,20 +96,35 @@ final class HeuresControllerMVC extends AbstractController
             return $this->json(['success' => false, 'error' => 'Non authentifié'], 401);
         }
 
+        $isAdmin = $this->authService->isAdmin();
+        $horaire = $this->horaireService->getPrestation($id);
+
+        if ($horaire && !$isAdmin && $this->horaireService->isVerrouille($horaire)) {
+            return $this->json([
+                'success' => false,
+                'locked'  => true,
+                'error'   => 'Cette prestation appartient à un mois passé et ne peut plus être modifiée.',
+            ], 423);
+        }
+
         $data = $this->getData($request);
 
         $donnees = [
-            'datePresta' => $data['date'] ?? $data['datePresta'] ?? null,
+            'datePresta'       => $data['date'] ?? $data['datePresta'] ?? null,
             'heureDebutPresta' => ($data['heureDebut'] ?? '') . ':' . ($data['minuteDebut'] ?? ''),
-            'heureFinPresta' => ($data['heureFin'] ?? '') . ':' . ($data['minuteFin'] ?? ''),
-            'kmAvecEnfant' => $data['trajet'] ?? $data['kmAvecEnfant'] ?? 0,
+            'heureFinPresta'   => ($data['heureFin'] ?? '') . ':' . ($data['minuteFin'] ?? ''),
+            'kmAvecEnfant'     => $data['trajet'] ?? $data['kmAvecEnfant'] ?? 0,
         ];
 
-        $ok = $this->horaireService->modifierPrestation($id, $donnees);
+        try {
+            $ok = $this->horaireService->modifierPrestation($id, $donnees, $isAdmin);
+        } catch (\LogicException $e) {
+            return $this->json(['success' => false, 'error' => $e->getMessage()], 409);
+        }
 
         return $this->json([
             'success' => $ok,
-            'error' => $ok ? null : 'Impossible de modifier cette prestation'
+            'error'   => $ok ? null : 'Impossible de modifier cette prestation',
         ], $ok ? 200 : 400);
     }
 
@@ -103,11 +135,37 @@ final class HeuresControllerMVC extends AbstractController
             return $this->json(['success' => false, 'error' => 'Non authentifié'], 401);
         }
 
-        $ok = $this->horaireService->desactiverPrestation($id);
+        $isAdmin = $this->authService->isAdmin();
+        $horaire = $this->horaireService->getPrestation($id);
+
+        if ($horaire && !$isAdmin && $this->horaireService->isVerrouille($horaire)) {
+            return $this->json([
+                'success' => false,
+                'locked'  => true,
+                'error'   => 'Cette prestation appartient à un mois passé et ne peut plus être supprimée.',
+            ], 423);
+        }
+
+        $ok = $this->horaireService->desactiverPrestation($id, $isAdmin);
 
         return $this->json([
             'success' => $ok,
-            'error' => $ok ? null : 'Impossible de supprimer cette prestation'
+            'error'   => $ok ? null : 'Impossible de supprimer cette prestation',
+        ]);
+    }
+
+    #[Route('/heures-mvc/restaurer/{id}', name: 'heures_restaurer_mvc', methods: ['POST'])]
+    public function restaurerHeure(int $id): JsonResponse
+    {
+        if (!$this->authService->check()) {
+            return $this->json(['success' => false, 'error' => 'Non authentifié'], 401);
+        }
+
+        $ok = $this->horaireService->restaurerPrestation($id);
+
+        return $this->json([
+            'success' => $ok,
+            'error'   => $ok ? null : 'Impossible de restaurer cette prestation',
         ]);
     }
 
@@ -162,14 +220,15 @@ final class HeuresControllerMVC extends AbstractController
         return $this->json([
             'success' => true,
             'data' => [
-                'id' => $horaire->getId(),
-                'numFam' => $horaire->getNumFam(),
-                'nomFam' => $horaire->getNomFam(),
-                'datePresta' => $horaire->getDatePresta()->format('Y-m-d'),
+                'id'               => $horaire->getId(),
+                'numFam'           => $horaire->getNumFam(),
+                'nomFam'           => $horaire->getNomFam(),
+                'datePresta'       => $horaire->getDatePresta()->format('Y-m-d'),
                 'heureDebutPresta' => $horaire->getHeureDebutPresta()->format('H:i'),
-                'heureFinPresta' => $horaire->getHeureFinPresta()->format('H:i'),
-                'typePresta' => $horaire->getTypePresta(),
-                'kmAvecEnfant' => $horaire->getKmAvecEnfant(),
+                'heureFinPresta'   => $horaire->getHeureFinPresta()->format('H:i'),
+                'typePresta'       => $horaire->getTypePresta(),
+                'kmAvecEnfant'     => $horaire->getKmAvecEnfant(),
+                'verrouille'       => !$this->authService->isAdmin() && $this->horaireService->isVerrouille($horaire),
             ]
         ]);
     }
@@ -196,7 +255,7 @@ final class HeuresControllerMVC extends AbstractController
                 'heureFinPresta' => $prestation->getHeureFinPresta()->format('H:i'),
                 'typePresta' => $prestation->getTypePresta(),
                 'kmAvecEnfant' => $prestation->getKmAvecEnfant(),
-                'validerFam' => $prestation->isValiderFam(),
+                'declarerLeFam' => $prestation->getDeclarerLeFam()?->format('d/m/Y H:i'),
                 'desactiver' => $prestation->isDesactiver(),
                 'ajouterLe' => $prestation->getAjouterLe()->format('d/m/Y H:i'),
             ];
@@ -206,6 +265,36 @@ final class HeuresControllerMVC extends AbstractController
             'success' => true,
             'data' => $donnees
         ]);
+    }
+
+    #[Route('/heures-mvc/proposer-info', name: 'proposer_info_mvc', methods: ['GET'])]
+    public function getProposerInfo(Request $request): JsonResponse
+    {
+        if (!$this->authService->check()) {
+            return $this->json(['success' => false, 'error' => 'Non authentifié'], 401);
+        }
+
+        $raw = $request->query->get('proposer', '');
+        $key = json_decode($raw, true);
+
+        if (!is_array($key) || !isset($key['s'], $key['f'], $key['t'], $key['a'], $key['j'], $key['h'])) {
+            return $this->json(['success' => false, 'error' => 'Clé invalide'], 400);
+        }
+
+        $data = $this->familleIntervenantService->getProposerPrefill(
+            (int)$key['s'],
+            (string)$key['f'],
+            (string)$key['t'],
+            (string)$key['a'],
+            (string)$key['j'],
+            (string)$key['h'],
+        );
+
+        if (!$data) {
+            return $this->json(['success' => false, 'error' => 'Proposer introuvable'], 404);
+        }
+
+        return $this->json(['success' => true, 'data' => $data]);
     }
 
     #[Route('/heures-mvc/peut-saisir', name: 'heures_peut_saisir_mvc', methods: ['POST'])]

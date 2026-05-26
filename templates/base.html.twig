@@ -127,8 +127,7 @@
 
         .sidebar-nav {
             flex: 1;
-            padding: 10px 10px;
-            overflow-y: auto;
+           
         }
 
         .sidebar-section-label {
@@ -551,7 +550,8 @@
             background: var(--white);
             border: 1px solid var(--border);
             border-radius: var(--radius-md);
-            overflow: hidden;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .table-toolbar {
@@ -757,6 +757,24 @@
             .page-content { padding: 20px 16px; }
 
             .action-grid { grid-template-columns: 1fr 1fr; }
+
+            table.data-table { min-width: 480px; }
+
+            .card-body { padding: 16px; }
+
+            .kpi-value { font-size: 22px; }
+
+            .topbar-title { font-size: 13px; }
+        }
+
+        @media (max-width: 480px) {
+            .action-grid { grid-template-columns: 1fr; }
+
+            .page-content { padding: 16px 12px; }
+
+            .kpi-value { font-size: 20px; }
+
+            .page-header h1 { font-size: 17px; }
         }
 
         /* ─── Auth layout ────────────────────────────────────── */
@@ -804,7 +822,7 @@
                     <i class="fas fa-users"></i> Familles
                 </a>
                 <a class="sidebar-link" href="{{ path('admin_signalements_mvc') }}">
-                    <i class="fas fa-flag"></i> Signalements
+                    <i class="fas fa-balance-scale"></i> Écarts d'heures
                 </a>
 
                 <div class="sidebar-section-label">Paie & Export</div>
@@ -824,31 +842,34 @@
                 <a class="sidebar-link" href="{{ path('admin_exceptions_facturation_mvc') }}">
                     <i class="fas fa-sliders"></i> Exceptions tarifs
                 </a>
+                <a class="sidebar-link" href="{{ path('admin_import_mvc') }}">
+                    <i class="fas fa-file-import"></i> Import Access
+                </a>
 
             {# ── Intervenant ── #}
             {% elseif is_granted('ROLE_INTERVENANT') %}
                 {% set iid = auth_intervenant_id() %}
                 <div class="sidebar-section-label">Mon espace</div>
 
-                <a class="sidebar-link" href="{{ path('intervenant_panel_mvc', {id: app.user.id}) }}">
+                <a class="sidebar-link" href="{{ path('intervenant_panel_mvc', {id: iid}) }}">
                     <i class="fas fa-house"></i> Accueil
                 </a>
-                <a class="sidebar-link" href="{{ path('intervenant_suivie_mvc',  {id: app.user.id}) }}">
+                <a class="sidebar-link" href="{{ path('intervenant_suivie_mvc',  {id: iid}) }}">
                     <i class="fas fa-plus-circle"></i> Saisir mes heures
                 </a>
-                <a class="sidebar-link" href="{{ path('intervenant_qr_mvc',  {id: app.user.id}) }}">
+                <a class="sidebar-link" href="{{ path('intervenant_qr_mvc',  {id: iid}) }}">
                     <i class="fas fa-qrcode"></i> Scanner QR
                 </a>
-                <a class="sidebar-link" href="{{ path('intervenant_planning_mvc',  {id: app.user.id}) }}">
+                <a class="sidebar-link" href="{{ path('intervenant_planning_mvc',  {id: iid}) }}">
                     <i class="fas fa-calendar-days"></i> Mes familles
                 </a>
-                <a class="sidebar-link" href="{{ path('intervenant_heures_mvc',  {id: app.user.id}) }}">
+                <a class="sidebar-link" href="{{ path('intervenant_heures_mvc',  {id: iid}) }}">
                     <i class="fas fa-clock"></i> Mes heures
                 </a>
                 {% if iid %}<a class="sidebar-link" href="{{ path('releves_intervenant_mvc', {intervenantId: iid}) }}">
                     <i class="fas fa-file-invoice"></i> Mes relevés
                 </a>{% endif %}
-                <a class="sidebar-link" href="{{ path('intervenant_profile_mvc',  {id: app.user.id}) }}">
+                <a class="sidebar-link" href="{{ path('intervenant_profile_mvc',  {id: iid}) }}">
                     <i class="fas fa-user-circle"></i> Mon profil
                 </a>
 
@@ -861,16 +882,16 @@
                     <i class="fas fa-house"></i> Accueil
                 </a>
                 <a class="sidebar-link" href="{{ path('famille_detail_mvc', {numFam: fid}) }}">
-                    <i class="fas fa-check-circle"></i> Valider les heures
-                </a>
-                <a class="sidebar-link" href="{{ path('famille_signalements_mvc') }}">
-                    <i class="fas fa-flag"></i> Mes signalements
+                    <i class="fas fa-pen"></i> Saisir mes heures
                 </a>
                 <a class="sidebar-link" href="{{ path('famille_qr_mvc') }}">
                     <i class="fas fa-qrcode"></i> Mon QR code
                 </a>
                 <a class="sidebar-link" href="{{ path('famille_releves_mvc', {numFam: fid}) }}">
                     <i class="fas fa-file-invoice"></i> Mes relevés
+                </a>
+                <a class="sidebar-link" href="{{ path('famille_ma_facture_mvc') }}">
+                    <i class="fas fa-file-invoice-dollar"></i> Ma facture
                 </a>
                 <a class="sidebar-link" href="{{ path('famille_estimation_facture_mvc', {numFam: fid}) }}">
                     <i class="fas fa-calculator"></i> Estimation facture
@@ -957,7 +978,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body py-4" id="modalBody">Contenu</div>
-            <div class="modal-footer border-0 pt-0">
+            <div class="modal-footer border-0 pt-0" id="modalFooter">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
             </div>
         </div>

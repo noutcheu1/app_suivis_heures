@@ -23,9 +23,10 @@ class HoraireinterRepository extends ServiceEntityRepository
     public function countByMonth(string $mois): float
     {
         [$month, $year] = explode('/', $mois);
-        
-        $startDate = new \DateTime("$year-$month-01");
-        $endDate = (clone $startDate)->modify('last day of this month');
+
+        $startDate = new \DateTime(sprintf('%04d-%02d-25', $year, $month));
+        $startDate->modify('-1 month');
+        $endDate   = new \DateTime(sprintf('%04d-%02d-24', $year, $month));
         
         $sql = "
             SELECT SUM(TIMESTAMPDIFF(SECOND, heureDebutPresta, heureFinPresta) / 3600) as total
@@ -34,12 +35,14 @@ class HoraireinterRepository extends ServiceEntityRepository
             AND h.desactiver = 0
         ";
         
-        $stmt = $this->getEntityManager()->createNativeQuery($sql, new \Doctrine\ORM\Query\ResultSetMapping());
+        $rsm = new \Doctrine\ORM\Query\ResultSetMapping();
+        $rsm->addScalarResult('total', 'total');
+        $stmt = $this->getEntityManager()->createNativeQuery($sql, $rsm);
         $stmt->setParameter('startDate', $startDate->format('Y-m-d'));
         $stmt->setParameter('endDate', $endDate->format('Y-m-d'));
-        
+
         $result = $stmt->getOneOrNullResult();
-        
+
         return (float)($result['total'] ?? 0);
     }
 
@@ -51,50 +54,54 @@ class HoraireinterRepository extends ServiceEntityRepository
     public function countByIntervenant(int $intervenantId, ?string $mois = null): float
     {
         $startDate = null;
-        $endDate = null;
-        
+        $endDate   = null;
+
         if ($mois) {
             [$month, $year] = explode('/', $mois);
-            $startDate = new \DateTime("$year-$month-01");
-            $endDate = (clone $startDate)->modify('last day of this month');
+            $startDate = new \DateTime(sprintf('%04d-%02d-25', $year, $month));
+            $startDate->modify('-1 month');
+            $endDate   = new \DateTime(sprintf('%04d-%02d-24', $year, $month));
         }
-        
+
         $sql = "
             SELECT SUM(TIMESTAMPDIFF(SECOND, heureDebutPresta, heureFinPresta) / 3600) as total
             FROM horaireinter h
             WHERE h.numInter = :numInter
             AND h.desactiver = 0
         ";
-        
+
         if ($startDate && $endDate) {
             $sql .= " AND h.datePresta BETWEEN :startDate AND :endDate";
         }
-        
-        $stmt = $this->getEntityManager()->createNativeQuery($sql, new \Doctrine\ORM\Query\ResultSetMapping());
+
+        $rsm = new \Doctrine\ORM\Query\ResultSetMapping();
+        $rsm->addScalarResult('total', 'total');
+        $stmt = $this->getEntityManager()->createNativeQuery($sql, $rsm);
         $stmt->setParameter('numInter', $intervenantId);
-        
+
         if ($startDate && $endDate) {
             $stmt->setParameter('startDate', $startDate->format('Y-m-d'));
             $stmt->setParameter('endDate', $endDate->format('Y-m-d'));
         }
-        
+
         $result = $stmt->getOneOrNullResult();
-        
+
         return (float)($result['total'] ?? 0);
     }
 
     /**
      * Compter les heures par famille et mois
-     * @param int $familleId Numéro de la famille
+     * @param string $familleId Numéro de la famille
      * @param string $mois Format: 'mm/YYYY'
      */
-    public function countByFamille(int $familleId, string $mois): float
+    public function countByFamille(string $familleId, string $mois): float
     {
         [$month, $year] = explode('/', $mois);
-        
-        $startDate = new \DateTime("$year-$month-01");
-        $endDate = (clone $startDate)->modify('last day of this month');
-        
+
+        $startDate = new \DateTime(sprintf('%04d-%02d-25', $year, $month));
+        $startDate->modify('-1 month');
+        $endDate   = new \DateTime(sprintf('%04d-%02d-24', $year, $month));
+
         $sql = "
             SELECT SUM(TIMESTAMPDIFF(SECOND, heureDebutPresta, heureFinPresta) / 3600) as total
             FROM horaireinter h
@@ -102,14 +109,16 @@ class HoraireinterRepository extends ServiceEntityRepository
             AND h.datePresta BETWEEN :startDate AND :endDate
             AND h.desactiver = 0
         ";
-        
-        $stmt = $this->getEntityManager()->createNativeQuery($sql, new \Doctrine\ORM\Query\ResultSetMapping());
+
+        $rsm = new \Doctrine\ORM\Query\ResultSetMapping();
+        $rsm->addScalarResult('total', 'total');
+        $stmt = $this->getEntityManager()->createNativeQuery($sql, $rsm);
         $stmt->setParameter('numFam', $familleId);
         $stmt->setParameter('startDate', $startDate->format('Y-m-d'));
         $stmt->setParameter('endDate', $endDate->format('Y-m-d'));
-        
+
         $result = $stmt->getOneOrNullResult();
-        
+
         return (float)($result['total'] ?? 0);
     }
 
@@ -135,22 +144,21 @@ class HoraireinterRepository extends ServiceEntityRepository
     }
 
     /**
-     * Récupérer toutes les prestations non validées d'un mois
+     * Récupérer toutes les prestations non déclarées par la famille pour un mois
      */
-    public function findNonValidatedByMonth(string $mois): array
+    public function findNonDeclaredByMonth(string $mois): array
     {
         [$month, $year] = explode('/', $mois);
-        
+
         $startDate = new \DateTime("$year-$month-01");
         $endDate = (clone $startDate)->modify('last day of this month');
-        
+
         return $this->createQueryBuilder('h')
             ->where('h.datePresta BETWEEN :startDate AND :endDate')
-            ->andWhere('h.validerFam = :validerFam')
+            ->andWhere('h.declarerLeFam IS NULL')
             ->andWhere('h.desactiver = :desactiver')
             ->setParameter('startDate', $startDate)
             ->setParameter('endDate', $endDate)
-            ->setParameter('validerFam', false)
             ->setParameter('desactiver', false)
             ->orderBy('h.datePresta', 'DESC')
             ->getQuery()
@@ -188,16 +196,90 @@ class HoraireinterRepository extends ServiceEntityRepository
     }
 
     /**
-     * Récupérer les prestations non validées d'une famille
+     * Prestations d'une famille pour un mois donné (YYYY-MM).
+     * Triées par date puis heure de début.
+     *
+     * @return Horaireinter[]
      */
-    public function findNonValidatedByFamille(string $numFam): array
+    /**
+     * Toutes les prestations d'un mois toutes familles confondues,
+     * triées par famille puis date/heure.
+     * @return Horaireinter[]
+     */
+    public function findAllForMonth(int $year, int $month): array
+    {
+        $start = new \DateTime(sprintf('%04d-%02d-01', $year, $month));
+        $end   = (clone $start)->modify('last day of this month');
+
+        return $this->createQueryBuilder('h')
+            ->where('h.datePresta BETWEEN :start AND :end')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->setParameter('desactiver', false)
+            ->orderBy('h.numFam', 'ASC')
+            ->addOrderBy('h.datePresta', 'ASC')
+            ->addOrderBy('h.heureDebutPresta', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findByFamilleForMonth(string $numFam, int $year, int $month): array
+    {
+        $start = new \DateTime(sprintf('%04d-%02d-01', $year, $month));
+        $end   = (clone $start)->modify('last day of this month');
+
+        return $this->createQueryBuilder('h')
+            ->where('h.numFam = :numFam')
+            ->andWhere('h.datePresta BETWEEN :start AND :end')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('numFam', $numFam)
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->setParameter('desactiver', false)
+            ->orderBy('h.datePresta', 'ASC')
+            ->addOrderBy('h.heureDebutPresta', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findByFamilleEtMois(string $numFam, string $moisAnnee): array
+    {
+        // Accepte mm/YYYY (format français) ou YYYY-MM (ISO, vient de <input type="month">)
+        if (str_contains($moisAnnee, '/')) {
+            [$month, $year] = explode('/', $moisAnnee);
+        } else {
+            [$year, $month] = explode('-', $moisAnnee);
+        }
+        // Période : 25 du mois précédent au 24 du mois courant
+        $start = new \DateTime(sprintf('%04d-%02d-25', $year, $month));
+        $start->modify('-1 month');
+        $end   = new \DateTime(sprintf('%04d-%02d-24', $year, $month));
+
+        return $this->createQueryBuilder('h')
+            ->where('h.numFam = :numFam')
+            ->andWhere('h.datePresta BETWEEN :start AND :end')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('numFam', $numFam)
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->setParameter('desactiver', false)
+            ->orderBy('h.datePresta', 'ASC')
+            ->addOrderBy('h.heureDebutPresta', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Récupérer les prestations non déclarées par une famille
+     */
+    public function findNonDeclaredByFamille(string $numFam): array
     {
         return $this->createQueryBuilder('h')
             ->where('h.numFam = :numFam')
-            ->andWhere('h.validerFam = :validerFam')
+            ->andWhere('h.declarerLeFam IS NULL')
             ->andWhere('h.desactiver = :desactiver')
             ->setParameter('numFam', $numFam)
-            ->setParameter('validerFam', false)
             ->setParameter('desactiver', false)
             ->orderBy('h.datePresta', 'DESC')
             ->getQuery()
@@ -216,6 +298,25 @@ class HoraireinterRepository extends ServiceEntityRepository
             ->setParameter('endDate', $endDate)
             ->setParameter('desactiver', false)
             ->orderBy('h.datePresta', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findByIntervenantForMonth(int $numInter, int $year, int $month): array
+    {
+        $start = new \DateTime(sprintf('%04d-%02d-01', $year, $month));
+        $end   = (clone $start)->modify('last day of this month');
+
+        return $this->createQueryBuilder('h')
+            ->where('h.numInter = :numInter')
+            ->andWhere('h.datePresta BETWEEN :start AND :end')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('numInter', $numInter)
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->setParameter('desactiver', false)
+            ->orderBy('h.datePresta', 'ASC')
+            ->addOrderBy('h.heureDebutPresta', 'ASC')
             ->getQuery()
             ->getResult();
     }
@@ -254,31 +355,116 @@ class HoraireinterRepository extends ServiceEntityRepository
     }
 
     /**
-     * Compter les heures validées d'un mois par famille
+     * Compter les heures déclarées par la famille pour un mois donné (utilise heureDebutFam/heureFinFam)
      */
-    public function countValidatedByFamilleAndMonth(int $familleId, string $mois): float
+    public function countDeclaredByFamilleAndMonth(string $numFam, string $mois): float
     {
         [$month, $year] = explode('/', $mois);
-        
+
         $startDate = new \DateTime("$year-$month-01");
         $endDate = (clone $startDate)->modify('last day of this month');
-        
+
         $sql = "
-            SELECT SUM(TIMESTAMPDIFF(SECOND, heureDebutPresta, heureFinPresta) / 3600) as total
+            SELECT SUM(TIMESTAMPDIFF(SECOND, heureDebutFam, heureFinFam) / 3600) as total
             FROM horaireinter h
             WHERE h.numFam = :numFam
             AND h.datePresta BETWEEN :startDate AND :endDate
-            AND h.validerFam = 1
+            AND h.declarerLeFam IS NOT NULL
             AND h.desactiver = 0
         ";
-        
-        $stmt = $this->getEntityManager()->createNativeQuery($sql, new \Doctrine\ORM\Query\ResultSetMapping());
-        $stmt->setParameter('numFam', $familleId);
+
+        $rsm = new \Doctrine\ORM\Query\ResultSetMapping();
+        $rsm->addScalarResult('total', 'total');
+        $stmt = $this->getEntityManager()->createNativeQuery($sql, $rsm);
+        $stmt->setParameter('numFam', $numFam);
         $stmt->setParameter('startDate', $startDate->format('Y-m-d'));
         $stmt->setParameter('endDate', $endDate->format('Y-m-d'));
-        
+
         $result = $stmt->getOneOrNullResult();
-        
+
         return (float)($result['total'] ?? 0);
+    }
+
+    public function findByPeriodAndType(string $type, \DateTimeInterface $start, \DateTimeInterface $end): array
+    {
+        return $this->createQueryBuilder('h')
+            ->where('h.typePresta = :type')
+            ->andWhere('h.datePresta BETWEEN :start AND :end')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('type', $type)
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->setParameter('desactiver', false)
+            ->orderBy('h.numInter', 'ASC')
+            ->addOrderBy('h.datePresta', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Returns distinct (year, month, typePresta) tuples for an intervenant, most recent first.
+     */
+    public function findMoisDisponibles(int $numInter): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+        $sql  = 'SELECT DISTINCT YEAR(datePresta) AS annee,
+                        MONTH(datePresta) AS mois,
+                        typePresta
+                 FROM horaireinter
+                 WHERE numInter = :numInter
+                   AND desactiver = 0
+                 ORDER BY annee DESC, mois DESC, typePresta';
+        return $conn->executeQuery($sql, ['numInter' => $numInter])->fetchAllAssociative();
+    }
+
+    /**
+     * Vérifie si l'intervenant a déjà une prestation pour la même famille le même jour (même type).
+     */
+    public function existsDoublonFamilleDate(int $numInter, string $numFam, \DateTimeInterface $datePresta, string $type, ?int $excludeId = null): bool
+    {
+        $qb = $this->createQueryBuilder('h')
+            ->select('COUNT(h.id)')
+            ->where('h.numInter = :numInter')
+            ->andWhere('h.numFam = :numFam')
+            ->andWhere('h.datePresta = :datePresta')
+            ->andWhere('h.typePresta = :type')
+            ->andWhere('h.desactiver = false')
+            ->setParameter('numInter', $numInter)
+            ->setParameter('numFam', $numFam)
+            ->setParameter('datePresta', $datePresta)
+            ->setParameter('type', $type);
+
+        if ($excludeId !== null) {
+            $qb->andWhere('h.id != :excludeId')
+               ->setParameter('excludeId', $excludeId);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult() > 0;
+    }
+
+    /**
+     * Vérifie si une prestation identique existe déjà (doublon).
+     * Critères : même intervenant, même date, même heure de début, même type, non désactivée.
+     */
+    public function existsDoublon(int $numInter, \DateTimeInterface $datePresta, \DateTimeInterface $heureDebut, string $type, ?int $excludeId = null): bool
+    {
+        $qb = $this->createQueryBuilder('h')
+            ->select('COUNT(h.id)')
+            ->where('h.numInter = :numInter')
+            ->andWhere('h.datePresta = :datePresta')
+            ->andWhere('h.heureDebutPresta = :heureDebut')
+            ->andWhere('h.typePresta = :type')
+            ->andWhere('h.desactiver = false')
+            ->setParameter('numInter', $numInter)
+            ->setParameter('datePresta', $datePresta)
+            ->setParameter('heureDebut', $heureDebut)
+            ->setParameter('type', $type);
+
+        if ($excludeId !== null) {
+            $qb->andWhere('h.id != :excludeId')
+               ->setParameter('excludeId', $excludeId);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult() > 0;
     }
 }

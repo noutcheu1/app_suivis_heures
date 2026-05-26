@@ -99,7 +99,7 @@
             <h1>Scanner QR famille</h1>
             <p>Pointage automatique début / fin d'intervention</p>
         </div>
-        <a href="{{ path('intervenant_panel_mvc', {id: app.user.id}) }}" class="btn btn-secondary btn-sm">
+        <a href="{{ path('intervenant_panel_mvc', {id: user.id}) }}" class="btn btn-secondary btn-sm">
             <i class="fas fa-arrow-left"></i> Retour
         </a>
     </div>
@@ -207,19 +207,21 @@
 
 </div>
 
-{# Données familles disponibles pour lookup #}
+{# Données familles — ge/mena basés sur les assignations proposer de cet intervenant #}
 <script>
-const FAMILLES = {
-    {% for f in familles %}
-    "{{ f.numeroFamille }}": {
-        nom: {{ f.nomFamille|json_encode|raw }},
-        ge: {{ f.prestGardeEnfants ? 'true' : 'false' }},
-        mena: {{ f.prestMenage ? 'true' : 'false' }}
-    }{% if not loop.last %},{% endif %}
-    {% endfor %}
-};
-const INTERVENANT_ID = {{ app.user.id }};
-const QR_API_URL = "{{ path('intervenant_qr_api_mvc', {id: app.user.id}) }}";
+const FAMILLES = {};
+{% for f in familles %}
+FAMILLES[{{ f.numeroFamille|json_encode|raw }}] = { nom: {{ famille_label(f)|json_encode|raw }}, ge: false, mena: false };
+{% endfor %}
+{% for a in assignations %}
+{% if a.typePrestation == 'ENFA' %}
+if (FAMILLES[{{ a.numeroFamille|json_encode|raw }}]) FAMILLES[{{ a.numeroFamille|json_encode|raw }}].ge = true;
+{% elseif a.typePrestation == 'MENA' %}
+if (FAMILLES[{{ a.numeroFamille|json_encode|raw }}]) FAMILLES[{{ a.numeroFamille|json_encode|raw }}].mena = true;
+{% endif %}
+{% endfor %}
+const INTERVENANT_ID = {{ user.id }};
+const QR_API_URL = "{{ path('intervenant_qr_api_mvc', {id: user.id}) }}";
 </script>
 
 {% endblock %}

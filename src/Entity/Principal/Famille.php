@@ -40,6 +40,12 @@ class Famille
     #[ORM\Column(name: 'numAlloc_Famille', length: 15, nullable: true)]
     private ?string $numAlloc = null;
 
+    #[ORM\Column(name: 'PM_Famille', length: 10, nullable: true)]
+    private ?string $pmFamille = null;
+
+    #[ORM\Column(name: 'PGE_Famille', length: 10, nullable: true)]
+    private ?string $pgeFamille = null;
+
     #[ORM\Column(name: 'numURSSAF_Famille', length: 20, nullable: true)]
     private ?string $numUrssaf = null;
 
@@ -252,6 +258,12 @@ class Famille
 
     public function getNumAlloc(): ?string { return $this->numAlloc; }
     public function setNumAlloc(?string $numAlloc): static { $this->numAlloc = $numAlloc; return $this; }
+
+    public function getPmFamille(): ?string { return $this->pmFamille; }
+    public function setPmFamille(?string $pm): static { $this->pmFamille = $pm; return $this; }
+
+    public function getPgeFamille(): ?string { return $this->pgeFamille; }
+    public function setPgeFamille(?string $pge): static { $this->pgeFamille = $pge; return $this; }
 
     public function getNumUrssaf(): ?string { return $this->numUrssaf; }
     public function setNumUrssaf(?string $numUrssaf): static { $this->numUrssaf = $numUrssaf; return $this; }

@@ -2,21 +2,23 @@
 
 namespace App\Service;
 
+use App\Entity\Principal\Enfant;
 use App\Entity\Principal\Famille;
+use App\Repository\EnfantRepository;
 use App\Repository\FamilleRepository;
-use App\Repository\HoraireinterRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 class FamilleService
 {
     public function __construct(
-        private FamilleRepository $repository,
+        private FamilleRepository      $repository,
+        private EnfantRepository       $enfantRepository,
         private EntityManagerInterface $entityManager,
-        private HoraireinterRepository $horaireRepository
+        private FactureService         $factureService,
     ) {}
 
     /**
-     * Retourne toutes les familles non archivées
+     * Retourne toutes les familles non archivées (pour sélection famille occasionnelle).
      */
     public function getToutesLesFamilles(): array
     {
@@ -48,11 +50,11 @@ class FamilleService
     }
 
     /**
-     * Compte le nombre de familles actives
+     * Compte les familles ayant un planning actif dans proposer.
      */
     public function countFamilles(): int
     {
-        return $this->repository->countActives();
+        return $this->repository->countAvecPlanningActif();
     }
 
     /**
@@ -81,28 +83,34 @@ class FamilleService
         $this->entityManager->flush();
     }
 
+    /**
+     * @param string $mois Format YYYY-MM
+     */
     public function calculerMontantDu(string $familleId, string $mois): float
     {
-        // TODO: implement billing calculation from relevements mensuel
-        return 0.0;
+        return $this->factureService->calculerFacture($familleId, $mois)['montantTotal'];
     }
 
+    /**
+     * @deprecated Utiliser FamilleIntervenantService::getFamillesForIntervenant()
+     *             qui filtre sur proposer (planning actif).
+     */
     public function getFamillesDeIntervenant(int $intervenantId): array
     {
-        $numFams = $this->horaireRepository->findDistinctFamilleNumsByIntervenant($intervenantId);
-        $familles = [];
-        foreach ($numFams as $numFam) {
-            $famille = $this->repository->findByNumero($numFam);
-            if ($famille) {
-                $familles[] = $famille;
-            }
-        }
-        return $familles;
+        return $this->repository->findByIntervenantActif($intervenantId);
     }
 
     /**
      * Crée une nouvelle famille
      */
+    /**
+     * @return Enfant[]
+     */
+    public function getEnfantsByFamille(string $numFam, bool $gardeUniquement = false): array
+    {
+        return $this->enfantRepository->findByFamille($numFam, $gardeUniquement);
+    }
+
     public function creerFamille(array $donnees): Famille
     {
         $famille = new Famille();

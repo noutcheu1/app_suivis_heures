@@ -20,7 +20,7 @@ final class Assignation
         public readonly string $numeroFamille,       // numero_Famille
         public readonly string $typeAdh,             // idADH_TypeADH : MAND, PREST…
         public readonly string $jour,                // jour_Proposer : lundi, mardi…
-        public readonly string $heureDebut,          // hDeb_Proposer  (HH:MM:SS)
+        public readonly string $heureDebut,          // hDeb_Proposer  (H:i:SS)
         public readonly ?string $heureFin,           // hFin_Proposer
         public readonly \DateTimeImmutable $dateDeb, // DateDeb_Proposer
         public readonly ?\DateTimeImmutable $dateFin,// dateFin_Proposer (null = actif)

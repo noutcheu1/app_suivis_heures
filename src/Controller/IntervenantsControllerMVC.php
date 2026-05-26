@@ -9,6 +9,7 @@ use App\Service\HoraireinterService;
 use App\Service\IntervenantService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -28,6 +29,10 @@ final class IntervenantsControllerMVC extends AbstractController
     #[Route('/intervenants-mvc', name: 'intervenants_mvc')]
     public function intervenants(Request $request): Response
     {
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
+
         if (!$this->authService->isAdmin()) {
             return $this->redirectToRoute('intervenant_panel_mvc', [
                 'id' => $this->authService->intervenant_id()
@@ -47,6 +52,10 @@ final class IntervenantsControllerMVC extends AbstractController
     #[Route('/intervenants-mvc/{id}/panel', name: 'intervenant_panel_mvc')]
     public function intervenantPanel(int $id, Request $request): Response
     {
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
+
         $id = $this->resolveId($id);
 
         $user = $this->intervenantService->getInfosIntervenant($id);
@@ -79,6 +88,10 @@ final class IntervenantsControllerMVC extends AbstractController
     #[Route('/intervenants-mvc/{id}/profile', name: 'intervenant_profile_mvc')]
     public function intervenantProfile(int $id, Request $request): Response
     {
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
+
         $id   = $this->resolveId($id);
         $user = $this->intervenantService->getInfosIntervenant($id);
         if (!$user) {
@@ -96,6 +109,10 @@ final class IntervenantsControllerMVC extends AbstractController
     #[Route('/intervenants-mvc/{id}/heures', name: 'intervenant_heures_mvc')]
     public function heures(int $id, Request $request): Response
     {
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
+
         $id   = $this->resolveId($id);
         $user = $this->intervenantService->getInfosIntervenant($id);
         if (!$user) {
@@ -117,43 +134,113 @@ final class IntervenantsControllerMVC extends AbstractController
     #[Route('/intervenants-mvc/{id}/suivie', name: 'intervenant_suivie_mvc')]
     public function suivie(int $id, Request $request): Response
     {
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
+
         $id   = $this->resolveId($id);
         $user = $this->intervenantService->getInfosIntervenant($id);
         if (!$user) {
             throw $this->createNotFoundException('Intervenant introuvable');
         }
 
-        $familles = $this->familleIntervenantService->getFamillesForIntervenant($id);
+        $familles     = $this->familleIntervenantService->getFamillesForIntervenant($id);
+        $assignations = $this->familleIntervenantService->getAssignationsActives($id);
+
+        // Plage de facturation courante : 25 du mois précédent → aujourd'hui
+        $today = new \DateTime('today');
+        $day   = (int)$today->format('d');
+        if ($day >= 25) {
+            $billingStart = new \DateTime($today->format('Y-m') . '-25');
+        } else {
+            $billingStart = (clone $today)->modify('first day of last month')->modify('+24 days');
+        }
 
         return $this->render('intervenants/hours/followup.html.twig', [
-            'auth'          => $this->authService->check(),
-            'user'          => $user,
-            'isAdmin'       => $this->authService->isAdmin(),
-            'familles'      => $familles,
-            'nbrJourSaisie' => $this->horaireService->getNbrJourSaisie(),
-            'editId'        => $request->query->get('edite'),
+            'auth'              => $this->authService->check(),
+            'user'              => $user,
+            'isAdmin'           => $this->authService->isAdmin(),
+            'familles'          => $familles,
+            'assignations'      => $assignations,
+            'periodeDebut'      => $billingStart,
+            'editId'            => $request->query->get('edite'),
+            'toutesLesFamilles' => $this->familleService->getToutesLesFamilles(),
         ]);
     }
 
-    // ── Planning hebdomadaire ─────────────────────────────────────────────────
+    // ── Planning mensuel ──────────────────────────────────────────────────────
 
     #[Route('/intervenants-mvc/{id}/planning', name: 'intervenant_planning_mvc')]
     public function planning(int $id, Request $request): Response
     {
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
+
         $id   = $this->resolveId($id);
         $user = $this->intervenantService->getInfosIntervenant($id);
         if (!$user) {
             throw $this->createNotFoundException('Intervenant introuvable');
         }
 
-        $planning = $this->familleIntervenantService->getPlanningHebdo($id);
+        $now       = new \DateTime();
+        $moisParam = $request->query->get('mois');
+        if ($moisParam && preg_match('/^\d{4}-\d{2}$/', $moisParam)) {
+            [$year, $month] = array_map('intval', explode('-', $moisParam));
+        } else {
+            // Période de facturation courante : si on est après le 24, la nouvelle période
+            // a commencé le 25 du mois courant, donc le mois de référence est le mois suivant.
+            $nowDay = (int)$now->format('d');
+            if ($nowDay >= 25) {
+                $billingRef = (clone $now)->modify('+1 month');
+            } else {
+                $billingRef = clone $now;
+            }
+            $year  = (int)$billingRef->format('Y');
+            $month = (int)$billingRef->format('m');
+        }
+
+        // Plage de facturation : 25 du mois M-1 → 24 du mois M
+        $periodStart = (new \DateTime(sprintf('%04d-%02d-01', $year, $month)))
+            ->modify('-1 month')
+            ->modify('+24 days'); // = 25 du mois précédent
+        $periodEnd = new \DateTime(sprintf('%04d-%02d-24', $year, $month));
+
+        // Grille : du lundi de la semaine contenant periodStart
+        //          au dimanche de la semaine contenant periodEnd
+        $startDow  = (int)$periodStart->format('N'); // 1=Lun … 7=Dim
+        $gridStart = (clone $periodStart)->modify('-' . ($startDow - 1) . ' days');
+        $endDow    = (int)$periodEnd->format('N');
+        $gridEnd   = (clone $periodEnd)->modify('+' . (7 - $endDow) . ' days');
+        $nbGridDays = ((int)$gridStart->diff($gridEnd)->days) + 1;
+
+        $moisOffset  = sprintf('%04d-%02d', $year, $month);
+        $moisPrev    = (new \DateTime(sprintf('%04d-%02d-01', $year, $month)))->modify('-1 month')->format('Y-m');
+        $moisNext    = (new \DateTime(sprintf('%04d-%02d-01', $year, $month)))->modify('+1 month')->format('Y-m');
+
+        // Période de facturation "courante" pour le badge "Période courante"
+        $nowDay2 = (int)$now->format('d');
+        $nowRef  = $nowDay2 >= 25 ? (clone $now)->modify('+1 month') : clone $now;
+        $moisCourant = $nowRef->format('Y-m');
+
+        $planning = $this->familleIntervenantService->getPlanningMensuel($periodStart, $periodEnd, $id);
         $familles = $this->familleIntervenantService->getFamillesForIntervenant($id);
 
         return $this->render('intervenants/planning.html.twig', [
-            'auth'     => $this->authService->check(),
-            'user'     => $user,
-            'planning' => $planning,
-            'familles' => $familles,
+            'auth'         => $this->authService->check(),
+            'user'         => $user,
+            'planning'     => $planning,
+            'familles'     => $familles,
+            'year'         => $year,
+            'month'        => $month,
+            'periodStart'  => $periodStart,
+            'periodEnd'    => $periodEnd,
+            'gridStart'    => $gridStart,
+            'nbGridDays'   => $nbGridDays,
+            'moisOffset'   => $moisOffset,
+            'moisPrev'     => $moisPrev,
+            'moisNext'     => $moisNext,
+            'moisCourant'  => $moisCourant,
         ]);
     }
 
@@ -162,6 +249,10 @@ final class IntervenantsControllerMVC extends AbstractController
     #[Route('/intervenants-mvc/{id}/qr-scan', name: 'intervenant_qr_mvc')]
     public function qrScan(int $id, Request $request): Response
     {
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
+
         $id   = $this->resolveId($id);
         $user = $this->intervenantService->getInfosIntervenant($id);
         if (!$user) {
@@ -186,6 +277,10 @@ final class IntervenantsControllerMVC extends AbstractController
     {
         if (!$this->authService->check()) {
             return $this->json(['success' => false, 'error' => 'Non authentifié'], 401);
+        }
+
+        if (!$this->authService->isAdmin() && !$this->authService->isIntervenantAccepted()) {
+            return $this->json(['success' => false, 'error' => 'Candidature en attente d\'acceptation'], 403);
         }
 
         $id = $this->resolveId($id);
@@ -238,7 +333,7 @@ final class IntervenantsControllerMVC extends AbstractController
         if (!$this->authService->isAdmin()) {
             throw $this->createAccessDeniedException('Accès refusé');
         }
-
+        $id = $this->resolveId($id);
         $success = $this->intervenantService->archiverIntervenant($id);
 
         if ($success) {
@@ -255,6 +350,10 @@ final class IntervenantsControllerMVC extends AbstractController
     #[Route('/intervenants-mvc/recherche', name: 'intervenant_recherche_mvc')]
     public function recherche(Request $request): Response
     {
+        if (!$this->authService->isAdmin()) {
+            throw $this->createAccessDeniedException('Accès refusé');
+        }
+
         $terme = $request->query->get('q', '');
         $users = !empty($terme) ? $this->intervenantService->rechercherIntervenants($terme) : [];
 
@@ -265,7 +364,37 @@ final class IntervenantsControllerMVC extends AbstractController
         ]);
     }
 
-    // ── Utilitaire ────────────────────────────────────────────────────────────
+    // ── Utilitaires ───────────────────────────────────────────────────────────
+
+    /**
+     * Gate for every intervenant action.
+     * - Unauthenticated → redirect to login.
+     * - Non-admin whose linked candidature is still 'En attente' → redirect to
+     *   login with an explanatory flash so the user understands why access is blocked.
+     * Returns null when access is allowed.
+     */
+    private function guardIntervenantAccess(): ?RedirectResponse
+    {
+        if (!$this->authService->check()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        if ($this->authService->isAdmin()) {
+            return null;
+        }
+
+        if (!$this->authService->isIntervenantAccepted()) {
+            $this->addFlash('warning', 'Votre candidature est en cours de traitement. Votre accès sera activé une fois votre candidature acceptée.');
+            return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->authService->isIntervenantActif()) {
+            $this->addFlash('warning', 'Votre compte a été archivé. Veuillez contacter l\'administration.');
+            return $this->redirectToRoute('app_login');
+        }
+
+        return null;
+    }
 
     /**
      * Pour un non-admin, force l'ID de l'intervenant connecté.

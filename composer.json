@@ -8,6 +8,7 @@
         "ext-ctype": "*",
         "ext-iconv": "*",
         "doctrine/doctrine-bundle": "*",
+        "doctrine/doctrine-migrations-bundle": "^3.7",
         "doctrine/orm": "*",
         "mobiledetect/mobiledetectlib": "^4.8",
         "symfony/asset": "7.4.*",

@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Préparation à la paie — {{ mois }}{% endblock %}
+{% block title %}Préparation à la paie — {{ moisLabel|capitalize }}{% endblock %}
 {% block page_title %}Préparation à la paie{% endblock %}
 
 {% block body %}
@@ -8,12 +8,23 @@
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
             <h1>Préparation à la paie</h1>
-            <p>Période : <strong>{{ mois }}</strong></p>
+            <p>{{ moisLabel|capitalize }}</p>
         </div>
-        <a href="{{ path('admin_prepare_paie_csv_mvc', {mois: mois}) }}"
-           class="btn btn-primary btn-sm">
-            <i class="fas fa-file-csv"></i> Exporter CSV
-        </a>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <a href="{{ path('admin_prepare_paie_mvc', {mois: moisPrev}) }}"
+               class="btn btn-secondary btn-sm"><i class="fas fa-chevron-left"></i></a>
+            {% if moisOffset < moisCourant %}
+            <a href="{{ path('admin_prepare_paie_mvc', {mois: moisNext}) }}"
+               class="btn btn-secondary btn-sm"><i class="fas fa-chevron-right"></i></a>
+            <a href="{{ path('admin_prepare_paie_mvc') }}"
+               class="btn btn-secondary btn-sm" title="Mois courant">
+                <i class="fas fa-calendar-day"></i>
+            </a>
+            {% endif %}
+            <button id="btnCsv" class="btn btn-primary btn-sm" disabled title="Calculer les km sans enfants avant d'exporter">
+                <i class="fas fa-file-csv"></i> Exporter CSV
+            </button>
+        </div>
     </div>
 </div>
 
@@ -31,38 +42,136 @@
         <div class="empty-state">
             <div class="empty-state-icon"><i class="fas fa-file-invoice"></i></div>
             <h3>Aucune donnée pour ce mois</h3>
-            <p>Aucune prestation déclarée pour la période sélectionnée</p>
+            <p>Aucune prestation déclarée pour la période sélectionnée.</p>
         </div>
         {% else %}
-        <table class="data-table">
+
+        <div style="padding:10px 16px 6px;font-size:12px;color:var(--text-muted);background:var(--bg-secondary);border-bottom:1px solid var(--border);">
+            <i class="fas fa-info-circle"></i>
+            ENFA &amp; MENA : du 25/{{ moisPrev|slice(5,2) }}/{{ moisPrev|slice(0,4) }} au 24/{{ moisOffset|slice(5,2) }}/{{ moisOffset|slice(0,4) }} &nbsp;·&nbsp;
+            Km sans enfants calculés automatiquement (distance domicile → famille hors Rennes).
+        </div>
+
+        <table class="data-table" id="paieTable">
             <thead>
                 <tr>
                     <th>Intervenant</th>
-                    <th>Type</th>
-                    <th>Heures déclarées</th>
-                    <th>Trajets</th>
-                    <th>Km avec enfants</th>
+                    <th>Prestation</th>
+                    <th style="text-align:right;">Heures déclarées</th>
+                    <th style="text-align:center;">Nb prestations</th>
+                    <th style="text-align:right;">Km avec enfants</th>
+                    <th style="text-align:right;">Km sans enfants</th>
                 </tr>
             </thead>
             <tbody>
-            {% for ligne in donneesPaie %}
+            {% for i, ligne in donneesPaie %}
             <tr>
-                <td style="font-weight:500;">{{ ligne.nomComplet ?? '-' }}</td>
+                <td style="font-weight:500;">
+                    <a href="{{ path('intervenant_panel_mvc', {id: ligne.numInter}) }}"
+                       style="color:var(--text);text-decoration:none;">
+                        {{ ligne.nomComplet }}
+                    </a>
+                </td>
                 <td>
                     <span class="badge {{ ligne.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
                         {{ ligne.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
                     </span>
                 </td>
-                <td><strong>{{ ligne.dureeTotale ?? '-' }}</strong></td>
-                <td>{{ ligne.nbrTrajet ?? 0 }}</td>
-                <td>{{ ligne.kmAvecEnfant ?? 0 }} km</td>
+                <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">
+                    {{ ligne.heuresDecimal }}
+                </td>
+                <td style="text-align:center;">
+                    <span class="badge badge-muted">{{ ligne.nbrTrajet }}</span>
+                </td>
+                <td style="text-align:right;font-variant-numeric:tabular-nums;">
+                    {{ ligne.kmAvecEnfant|number_format(1, ',', ' ') }}
+                </td>
+                <td style="text-align:right;font-variant-numeric:tabular-nums;" id="kmSans{{ i }}">
+                    {% if ligne.famillesHorsRennes is empty %}
+                        <span style="color:var(--text-muted);">0,00</span>
+                    {% else %}
+                        <span class="km-calcul" style="color:var(--text-muted);font-size:12px;">
+                            <i class="fas fa-spinner fa-spin"></i> Calcul…
+                        </span>
+                        {# Data for JS #}
+                        <input type="hidden" class="adr-inter" value="{{ ligne.adrInter }}">
+                        {% for adrFam in ligne.famillesHorsRennes %}
+                        <input type="hidden" class="adr-fam" value="{{ adrFam }}">
+                        {% endfor %}
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
+
         {% endif %}
 
     </div>
 </div>
 
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script type="module">
+import { getDistance } from '/assets/js/geo-api.js';
+
+(async () => {
+    const rows = document.querySelectorAll('#paieTable tbody tr');
+    const csvData = [];
+
+    for (let i = 0; i < rows.length; i++) {
+        const row   = rows[i];
+        const cell  = row.querySelector(`[id="kmSans${i}"]`) ?? row.cells[5];
+        const spinner = cell.querySelector('.km-calcul');
+        const adrInter = cell.querySelector('.adr-inter')?.value ?? '';
+        const adrFams  = [...cell.querySelectorAll('.adr-fam')].map(el => el.value);
+
+        let kmSans = 0;
+        if (adrInter && adrFams.length > 0) {
+            for (const adrFam of adrFams) {
+                try {
+                    const raw = await getDistance(adrInter, adrFam);
+                    let d = parseFloat(raw.toString().replace(',', '.'));
+                    if (d > 15) d = 15;
+                    kmSans += d;
+                } catch (e) {
+                    console.warn('Erreur geo', adrInter, adrFam, e);
+                }
+            }
+        }
+
+        if (spinner) {
+            spinner.outerHTML = (kmSans > 0 ? kmSans.toFixed(2).replace('.', ',') : '0,00');
+        }
+
+        // Collect for CSV
+        csvData.push({
+            inter:   row.cells[0].textContent.trim(),
+            type:    row.cells[1].textContent.trim(),
+            heures:  row.cells[2].textContent.trim(),
+            nbPrest: row.cells[3].textContent.trim(),
+            kmAvec:  row.cells[4].textContent.trim(),
+            kmSans:  kmSans.toFixed(2).replace('.', ','),
+        });
+    }
+
+    // Activate export button
+    const btn = document.getElementById('btnCsv');
+    btn.disabled = false;
+    btn.title = 'Exporter en CSV';
+    btn.addEventListener('click', () => {
+        const header = '"Intervenant";"Prestation";"Heures";"Nb prestations";"Km avec enfants";"Km sans enfants"';
+        const lines  = csvData.map(r =>
+            `"${r.inter}";"${r.type}";"${r.heures}";"${r.nbPrest}";"${r.kmAvec}";"${r.kmSans}"`
+        );
+        const blob = new Blob(["﻿" + [header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `prepa_paie_{{ moisOffset }}.csv`;
+        a.click();
+    });
+})();
+</script>
 {% endblock %}

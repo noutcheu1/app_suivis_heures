@@ -19,7 +19,7 @@
         <ul class="menu" id="intervenantList">
         {% for user in users %}
             <li class="search-item">
-                <a href="{{ path('intervenant_panel_mvc', {id: app.user.id ?? user.id_intervenant}) }}">
+                <a href="{{ path('intervenant_panel_mvc', {id: user.id}) }}">
                     <img src="{{ asset('assets/icons/user.png') }}" alt="Profil">
                     <span class="name">{{ user.nom }} {{ user.prenom }}</span>
                 </a>

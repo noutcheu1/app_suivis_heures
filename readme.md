@@ -8,6 +8,12 @@ Elle est développée principalement en PHP avec un front HTML/CSS et du JS.
 ---
 
 
+
+
+ON SAISI RAPIDE SUR LE TELEPHONE
+
+
+
 ## 👤 Rôles et permissions
 - Admin  
   - Consulter les intervenants et les familles existants

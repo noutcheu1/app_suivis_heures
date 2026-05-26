@@ -112,20 +112,9 @@ async function chargerReleve() {
             msg.style.padding = '1rem';
             container.appendChild(msg);
         } else {
-            const nbPages = Math.ceil(data.familles.length / 5);
-            console.log(`[Rendu] ${data.familles.length} famille(s) → ${nbPages} page(s)`);
-            for (let page = 1; page <= nbPages; page++) {
-                console.log(`[Rendu] ▶ Construction page ${page}…`);
-                const enTete = buildEnTete(data, page);
-                console.log(`[Rendu] EnTête page ${page} id="${enTete.id}" rows=${enTete.rows?.length ?? '?'}`);
-                container.appendChild(enTete);
-
-                const corps = buildCorps(data, page);
-                console.log(`[Rendu] Corps page ${page} id="${corps.id}" rows=${corps.rows?.length ?? '?'}`);
-                container.appendChild(corps);
-
-                console.log(`[Rendu] ✅ Page ${page} ajoutée. container.children.length =`, container.children.length);
-            }
+            console.log(`[Rendu] ${data.familles.length} famille(s) → 1 tableau`);
+            container.appendChild(buildEnTete(data));
+            container.appendChild(buildCorps(data));
         }
         console.log('[Rendu] container.innerHTML final (200 chars) :', container.innerHTML.slice(0, 200));
         renderRecap(data);
@@ -136,12 +125,13 @@ async function chargerReleve() {
         container.textContent = 'Erreur lors du rendu du relevé.';
     }
 
-    if (typeof activerBoutonTelechargement === 'function') activerBoutonTelechargement();
+    if (typeof activerBoutonTelechargement === 'function') activerBoutonTelechargement(data);
 }
 
-// ─── Tableau en-tête intervenant  (id = monTableau0{page}) ───────────────────
-function buildEnTete(data, page) {
-    console.log(`[buildEnTete] page=${page}, intervenant=`, data.intervenant);
+// ─── Tableau en-tête intervenant ─────────────────────────────────────────────
+function buildEnTete(data) {
+    const page = 1;
+    console.log(`[buildEnTete] intervenant=`, data.intervenant);
     const table = document.createElement('table');
     table.id    = `monTableau0${page}`;
     const tbody = document.createElement('tbody');
@@ -186,17 +176,17 @@ function buildEnTete(data, page) {
     return table;
 }
 
-// ─── Tableau corps jours × familles  (id = monTableau1{page}) ────────────────
-function buildCorps(data, page) {
-    console.log(`[buildCorps] page=${page}, jours=${data.jours?.length}`);
+// ─── Tableau corps jours × familles ──────────────────────────────────────────
+function buildCorps(data) {
+    console.log(`[buildCorps] jours=${data.jours?.length}, familles=${data.familles?.length}`);
     const table   = document.createElement('table');
-    table.id      = `monTableau1${page}`;
+    table.id      = 'monTableau11';
     const tbody   = document.createElement('tbody');
     table.appendChild(tbody);
 
-    const offset   = (page - 1) * 5;
-    const familles = data.familles.slice(offset, offset + 5);
-    console.log(`[buildCorps] familles sur cette page (${familles.length}) :`, familles.map(f => f?.nomFam));
+    const familles  = data.familles;
+    const nFam      = familles.length;
+    const totalCols = 3 + nFam;
 
     // ── Ligne titre "FAMILLES" ───────────────────────────────────────────────
     const trFamTitre = document.createElement('tr');
@@ -204,7 +194,7 @@ function buildCorps(data, page) {
         mkTd('', { cls: 'no-borders' }),
         mkTd('', { cls: 'no-borders' }),
         mkTd('', { cls: 'no-borders' }),
-        mkTh('FAMILLES', { colSpan: 5 })
+        mkTh('FAMILLES', { colSpan: nFam })
     );
     tbody.appendChild(trFamTitre);
 
@@ -212,19 +202,14 @@ function buildCorps(data, page) {
     const trFamNoms = document.createElement('tr');
     trFamNoms.append(mkTd('', { cls: 'no-borders' }), mkTh('Date', { colSpan: 2 }));
 
-    for (let i = 0; i < 5; i++) {
-        const fam = familles[i];
-        const th  = document.createElement('th');
-        if (fam) {
-            const ville = fam.numFam === '9998'
-                ? 'OCCASIONNELLE'
-                : (fam.ville_Famille ?? '').toUpperCase();
-            th.innerHTML = `${i + 1}<br>${escHtml(fam.nomFam)}<br><span style="font-weight:normal">${escHtml(ville)}</span>`;
-        } else {
-            th.innerHTML = `${i + 1}<br>_ _ _ _ _<br>&nbsp;`;
-        }
+    familles.forEach((fam, i) => {
+        const th    = document.createElement('th');
+        const ville = fam.numFam === '9998'
+            ? 'OCCASIONNELLE'
+            : (fam.ville_Famille ?? '').toUpperCase();
+        th.innerHTML = `${i + 1}<br>${escHtml(fam.nomFam)}<br><span style="font-weight:normal">${escHtml(ville)}</span>`;
         trFamNoms.appendChild(th);
-    }
+    });
     tbody.appendChild(trFamNoms);
 
     // ── Lignes jours ─────────────────────────────────────────────────────────
@@ -237,16 +222,13 @@ function buildCorps(data, page) {
         if (isDim) tr.className = 'dimanche';
 
         if (jour.semaine !== semaineActuelle) {
-            // Nouveau début de semaine
             cellSemaine         = mkTd(`S${jour.semaine}`);
             cellSemaine.rowSpan = 1;
             semaineActuelle     = jour.semaine;
             tr.appendChild(cellSemaine);
         } else if (!isDim) {
-            // Même semaine, pas dimanche : étendre le rowspan
             cellSemaine.rowSpan++;
         } else {
-            // Dimanche : cellule vide (fin visuelle de semaine)
             tr.appendChild(mkTd(''));
         }
 
@@ -255,11 +237,10 @@ function buildCorps(data, page) {
             mkTd(String(jour.numeroJour))
         );
 
-        for (let i = 0; i < 5; i++) {
-            const fam    = familles[i];
+        familles.forEach(fam => {
             const presta = fam?.prestations?.[jour.date];
-            tr.appendChild(mkTd(presta ? presta.join(' - ') : ''));
-        }
+            tr.appendChild(mkTd(presta ? presta.join(', ') : ''));
+        });
 
         tbody.appendChild(tr);
     });
@@ -268,13 +249,12 @@ function buildCorps(data, page) {
     const trTotH = document.createElement('tr');
     trTotH.append(mkTd('', { cls: 'no-borders' }), mkTh('TOTAL Heures', { colSpan: 2 }));
     let totalSecondes = 0;
-    for (let i = 0; i < 5; i++) {
-        const fam = familles[i];
-        if (fam) totalSecondes += fam.totalSecondes ?? 0;
-        trTotH.appendChild(mkTd(fam ? hm(fam.totalSecondes ?? 0) : ''));
-    }
+    familles.forEach(fam => {
+        totalSecondes += fam.totalSecondes ?? 0;
+        trTotH.appendChild(mkTd(hm(fam.totalSecondes ?? 0)));
+    });
     tbody.appendChild(trTotH);
-    tbody.appendChild(ligneVide(8));
+    tbody.appendChild(ligneVide(totalCols));
 
     // ── Total km (ENFA uniquement) ────────────────────────────────────────────
     if (data.type === 'ENFA') {
@@ -283,25 +263,23 @@ function buildCorps(data, page) {
             mkTd('', { cls: 'no-borders' }),
             mkTh('TOTAL Km (avec enfants)', { colSpan: 2, cls: 'no-borders' })
         );
-        for (let i = 0; i < 5; i++) {
-            const fam = familles[i];
-            trKm.appendChild(mkTd(fam ? `${fam.totalKm ?? 0} Km` : ''));
-        }
+        familles.forEach(fam => {
+            trKm.appendChild(mkTd(`${fam.totalKm ?? 0} Km`));
+        });
         tbody.appendChild(trKm);
     }
 
     // ── Total mensuel ─────────────────────────────────────────────────────────
     const trMens = document.createElement('tr');
-    trMens.innerHTML = `
-        <td class="no-borders"></td>
-        <td colspan="2" class="no-borders">TOTAL MENSUEL DES HEURES</td>
-        <td>${hm(totalSecondes)}</td>
-        <td colspan="2" class="no-borders"></td>
-        <td class="no-borders">TOTAL MENSUEL DES KM (avec enfants)</td>
-        <td>${escHtml(String(data.totaux?.kmMois ?? 0))}</td>
-    `;
+    trMens.append(
+        mkTd('', { cls: 'no-borders' }),
+        mkTd('TOTAL MENSUEL DES HEURES', { colSpan: 2, cls: 'no-borders' }),
+        mkTd(hm(totalSecondes), { colSpan: Math.max(1, nFam - 2) }),
+        mkTd('TOTAL MENSUEL DES KM', { cls: 'no-borders' }),
+        mkTd(String(data.totaux?.kmMois ?? 0))
+    );
     tbody.appendChild(trMens);
-    tbody.appendChild(ligneVide(8));
+    tbody.appendChild(ligneVide(totalCols));
 
     // ── Ligne signature ───────────────────────────────────────────────────────
     const signer = data.signer ?? {};
@@ -314,10 +292,14 @@ function buildCorps(data, page) {
     tbody.appendChild(trSign);
 
     // ── Mention légale ────────────────────────────────────────────────────────
-    tbody.appendChild(mkRow([mkTh(
-        "VOUS DEVEZ NOUS INDIQUER LE NOMBRE TOTAL D'HEURES QUE VOUS AVEZ EFFECTUÉES DANS LE MOIS POUR TOUT VOS EMPLOYEURS QUI VOUS PAYENT DIRECTEMENT SOIT TOTAL DE VOTRE MOIS : 01h25***",
+    const heureDehorsTxt = data.heureDehors ?? '_ _ _ h _ _';
+    const thMention = mkTh(
+        `VOUS DEVEZ NOUS INDIQUER LE NOMBRE TOTAL D'HEURES QUE VOUS AVEZ EFFECTUÉES DANS LE MOIS POUR TOUT VOS EMPLOYEURS QUI VOUS PAYENT DIRECTEMENT SOIT TOTAL DE VOTRE MOIS : `,
         { colSpan: 8 }
-    )]));
+    );
+    thMention.id = 'totalMoisHors';
+    thMention.textContent = `VOUS DEVEZ NOUS INDIQUER LE NOMBRE TOTAL D'HEURES QUE VOUS AVEZ EFFECTUÉES DANS LE MOIS POUR TOUT VOS EMPLOYEURS QUI VOUS PAYENT DIRECTEMENT SOIT TOTAL DE VOTRE MOIS : ${heureDehorsTxt} ***`;
+    tbody.appendChild(mkRow([thMention]));
 
     return table;
 }
@@ -388,11 +370,15 @@ async function ajouterHeure(heure, minute) {
                 heure:      Number(heure),
                 minute:     Number(minute),
                 periodeFin,
-                type:       'MENA'
+                type:       TYPE_PRESTA
             })
         });
         const result = await res.json();
-        if (!result.success) alert('Erreur : ' + result.message);
+        if (result.success) {
+            await chargerReleve();
+        } else {
+            alert('Erreur : ' + result.message);
+        }
     } catch (err) {
         console.error(err);
         alert('Erreur serveur');

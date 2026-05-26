@@ -32,6 +32,7 @@ class TarifRepository extends ServiceEntityRepository
             ->where('t.dateDebut <= :moisAnnee')
             ->setParameter('moisAnnee', $moisAnnee)
             ->orderBy('t.dateDebut', 'DESC')
+            ->addOrderBy('t.id', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();

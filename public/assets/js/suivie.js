@@ -6,49 +6,55 @@ const today = new Date();
 // Format YYYY-MM-DD
 const formatDate = (d) => d.toISOString().split('T')[0];
 
-// Date maximum = aujourd'hui
-dateInput.max = formatDate(today);
-
-// Date minimum = 7 jours avant aujourd'hui
+// Date minimum = 250 jours avant aujourd'hui
 const minDate = new Date();
-minDate.setDate(today.getDate() - 7);
+minDate.setDate(today.getDate() - 250);
 dateInput.min = formatDate(minDate);
 
 
 const form = document.getElementById("form_ajout_heure");
 const familleSelect = document.getElementById("famille");
 const nomRemplacementInput = document.getElementById("nomRemplacement");
+const familleOccaContainer = document.getElementById("familleOccaContainer");
+const familleOccaSearch = document.getElementById("familleOccaSearch");
+const familleOccaSuggestions = document.getElementById("familleOccaSuggestions");
 const typeSelect = document.getElementById("type");
-const trajetInput = document.getElementById("trajetInput");
 
 // Récupérer les paramètres GET
 const params = new URLSearchParams(window.location.search);
 
-function formatHours(hoursBDD) {
-    return hoursBDD.split(':');
+// Helper : affecte les selects heure + minute depuis une chaîne "HH:MM"
+function setTimeSelects(heureId, minuteId, hhmm) {
+    const [hh, mm] = (hhmm ?? '').split(':');
+    const hSel = document.getElementById(heureId);
+    const mSel = document.getElementById(minuteId);
+    if (hSel && hh !== undefined) hSel.value = hh;
+    if (mSel && mm !== undefined) {
+        // Arrondir au multiple de 5 le plus proche
+        const mVal = String(Math.round(parseInt(mm || '0') / 5) * 5).padStart(2, '0');
+        mSel.value = mVal === '60' ? '55' : mVal;
+    }
 }
 
 function setEdit(data) {
     console.log(data);
-    const heureAvant = formatHours(data.heureDebutPresta);
-    const heureFin   = formatHours(data.heureFinPresta);
+    setTimeSelects('heureDebut', 'minuteDebut', data.heureDebutPresta ?? '');
+    setTimeSelects('heureFin',   'minuteFin',   data.heureFinPresta   ?? '');
 
-    form.heureDebut.value = heureAvant[0];
-    form.heureFin.value   = heureFin[0];
-
-    form.minuteDebut.value = heureAvant[1];
-    form.minuteFin.value   = heureFin[1];
-
-    if (data.numFam == 9998) {
+    if (data.numFam == 9998 || data.numFam == null) {
         familleSelect.value = 0;
         nomRemplacementInput.value = data.nomFam ?? "";
+        familleOccaSearch.value = data.nomFam ?? "";
     } else {
-        familleSelect.value = data.numFam ?? '0'; // Filtrer 9998 = inconue
+        familleSelect.value = data.numFam ?? '0';
     }
     form.date.value = data.datePresta;
 
-    trajetInput.value = data.kmAvecEnfant;
     typeSelect.value = data.typePresta;
+
+    const trajetInput = document.getElementById('trajet');
+    if (trajetInput) trajetInput.value = data.kmAvecEnfant ?? '';
+
     handleFamilleChange();
 }
 
@@ -64,9 +70,18 @@ async function getInfoData(id_edit) {
         if (!result.success) {
             showModal({
                 title: "Erreur",
-                body: "Erreur serveur : " + result.message,
+                body: "Erreur  : " + result.message,
                 buttons: [{text: "Ok", class: "btn btn-danger", dismiss: true}]
             });
+        } else if (result.data.verrouille) {
+            showModal({
+                title: "Mois clôturé",
+                body: "Cette prestation appartient à un mois passé et ne peut plus être modifiée.",
+                buttons: [{text: "Retour", class: "btn btn-secondary", onClick: () => history.back()}]
+            });
+            document.querySelector('button[type="submit"]').disabled = true;
+            document.querySelectorAll('input, select').forEach(el => el.disabled = true);
+            setEdit(result.data);
         } else {
             setEdit(result.data);
         }
@@ -74,7 +89,7 @@ async function getInfoData(id_edit) {
         console.error(err);
         showModal({
             title: "Erreur",
-            body: "Erreur serveur : " + err,
+            body: "Erreur  : " + err,
             buttons: [{text: "Ok", class: "btn btn-danger", dismiss: true}]
         });
     }
@@ -95,12 +110,24 @@ async function sendData(route, data) {
             showModal({
                 title: "Succès",
                 body: "La saisie a été enregistrée avec succès !",
-                buttons: [{text: "Ok", class: "btn btn-success", onClick: () => window.location.reload()}]
+                buttons: [{text: "Ok", class: "btn btn-success", onClick: () => {
+                    if (typeof PLANNING_URL !== 'undefined' && PLANNING_URL) {
+                        window.location.href = PLANNING_URL;
+                    } else {
+                        window.location.reload();
+                    }
+                }}]
+            });
+        } else if (result.locked) {
+            showModal({
+                title: "Mois clôturé",
+                body: "Ce mois est clôturé — la prestation ne peut plus être modifiée ni supprimée.",
+                buttons: [{text: "Ok", class: "btn btn-secondary", dismiss: true}]
             });
         } else {
             showModal({
                 title: "Erreur",
-                body: "Erreur serveur : " + result.message,
+                body: "Erreur  : " + result.error,
                 buttons: [{text: "Ok", class: "btn btn-danger", dismiss: true}]
             });
         }
@@ -108,7 +135,7 @@ async function sendData(route, data) {
         console.error(err);
         showModal({
             title: "Erreur",
-            body: "Erreur serveur : " + err,
+            body: "Erreur  : " + err,
             buttons: [{text: "Ok", class: "btn btn-danger", dismiss: true}]
         });;
     }
@@ -117,84 +144,139 @@ async function sendData(route, data) {
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    let nomRemplacement = familleSelect.options[familleSelect.selectedIndex].dataset.nom;
+    const selectedOption = familleSelect.options[familleSelect.selectedIndex];
+    const famValue       = familleSelect.value;
+    const famNum         = selectedOption?.dataset.num ?? null;
+    const famPrests      = selectedOption?.dataset.prestations ?? '';
 
-    if ( familleSelect.selectedIndex == '1') {
-       nomRemplacement = nomRemplacementInput.value; 
+    // Garde : famille non occasionnelle sans prestation proposer → bloqué
+    const isOccasionnelle = (famValue === '0' || famValue === '');
+    if (!isOccasionnelle && famNum && !famPrests) {
+        showModal({
+            title: 'Non autorisé',
+            body: 'Vous n\'êtes pas assigné à cette famille. Vous ne pouvez saisir des heures que pour vos familles ou en tant que famille occasionnelle.',
+            buttons: [{ text: 'Fermer', class: 'btn btn-danger', dismiss: true }]
+        });
+        return;
+    }
+
+    let nomRemplacement = selectedOption?.dataset.nom ?? '';
+    if (isOccasionnelle) {
+        nomRemplacement = nomRemplacementInput.value.trim();
+        if (!nomRemplacement) {
+            showModal({
+                title: 'Champ manquant',
+                body: 'Veuillez choisir une famille dans la liste.',
+                buttons: [{ text: 'Fermer', class: 'btn btn-secondary', dismiss: true }]
+            });
+            return;
+        }
     }
 
     const id = params.get('edite') ?? -1;
 
-    // Récupère les données
+    // Lire les selects heure/minute séparément
+    const heureDebutH = document.getElementById('heureDebut').value;
+    const heureDebutM = document.getElementById('minuteDebut').value;
+    const heureFinH   = document.getElementById('heureFin').value;
+    const heureFinM   = document.getElementById('minuteFin').value;
+
+    if (!heureDebutH || !heureFinH) {
+        showModal({
+            title: 'Heures manquantes',
+            body: 'Veuillez renseigner l\'heure de début et l\'heure de fin.',
+            buttons: [{ text: 'Fermer', class: 'btn btn-danger', dismiss: true }]
+        });
+        return;
+    }
+
+    const debutMinutes = parseInt(heureDebutH) * 60 + parseInt(heureDebutM || '0');
+    const finMinutes   = parseInt(heureFinH)   * 60 + parseInt(heureFinM   || '0');
+
+    if (finMinutes <= debutMinutes) {
+        showModal({
+            title: 'Intervalle invalide',
+            body: `L'heure de fin (${heureFinH}h${heureFinM}) doit être strictement supérieure à l'heure de début (${heureDebutH}h${heureDebutM}).`,
+            buttons: [{ text: 'Corriger', class: 'btn btn-danger', dismiss: true }]
+        });
+        return;
+    }
+
+    const trajetInput = document.getElementById('trajet');
     const data = {
         id: id,
         date: form.date.value,
-        famille: familleSelect.options[familleSelect.selectedIndex].dataset.num,
+        famille: famNum,
         nomRemplacement: nomRemplacement,
         type: typeSelect.value,
-        trajet: trajetInput.value || 0,
-        heureDebut: form.heureDebut.value,
-        minuteDebut: form.minuteDebut.value,
-        heureFin: form.heureFin.value,
-        minuteFin: form.minuteFin.value
+        heureDebut:  heureDebutH,
+        minuteDebut: heureDebutM,
+        heureFin:    heureFinH,
+        minuteFin:   heureFinM,
+        trajet: (trajetInput && trajetInput.value) ? parseFloat(trajetInput.value) : 0,
     };
-    
 
-    
     // Modal de confirmation simple
-    const recap = `<h3> Veuillez vérifier la véracité des informations : </h3> 
+    const recap = `<h3> Veuillez vérifier la véracité des informations : </h3>
         Date: ${data.date}
         Famille/Menage: ${nomRemplacement}
         Type: ${typeSelect.value}
-        Début: ${data.heureDebut}:${data.minuteDebut}
-        Fin: ${data.heureFin}:${data.minuteFin}
-        Trajet: ${data.trajet} km
+        Début: ${data.heureDebut}h${data.minuteDebut}
+        Fin: ${data.heureFin}h${data.minuteFin}
     `;
 
     const confirmed = await confirmModal(recap);
 
     if (!confirmed) return;
     if (params.has('edite')) {
-        let route = "/heures-mvc/modifier/" + ID;
+        let route = "/heures-mvc/modifier/" + id;
         sendData(route, data);
     } else {
         let route = "/heures-mvc/ajouter";
         sendData(route, data);
     }
-    
+
 });
 
 
 
+// Sélection d'une famille → pré-sélectionne le type selon proposer
 function handleFamilleChange() {
     const selectFamille = document.getElementById("famille");
-    const prestations = selectFamille.selectedOptions[0].dataset.prestations;
+    const prestations   = selectFamille.selectedOptions[0]?.dataset.prestations ?? '';
+    const typeSelect    = document.getElementById("type");
+    const types         = prestations ? prestations.split(',').filter(Boolean) : [];
 
-    // Gestion du select type
-    const select = document.getElementById("type");
-
-    if (prestations === "MENA") {
-        select.value = "MENA";
-        Array.from(select.options).forEach(option => {
-            if (option.value !== "MENA" && option.value !== "") {
-                option.hidden = true;
-            }
-        });
-    } else if (prestations === "ENFA") {
-        select.value = "ENFA";
-        Array.from(select.options).forEach(option => {
-            if (option.value !== "ENFA" && option.value !== "") {
-                option.hidden = true;
-            }
+    if (types.length === 1) {
+        // Un seul type proposé pour cette famille : sélection automatique
+        typeSelect.value = types[0];
+        Array.from(typeSelect.options).forEach(o => {
+            if (o.value) o.hidden = o.value !== types[0];
         });
     } else {
-        select.value = "";
-        Array.from(select.options).forEach(option => {
-            if (option.value !== "") {
-                option.hidden = false;
-            }
-        });
+        // Plusieurs types ou inconnu : tout afficher, forcer le choix
+        Array.from(typeSelect.options).forEach(o => { o.hidden = false; });
+        if (types.length === 0) typeSelect.value = '';
     }
+
+    updateVisibility();
+}
+
+// Sélection d'un type → filtre les familles qui ont ce type dans proposer
+function filterFamillesByType() {
+    const type         = document.getElementById("type").value;
+    const selectFamille = document.getElementById("famille");
+
+    Array.from(selectFamille.options).forEach(o => {
+        if (!o.value || o.value === '0') { o.hidden = false; return; }
+        if (!type) { o.hidden = false; return; }
+        const prests = o.dataset.prestations ? o.dataset.prestations.split(',').filter(Boolean) : [];
+        o.hidden = prests.length > 0 && !prests.includes(type);
+    });
+
+    // Si la famille sélectionnée est maintenant masquée, réinitialiser
+    const cur = selectFamille.selectedOptions[0];
+    if (cur && cur.hidden) selectFamille.value = '';
 
     updateVisibility();
 }
@@ -202,73 +284,133 @@ function handleFamilleChange() {
 // Fonction centralisée pour gérer toutes les visibilités
 function updateVisibility() {
     const selectFamille = document.getElementById("famille");
-    const selectType = document.getElementById("type");
+    const selectType    = document.getElementById("type");
 
-    console.log('test,', selectFamille)
-
-    // Gestion du champ nomRemplacement
+    // Champ famille occasionnelle : champ de recherche avec suggestions
     if (selectFamille.value == "0") {
-        document.getElementById('nomRemplacement').hidden = false;
-        document.getElementById('nomRemplacement').required = true;
+        familleOccaContainer.hidden = false;
+        familleOccaSearch.focus();
     } else {
-        document.getElementById('nomRemplacement').hidden = true;
-        document.getElementById('nomRemplacement').required = false;
+        familleOccaContainer.hidden = true;
+        familleOccaSuggestions.style.display = 'none';
+        familleOccaSearch.value = '';
+        nomRemplacementInput.value = '';
     }
 
-    // Gestion des champs liés à ENFA
-    if (selectType.value === 'ENFA') {
-        document.getElementById('trajetTxt').hidden = false;
-        document.getElementById('trajetInput').hidden = false;
-    } else {
-        document.getElementById('trajetTxt').hidden = true;
-        document.getElementById('trajetInput').hidden = true;
-    }
-}
-
-// Ajout des écouteurs
-document.getElementById("famille").addEventListener("change", handleFamilleChange);
-document.getElementById('type').addEventListener('change', updateVisibility);
-
-// Fonction pour peupler les selects de temps
-function populateTime(selectElement, max, step = 1) {
-    for (let i = 0; i <= max; i += step) {
-        
-        const option = document.createElement('option');
-        option.value = i.toString().padStart(2, '0');
-        option.textContent = i.toString().padStart(2, '0');
-        
-        if (selectElement.id == "heureDebut" && i.toString().padStart(2, '0') == "99" ) {
-            option.selected = true;
-        } else if (selectElement.id == "minuteDebut" && i.toString().padStart(2, '0') == "99" ) {
-            option.selected = true;
-        } else if (selectElement.id == "heureFin" && i.toString().padStart(2, '0') == "99" ) {
-            option.selected = true;
-        } else if (selectElement.id == "minuteFin" && i.toString().padStart(2, '0') == "99" ) {
-            option.selected = true;
+    // Champ km trajet : visible uniquement pour Garde d'enfants (ENFA)
+    const trajetContainer = document.getElementById('trajetContainer');
+    if (trajetContainer) {
+        trajetContainer.hidden = (selectType.value !== 'ENFA');
+        if (trajetContainer.hidden) {
+            const trajetInput = document.getElementById('trajet');
+            if (trajetInput) trajetInput.value = '';
         }
-        
-        selectElement.appendChild(option);
     }
 }
 
-const heureDebut = document.getElementById('heureDebut');
-const minuteDebut = document.getElementById('minuteDebut');
-const heureFin = document.getElementById('heureFin');
-const minuteFin = document.getElementById('minuteFin');
+// Écouteurs
+document.getElementById("famille").addEventListener("change", handleFamilleChange);
+document.getElementById("type").addEventListener("change", filterFamillesByType);
 
-populateTime(heureDebut, 23);
-populateTime(heureFin, 23);
-populateTime(minuteDebut, 59, 5);
-populateTime(minuteFin, 59, 5);
+// ── Autocomplete famille occasionnelle ─────────────────────────────────────
+familleOccaSearch.addEventListener('input', function () {
+    const query = this.value.trim().toLowerCase();
+    nomRemplacementInput.value = this.value.trim(); // autorise aussi la saisie libre
+
+    if (!query) {
+        familleOccaSuggestions.style.display = 'none';
+        return;
+    }
+
+    const matches = (typeof FAMILLES_OCC !== 'undefined' ? FAMILLES_OCC : [])
+        .filter(f => f.toLowerCase().includes(query))
+        .slice(0, 10);
+
+    if (matches.length === 0) {
+        familleOccaSuggestions.style.display = 'none';
+        return;
+    }
+
+    familleOccaSuggestions.innerHTML = '';
+    matches.forEach(label => {
+        const item = document.createElement('div');
+        item.textContent = label;
+        item.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border);transition:background .15s;';
+        item.addEventListener('mouseenter', () => { item.style.background = 'var(--bg-secondary)'; });
+        item.addEventListener('mouseleave', () => { item.style.background = ''; });
+        item.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // évite le blur avant la sélection
+            familleOccaSearch.value = label;
+            nomRemplacementInput.value = label;
+            familleOccaSuggestions.style.display = 'none';
+        });
+        familleOccaSuggestions.appendChild(item);
+    });
+    familleOccaSuggestions.style.display = 'block';
+});
+
+familleOccaSearch.addEventListener('blur', () => {
+    setTimeout(() => { familleOccaSuggestions.style.display = 'none'; }, 150);
+});
+
+familleOccaSearch.addEventListener('keydown', (e) => {
+    const items = familleOccaSuggestions.querySelectorAll('div');
+    const active = familleOccaSuggestions.querySelector('.occ-active');
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = active ? active.nextElementSibling : items[0];
+        if (active) active.classList.remove('occ-active');
+        if (next) { next.classList.add('occ-active'); next.style.background = 'var(--bg-secondary)'; }
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prev = active ? active.previousElementSibling : items[items.length - 1];
+        if (active) active.classList.remove('occ-active');
+        if (prev) { prev.classList.add('occ-active'); prev.style.background = 'var(--bg-secondary)'; }
+    } else if (e.key === 'Enter' && active) {
+        e.preventDefault();
+        familleOccaSearch.value = active.textContent;
+        nomRemplacementInput.value = active.textContent;
+        familleOccaSuggestions.style.display = 'none';
+    } else if (e.key === 'Escape') {
+        familleOccaSuggestions.style.display = 'none';
+    }
+});
 
 // Initialisation
 updateVisibility();
 
-// Vérifier si 'edite' n'existe pas
-if (!params.has('edite')) {
-    handleFamilleChange();
-} else {
+if (params.has('edite')) {
     getInfoData(params.get('edite'));
+} else {
+    const famParam  = params.get('famille');
+    const typeParam = params.get('type');
+    const dateParam = params.get('date');
+    const hdebParam = params.get('hdeb');
+    const hfinParam = params.get('hfin');
+    console.log({famParam, typeParam, dateParam, hdebParam, hfinParam});
+    if (famParam || typeParam) {
+        // Pré-remplissage depuis le planning — valeurs fixées directement,
+        // sans déclencher les filtres en cascade.
+        Array.from(typeSelect.options).forEach(o => { o.hidden = false; });
+        if (typeParam) typeSelect.value = typeParam;
+
+        if (famParam) {
+            Array.from(familleSelect.options).forEach(o => {
+                if (o.value === famParam) o.hidden = false;
+            });
+            familleSelect.value = famParam;
+        }
+
+        if (dateParam) document.getElementById('date').value = dateParam;
+
+        if (hdebParam) setTimeSelects('heureDebut', 'minuteDebut', hdebParam);
+        if (hfinParam) setTimeSelects('heureFin',   'minuteFin',   hfinParam);
+
+        updateVisibility();
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        handleFamilleChange();
+    }
 }
 
 

@@ -34,11 +34,16 @@ COPY . .
 
 # ─── Exécuter les scripts Composer post-install (cache:clear, etc.) ───────────
 RUN composer run-script post-install-cmd --no-dev || true
-
 # ─── Config Apache ────────────────────────────────────────────────────────────
 COPY docker/conf/apache/symfony.conf /etc/apache2/sites-available/000-default.conf
 
 COPY fix-permissions.sh /usr/local/bin/fix-permissions.sh
+
 RUN chmod +x /usr/local/bin/fix-permissions.sh
 
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 EXPOSE 80
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["apache2-foreground"]

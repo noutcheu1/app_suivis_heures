@@ -1,60 +1,138 @@
 {% extends 'base.html.twig' %}
-{% block title %}Relevés — {{ famille.nomFamille ?? '' }}{% endblock %}
+{% block title %}Mes relevés — {{ famille.nomFamille ?? '' }}{% endblock %}
 {% block page_title %}Mes relevés{% endblock %}
 
 {% block body %}
 
+{% set moisFrNames = {
+  '01':'JANVIER','02':'FÉVRIER','03':'MARS','04':'AVRIL',
+  '05':'MAI','06':'JUIN','07':'JUILLET','08':'AOÛT',
+  '09':'SEPTEMBRE','10':'OCTOBRE','11':'NOVEMBRE','12':'DÉCEMBRE'
+} %}
+
 <div class="page-header">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div>
-            <h1>Relevés</h1>
-            <p>Période : <strong>{{ mois }}</strong></p>
-        </div>
-        <a href="{{ path('famille_panel_mvc') }}" class="btn btn-secondary btn-sm">
-            <i class="fas fa-arrow-left"></i> Mon espace
-        </a>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <div>
+      <h1>Mes relevés</h1>
+      <p>Historique des relevés mensuels — {{ famille_label(famille) }}</p>
     </div>
+    <a href="{{ path('famille_panel_mvc') }}" class="btn btn-secondary btn-sm">
+      <i class="fas fa-arrow-left"></i> Mon espace
+    </a>
+  </div>
 </div>
 
+
 <div class="card">
-    <div class="card-header">
-        <i class="fas fa-file-alt" style="color:var(--primary);"></i>
-        <span class="card-title">Relevés mensuels</span>
-    </div>
-    <div class="card-body" style="padding:0;overflow-x:auto;">
+  <div class="card-header">
+    <i class="fas fa-file-invoice" style="color:var(--primary);"></i>
+    <span class="card-title">Relevés mensuels</span>
+  </div>
+  <div class="card-body" style="padding:0;overflow-x:auto;">
 
-        {% if releves is empty %}
-        <div class="empty-state">
-            <div class="empty-state-icon"><i class="fas fa-folder-open"></i></div>
-            <h3>Aucun relevé disponible</h3>
-            <p>Aucun relevé pour la période sélectionnée</p>
-        </div>
-        {% else %}
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Mois</th>
-                    <th>Heures</th>
-                    <th>Statut</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for r in releves %}
-            <tr>
-                <td>{{ r.mois ?? '-' }}</td>
-                <td><strong>{{ r.heures ?? '-' }}</strong></td>
-                <td>
-                    {% if r.statut is defined %}
-                    <span class="badge badge-success">{{ r.statut }}</span>
-                    {% else %}—{% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-        {% endif %}
-
+    {% if historique is empty %}
+    <div class="empty-state">
+      <div class="empty-state-icon"><i class="fas fa-folder-open"></i></div>
+      <h3>Aucun relevé disponible</h3>
+      <p>Vos relevés mensuels apparaîtront ici une fois que le questionnaire aura été rempli.</p>
+      <a href="{{ path('famille_ma_facture_mvc') }}" class="btn btn-primary" style="margin-top:12px;">
+        Voir ma facture du mois
+      </a>
     </div>
+    {% else %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Mois</th>
+          <th>Type de prestation</th>
+          <th>Mode de règlement</th>
+          <th>Montant versé</th>
+          <th>Satisfaction</th>
+          <th>Statut</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for groupe in historique %}
+        {% set moisParts = groupe.moisannee|split('-') %}
+        {% set moisFr = moisFrNames[moisParts[1]] ?? moisParts[1] %}
+        {% set annee  = moisParts[0] %}
+        {% for r in groupe.releves %}
+        <tr>
+          {% if loop.first %}
+          <td rowspan="{{ groupe.releves|length }}" style="vertical-align:middle;font-weight:600;">
+            {{ moisFr }} {{ annee }}
+          </td>
+          {% endif %}
+          <td>
+            {% if r.typePresta == 'ENFA' %}
+              <span class="badge badge-info">Garde d'enfants</span>
+            {% elseif r.typePresta == 'MENA' %}
+              <span class="badge badge-muted">Ménage</span>
+            {% else %}
+              <span class="badge">{{ r.typePresta }}</span>
+            {% endif %}
+          </td>
+          <td>{{ r.typeReglement ?: '—' }}</td>
+          <td>
+            {% if r.montantPrincipal %}
+              {{ r.montantPrincipal|number_format(2, ',', ' ') }} €
+            {% else %}—{% endif %}
+          </td>
+          <td style="text-align:center;">
+            {% set avisTotal = (r.avisPonctualite ?? 0) + (r.avisReguRela ?? 0) + (r.avisRespectHo ?? 0) + (r.avisQualiteTr ?? 0) %}
+            {% set avisFilled = (r.avisPonctualite is not null ? 1 : 0) + (r.avisReguRela is not null ? 1 : 0) + (r.avisRespectHo is not null ? 1 : 0) + (r.avisQualiteTr is not null ? 1 : 0) %}
+            {% if avisFilled > 0 %}
+              <span title="{{ avisFilled }}/4 critères remplis" style="font-size:12px;color:#6b7280;">
+                ✔ {{ avisFilled }}/4
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if r.signerLe %}
+              <span class="badge badge-success">
+                <i class="fas fa-check-circle"></i> Signé le {{ r.signerLe|date('d/m/Y') }}
+              </span>
+            {% else %}
+              <span class="badge" style="background:#fef3c7;color:#92400e;">
+                <i class="fas fa-clock"></i> Non signé
+              </span>
+            {% endif %}
+          </td>
+          {% if loop.first %}
+          <td rowspan="{{ groupe.releves|length }}" style="vertical-align:middle;text-align:center;">
+            {% set hasGE   = groupe.releves|filter(r => r.typePresta in ['ENFA','GE'])|length > 0 %}
+            {% set hasMENA = groupe.releves|filter(r => r.typePresta == 'MENA')|length > 0 %}
+            <div style="display:flex;flex-direction:column;gap:5px;align-items:center;">
+              {% if hasGE %}
+              <a href="{{ path('famille_ma_facture_mvc', {mois: groupe.moisannee, type: 'GE'}) }}"
+                 class="btn btn-secondary btn-sm" title="Garde d'enfants — {{ moisFr }} {{ annee }}" style="white-space:nowrap;">
+                <i class="fas fa-child"></i> Garde
+              </a>
+              {% endif %}
+              {% if hasMENA %}
+              <a href="{{ path('famille_ma_facture_mvc', {mois: groupe.moisannee, type: 'MENA'}) }}"
+                 class="btn btn-secondary btn-sm" title="Ménage — {{ moisFr }} {{ annee }}" style="white-space:nowrap;">
+                <i class="fas fa-broom"></i> Ménage
+              </a>
+              {% endif %}
+              {% if not hasGE and not hasMENA %}
+              <a href="{{ path('famille_ma_facture_mvc', {mois: groupe.moisannee}) }}"
+                 class="btn btn-secondary btn-sm">
+                <i class="fas fa-eye"></i> Voir
+              </a>
+              {% endif %}
+            </div>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+  </div>
 </div>
 
 {% endblock %}

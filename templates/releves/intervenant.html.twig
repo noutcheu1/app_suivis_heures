@@ -1,83 +1,79 @@
 {% extends 'base.html.twig' %}
-{% block title %}Relevés intervenant — {{ mois }}{% endblock %}
-{% block page_title %}Relevés intervenant{% endblock %}
+{% block title %}Relevés — {{ user.nom }} {{ user.prenom }}{% endblock %}
+{% block page_title %}Mes relevés{% endblock %}
 
 {% block body %}
 
 <div class="page-header">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
-            <h1>Relevés</h1>
-            <p>Mois : <strong>{{ mois }}</strong></p>
+            {% if isAdmin %}
+            <h1>Relevés de {{ user.nom }} {{ user.prenom }}</h1>
+            {% else %}
+            <h1>Mes relevés</h1>
+            {% endif %}
+            <p style="margin:4px 0 0;">Sélectionnez un mois pour consulter le relevé</p>
         </div>
-        <div style="display:flex;gap:8px;">
-            <a href="{{ path('intervenant_panel_mvc', {id: intervenantId}) }}" class="btn btn-secondary btn-sm">
-                <i class="fas fa-arrow-left"></i> Retour
-            </a>
-            <a href="{{ path('releves_intervenant_pdf_mvc', {intervenantId: intervenantId, mois: mois}) }}"
-               class="btn btn-primary btn-sm">
-                <i class="fas fa-file-pdf"></i> Télécharger PDF
-            </a>
-        </div>
+        {% if isAdmin %}
+        <a href="{{ path('intervenant_panel_mvc', {id: intervenantId}) }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+        {% endif %}
     </div>
 </div>
 
+{% if parMois is empty %}
+<div class="empty-state">
+    <div class="empty-state-icon"><i class="fas fa-calendar-times"></i></div>
+    <h3>Aucun relevé disponible</h3>
+    <p>Aucune prestation enregistrée pour le moment.</p>
+</div>
+{% else %}
+
 <div class="card">
     <div class="card-header">
-        <i class="fas fa-clock" style="color:var(--primary);"></i>
-        <span class="card-title">Détail des heures</span>
-        {% if heures is not empty %}
-        <span class="badge badge-muted" style="margin-left:auto;">{{ heures|length }} prestation{% if heures|length > 1 %}s{% endif %}</span>
-        {% endif %}
+        <i class="fas fa-calendar-alt" style="color:var(--primary);"></i>
+        <span class="card-title">Relevés par mois</span>
+        <span class="badge badge-muted" style="margin-left:auto;">{{ parMois|length }} mois</span>
     </div>
-    <div class="card-body" style="padding:0;overflow-x:auto;">
-
-        {% if heures is empty %}
-        <div class="empty-state">
-            <div class="empty-state-icon"><i class="fas fa-calendar-times"></i></div>
-            <h3>Aucune heure enregistrée</h3>
-            <p>Aucune prestation pour ce mois</p>
-        </div>
-        {% else %}
+    <div class="card-body" style="padding:0;">
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Famille</th>
-                    <th>Date</th>
-                    <th>Début</th>
-                    <th>Fin</th>
+                    <th>Période</th>
                     <th>Type</th>
-                    <th>Km</th>
-                    <th>Validé</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-            {% for h in heures %}
+            {% for item in parMois %}
             <tr>
-                <td style="font-weight:500;">{{ h.nomFam }}</td>
-                <td>{{ h.datePresta|date('d/m/Y') }}</td>
-                <td>{{ h.heureDebutPresta|date('H:i') }}</td>
-                <td>{{ h.heureFinPresta|date('H:i') }}</td>
+                <td style="font-weight:600;">{{ item.label }}</td>
                 <td>
-                    <span class="badge {{ h.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
-                        {{ h.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                    {% for type in item.types %}
+                    <span class="badge {{ type == 'MENA' ? 'badge-muted' : 'badge-info' }}" style="margin-right:4px;">
+                        {{ type == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
                     </span>
+                    {% endfor %}
                 </td>
-                <td>{{ h.kmAvecEnfant ?? 0 }} km</td>
                 <td>
-                    {% if h.validerFam %}
-                        <span class="badge badge-success">Validé</span>
-                    {% else %}
-                        <span class="badge badge-warning">En attente</span>
-                    {% endif %}
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    {% for type in item.types %}
+                        <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: intervenantId, type: type, mois: item.offset}) }}"
+                           class="btn btn-sm {{ type == 'MENA' ? 'btn-secondary' : 'btn-primary' }}">
+                            <i class="fas fa-eye"></i>
+                            {{ type == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                        </a>
+                    {% endfor %}
+                    </div>
                 </td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
-        {% endif %}
-
     </div>
 </div>
+
+{% endif %}
 
 {% endblock %}

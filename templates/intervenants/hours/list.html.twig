@@ -10,7 +10,7 @@
             <h1>Heures de {{ user.nom }} {{ user.prenom }}</h1>
             <p>{{ prestations|length }} prestation{% if prestations|length > 1 %}s{% endif %} enregistrée{% if prestations|length > 1 %}s{% endif %}</p>
         </div>
-        <a href="{{ path('intervenant_suivie_mvc', {id: app.user.id}) }}" class="btn btn-primary">
+        <a href="{{ path('intervenant_suivie_mvc', {id: user.id}) }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Saisir des heures
         </a>
     </div>
@@ -24,7 +24,7 @@
             <input type="text" id="searchInput" placeholder="Rechercher..." oninput="filterRows()">
         </div>
         <div style="margin-left:auto;display:flex;gap:8px;">
-            <a href="{{ path('intervenant_panel_mvc', {id: app.user.id}) }}" class="btn btn-ghost btn-sm">
+            <a href="{{ path('intervenant_panel_mvc', {id: user.id}) }}" class="btn btn-ghost btn-sm">
                 <i class="fas fa-arrow-left"></i> Retour
             </a>
         </div>
@@ -35,7 +35,7 @@
         <div class="empty-state-icon"><i class="fas fa-clock"></i></div>
         <h3>Aucune heure enregistrée</h3>
         <p>Commencez par saisir vos premières prestations</p>
-        <a href="{{ path('intervenant_suivie_mvc', {id: app.user.id}) }}" class="btn btn-primary" style="margin-top:14px;">
+        <a href="{{ path('intervenant_suivie_mvc', {id: user.id}) }}" class="btn btn-primary" style="margin-top:14px;">
             <i class="fas fa-plus"></i> Saisir des heures
         </a>
     </div>
@@ -54,15 +54,21 @@
             </tr>
         </thead>
         <tbody>
+        {% set todayYM = 'now'|date('Y-m') %}
         {% for presta in prestations %}
-        <tr>
+        {% set verrouille = not isAdmin and (presta.datePresta|date('Y-m') < todayYM) %}
+        <tr{% if verrouille %} style="opacity:.8;"{% endif %}>
             <td>
-                {% if isAdmin and presta.numFam is not null %}
-                    <a href="{{ path('admin_famille_detail_mvc', {numFam: presta.numFam}) }}" style="font-weight:500;">
-                        {{ presta.nomFam }}
-                    </a>
+                {% if presta.numFam is not null %}
+                    {% if isAdmin %}
+                        <a href="{{ path('admin_famille_detail_mvc', {numFam: presta.numFam}) }}" style="font-weight:500;">
+                            {{ famille_label(presta.numFam) }}
+                        </a>
+                    {% else %}
+                        <span style="font-weight:500;">{{ famille_label(presta.numFam) }}</span>
+                    {% endif %}
                 {% else %}
-                    <span style="font-weight:500;">{{ presta.nomFam }}</span>
+                    <span style="font-weight:500;">{{ presta.nomFam ?: '—' }}</span>
                 {% endif %}
             </td>
             <td>{{ presta.datePresta|date('d/m/Y') }}</td>
@@ -74,7 +80,11 @@
                 </span>
             </td>
             <td>
-                {% if presta.desactiver == 1 %}
+                {% if verrouille %}
+                    <span class="badge badge-muted" title="Mois clôturé — modification impossible">
+                        <i class="fas fa-lock" style="font-size:9px;margin-right:3px;"></i>Clôturé
+                    </span>
+                {% elseif presta.desactiver == 1 %}
                     <span class="badge badge-danger">Supprimé</span>
                 {% else %}
                     <span class="badge badge-success">Actif</span>
@@ -82,19 +92,26 @@
             </td>
             <td>
                 <div style="display:flex;gap:6px;">
-                    <a href="{{ path('intervenant_suivie_mvc', {id: app.user.id, edite: presta.id}) }}" class="btn btn-ghost btn-sm" title="Modifier">
-                        <i class="fas fa-edit"></i>
-                    </a>
-                    {% if presta.desactiver == 1 %}
-                        <a href="{{ path('intervenant_heures_mvc', {id: app.user.id, recup: presta.id}) }}" class="btn btn-secondary btn-sm">
-                            <i class="fas fa-undo"></i>
-                        </a>
+                    {% if verrouille %}
+                        <span class="btn btn-ghost btn-sm" style="opacity:.35;cursor:not-allowed;" title="Mois clôturé">
+                            <i class="fas fa-lock"></i>
+                        </span>
                     {% else %}
-                        <a href="{{ path('intervenant_heures_mvc', {id: app.user.id, supp: presta.id}) }}" class="btn btn-ghost btn-sm" title="Supprimer"
-                           onclick="return confirm('Supprimer cette prestation ?')"
-                           style="color:var(--danger);">
-                            <i class="fas fa-trash"></i>
+                        <a href="{{ path('intervenant_suivie_mvc', {id: user.id, edite: presta.id}) }}" class="btn btn-ghost btn-sm" title="Modifier">
+                            <i class="fas fa-edit"></i>
                         </a>
+                        {% if presta.desactiver == 1 %}
+                            <button class="btn btn-secondary btn-sm btn-action-presta"
+                                    data-action="recup" data-id="{{ presta.id }}" title="Restaurer">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        {% else %}
+                            <button class="btn btn-ghost btn-sm btn-action-presta" title="Supprimer"
+                                    data-action="supp" data-id="{{ presta.id }}"
+                                    style="color:var(--danger);">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        {% endif %}
                     {% endif %}
                     <button class="btn btn-ghost btn-sm voir-detail" data-target="{{ loop.index }}" title="Détails">
                         <i class="fas fa-eye"></i>
@@ -114,36 +131,55 @@
 
 {% block modal %}
 {{ parent() }}
+{% set todayYM = 'now'|date('Y-m') %}
 {% for presta in prestations %}
+{% set verrouille = not isAdmin and (presta.datePresta|date('Y-m') < todayYM) %}
 <div class="modal fade" id="modalData{{ loop.index }}" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0" style="border-radius:var(--radius-lg);">
             <div class="modal-header border-0 pb-0">
-                <h6 class="modal-title fw-semibold">Détail — {{ presta.nomFam }}</h6>
+                <h6 class="modal-title fw-semibold">
+                    Détail — {{ presta.numFam ? famille_label(presta.numFam) : (presta.nomFam ?: '—') }}
+                    {% if verrouille %}
+                    <span class="badge badge-muted" style="margin-left:6px;font-size:10px;">
+                        <i class="fas fa-lock" style="font-size:9px;"></i> Clôturé
+                    </span>
+                    {% endif %}
+                </h6>
                 <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <dl style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13.5px;margin:0;">
                     <dt style="color:var(--text-muted);font-weight:500;">Famille</dt>
-                    <dd style="margin:0;">{{ presta.nomFam }}</dd>
+                    <dd style="margin:0;">{{ presta.numFam ? famille_label(presta.numFam) : (presta.nomFam ?: '—') }}</dd>
                     <dt style="color:var(--text-muted);font-weight:500;">Date</dt>
                     <dd style="margin:0;">{{ presta.datePresta|date('d/m/Y') }}</dd>
                     <dt style="color:var(--text-muted);font-weight:500;">Début</dt>
-                    <dd style="margin:0;">{{ presta.heureDebutPresta |date('H:i') }}</dd>
+                    <dd style="margin:0;">{{ presta.heureDebutPresta|date('H:i') }}</dd>
                     <dt style="color:var(--text-muted);font-weight:500;">Fin</dt>
-                    <dd style="margin:0;">{{ presta.heureFinPresta |date('H:i') }}</dd>
+                    <dd style="margin:0;">{{ presta.heureFinPresta|date('H:i') }}</dd>
                     <dt style="color:var(--text-muted);font-weight:500;">Type</dt>
                     <dd style="margin:0;">{{ presta.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}</dd>
-                    <dt style="color:var(--text-muted);font-weight:500;">Ajoutée le</dt>
-                    <dd style="margin:0;">{{ presta.ajouterLe|date('H:i')  }}</dd>
+                    <dt style="color:var(--text-muted);font-weight:500;">Saisie le</dt>
+                    <dd style="margin:0;">{{ presta.ajouterLe|date('d/m/Y H:i') }}</dd>
+                    {% if presta.modifierLe %}
                     <dt style="color:var(--text-muted);font-weight:500;">Modifiée le</dt>
-                    <dd style="margin:0;">{{ presta.modifierLe|date('H:i')  }}</dd>
+                    <dd style="margin:0;">{{ presta.modifierLe|date('d/m/Y H:i') }}</dd>
+                    {% endif %}
                 </dl>
+                {% if verrouille %}
+                <div style="margin-top:14px;padding:10px 14px;background:#fff8e1;border-radius:8px;border-left:3px solid #f59f00;font-size:12.5px;color:#856404;">
+                    <i class="fas fa-lock" style="margin-right:6px;"></i>
+                    Ce mois est clôturé. Cette prestation ne peut plus être modifiée.
+                </div>
+                {% endif %}
             </div>
             <div class="modal-footer border-0 pt-0" style="gap:8px;">
-                <a href="{{ path('intervenant_suivie_mvc', {id: app.user.id, edite: presta.id}) }}" class="btn btn-secondary btn-sm">
+                {% if not verrouille %}
+                <a href="{{ path('intervenant_suivie_mvc', {id: user.id, edite: presta.id}) }}" class="btn btn-secondary btn-sm">
                     <i class="fas fa-edit"></i> Modifier
                 </a>
+                {% endif %}
                 <button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Fermer</button>
             </div>
         </div>
@@ -161,6 +197,31 @@ function filterRows() {
         row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
     });
 }
+
+document.querySelectorAll('.btn-action-presta').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const id     = btn.dataset.id;
+        const action = btn.dataset.action;
+        const label  = action === 'supp' ? 'supprimer' : 'restaurer';
+        if (!confirm(`Voulez-vous ${label} cette prestation ?`)) return;
+        const route = action === 'supp'
+            ? `/heures-mvc/supprimer/${id}`
+            : `/heures-mvc/restaurer/${id}`;
+        try {
+            const res    = await fetch(route, { method: 'POST', credentials: 'same-origin' });
+            const result = await res.json();
+            if (result.success) {
+                window.location.reload();
+            } else if (result.locked) {
+                alert('Ce mois est clôturé — la prestation ne peut plus être modifiée.');
+            } else {
+                alert('Erreur : ' + (result.error ?? 'Impossible d\'effectuer cette action.'));
+            }
+        } catch (err) {
+            alert('Erreur  : ' + err);
+        }
+    });
+});
 
 document.querySelectorAll('.voir-detail').forEach(btn => {
     btn.addEventListener('click', () => {

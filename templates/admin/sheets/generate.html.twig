@@ -6,9 +6,8 @@
     {{ parent() }}
     <style>
         [id^="monTableau0"] {
-            transform: scale(1.20);
-            font-size: 16px;
-            margin-bottom: 10px;
+            font-size: 13px;
+            margin-bottom: 6px;
         }
         table {
             width: 100%;
@@ -73,7 +72,7 @@
 
 {% for index, fiche in fiches %}
     {% set x = index + 1 %}
-    
+    <div class="fiche-page">
     {# Tableau d'en-tête #}
     <table id="monTableau0{{ x }}">
         <tr>
@@ -211,18 +210,20 @@
             </th>
         </tr>
     </table>
+    </div>{# fin .fiche-page #}
 {% endfor %}
 {% endblock %}
 
 {% block javascripts %}
     {{ parent() }}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://unpkg.com/jspdf-autotable"></script>
-    
+    <script src="https://unpkg.com/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
     <script src="{{ asset('assets/js/build_relever_d_heure_pdf.js') }}"></script>
 
     <script>
-        genererPDF("{{ type }}", "{{ type }}" ); 
+    (function () {
+        const typeLabel = '{{ type }}' === 'MENA' ? 'Menage' : 'GardeEnfants';
+        genererFichesPDF(`Fiches_Vierges_${typeLabel}.pdf`);
+    })();
     </script>
 {% endblock %}
