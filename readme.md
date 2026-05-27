@@ -8,13 +8,19 @@ Elle est développée principalement en PHP avec un front HTML/CSS et du JS.
 ---
 
 
+
+
+ON SAISI RAPIDE SUR LE TELEPHONE
+
+
+
 ## 👤 Rôles et permissions
 - Admin  
   - Consulter les intervenants et les familles existants
   - Voir, modifier et supprimer des saisie dheures d'intervenant  
   - Examiner des recapitulatifs mensuel des heures saisies
   - Visualiser et télécharger les fiches d'heures des intervenants  
-  - Télécharger des fiches d'heures vierge pour les intervenants 
+  - Télécharger des fiches d'heures (vierge) pour les intervenants 
   - Visualiser et télécharger les recapitulatif d'heures des familles
   - Generer les litiges entre les declarations intervenant et les signalements famille
   - Ajouter des exceptions de tarification pour les familles

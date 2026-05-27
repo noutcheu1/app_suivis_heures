@@ -1,0 +1,89 @@
+{% extends 'base.html.twig' %}
+{% block title %}Paramètres{% endblock %}
+{% block page_title %}Paramètres{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <h1>Paramètres de {{ user.nom }} {{ user.prenom }}</h1>
+    <p>Gérez la sécurité de votre compte</p>
+</div>
+
+<div class="card" style="max-width:480px;">
+    <div class="card-header">
+        <i class="fas fa-lock" style="color:var(--primary);"></i>
+        <span class="card-title">Modifier le mot de passe</span>
+    </div>
+    <div class="card-body">
+
+        <div id="alertError" class="alert" style="display:none;background:var(--danger-bg);border:1px solid #fecaca;border-radius:var(--radius);padding:11px 14px;font-size:13px;color:#991b1b;margin-bottom:16px;display:none;align-items:center;gap:8px;">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="errorMsg"></span>
+        </div>
+        <div id="alertSuccess" style="display:none;background:var(--success-bg);border:1px solid #6ee7b7;border-radius:var(--radius);padding:11px 14px;font-size:13px;color:#065f46;margin-bottom:16px;align-items:center;gap:8px;">
+            <i class="fas fa-check-circle"></i>
+            <span id="successMsg"></span>
+        </div>
+
+        <input type="hidden" id="csrf_token" value="{{ csrf_token('change_password') }}">
+
+        <form id="passwordForm">
+
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                    Mot de passe actuel
+                </label>
+                <div style="position:relative;">
+                    <i class="fas fa-lock" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-xmuted);pointer-events:none;"></i>
+                    <input type="password" id="currentPass" autocomplete="current-password"
+                           placeholder="••••••••"
+                           style="width:100%;padding:0 42px 0 38px;height:44px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                           onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                </div>
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                    Nouveau mot de passe
+                </label>
+                <div style="position:relative;">
+                    <i class="fas fa-lock" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-xmuted);pointer-events:none;"></i>
+                    <input type="password" id="pass1" autocomplete="new-password"
+                           placeholder="••••••••"
+                           style="width:100%;padding:0 42px 0 38px;height:44px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                           onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                </div>
+                <p style="font-size:11px;color:var(--text-xmuted);margin:4px 0 0;">Minimum 8 caractères</p>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                    Confirmer le nouveau mot de passe
+                </label>
+                <div style="position:relative;">
+                    <i class="fas fa-lock" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-xmuted);pointer-events:none;"></i>
+                    <input type="password" id="pass2" autocomplete="new-password"
+                           placeholder="••••••••"
+                           style="width:100%;padding:0 42px 0 38px;height:44px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                           onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn" class="btn btn-primary" style="width:100%;">
+                <i class="fas fa-save"></i> Enregistrer le nouveau mot de passe
+            </button>
+
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+const USER_ID = {{ id|default('null') }};
+</script>
+<script src="{{ asset('assets/js/settings.js') }}"></script>
+{% endblock %}

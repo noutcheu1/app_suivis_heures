@@ -1,0 +1,137 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ intervenant.nom }} {{ intervenant.prenom }}{% endblock %}
+{% block page_title %}Détail intervenant{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:16px;">
+            <div style="width:48px;height:48px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-id-card" style="font-size:18px;color:var(--primary);"></i>
+            </div>
+            <div>
+                <h1>{{ intervenant.nom }} {{ intervenant.prenom }}</h1>
+                <p>
+                    {% if intervenant.archive %}
+                        <span class="badge badge-danger">Archivé</span>
+                    {% else %}
+                        <span class="badge badge-success">Actif</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <a href="{{ path('intervenants_mvc') }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Retour
+            </a>
+            <a href="{{ path('intervenant_panel_mvc', {id: intervenant.id}) }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-user"></i> Voir le panel
+            </a>
+        </div>
+    </div>
+</div>
+
+{# ── Informations ─────────────────────────────────── #}
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+        <i class="fas fa-info-circle" style="color:var(--primary);"></i>
+        <span class="card-title">Informations personnelles</span>
+    </div>
+    <div class="card-body">
+        <dl style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 24px;font-size:13.5px;margin:0;">
+            {% if intervenant.numSalarie is defined and intervenant.numSalarie %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">N° salarié</dt>
+                <dd style="margin:0;font-family:monospace;">{{ intervenant.numSalarie }}</dd>
+            </div>
+            {% endif %}
+            {% if intervenant.email is defined and intervenant.email %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Email</dt>
+                <dd style="margin:0;"><a href="mailto:{{ intervenant.email }}" style="color:var(--primary);">{{ intervenant.email }}</a></dd>
+            </div>
+            {% endif %}
+            {% if intervenant.telPortable is defined and intervenant.telPortable %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Téléphone</dt>
+                <dd style="margin:0;">{{ intervenant.telPortable }}</dd>
+            </div>
+            {% endif %}
+            {% if intervenant.adresse is defined and intervenant.adresse %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Adresse</dt>
+                <dd style="margin:0;">{{ intervenant.adresse }}{% if intervenant.codePostal %}, {{ intervenant.codePostal }}{% endif %}{% if intervenant.ville %} {{ intervenant.ville }}{% endif %}</dd>
+            </div>
+            {% endif %}
+            {% if intervenant.tauxHoraire is defined and intervenant.tauxHoraire %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Taux horaire</dt>
+                <dd style="margin:0;font-weight:600;">{{ intervenant.tauxHoraire }} €/h</dd>
+            </div>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+
+{# ── Prestations ──────────────────────────────────── #}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-clock" style="color:var(--primary);"></i>
+        <span class="card-title">Prestations</span>
+        {% if prestations is not empty %}
+        <span class="badge badge-muted" style="margin-left:auto;">{{ prestations|length }}</span>
+        {% endif %}
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+
+        {% if prestations is empty %}
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-calendar-times"></i></div>
+            <h3>Aucune prestation enregistrée</h3>
+        </div>
+        {% else %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Famille</th>
+                    <th>Date</th>
+                    <th>Début</th>
+                    <th>Fin</th>
+                    <th>Type</th>
+                    <th>Déclaré famille</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in prestations %}
+            <tr>
+                <td>
+                    <a href="{{ path('admin_famille_detail_mvc', {numFam: p.numFam}) }}" style="font-weight:500;">
+                        {{ famille_label(p.numFam) }}
+                    </a>
+                </td>
+                <td>{{ p.datePresta|date('d/m/Y') }}</td>
+                <td>{{ p.heureDebutPresta ? p.heureDebutPresta|date('H:i') : '—' }}</td>
+                <td>{{ p.heureFinPresta ? p.heureFinPresta|date('H:i') : '—' }}</td>
+                <td>
+                    <span class="badge {{ p.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
+                        {{ p.typePresta == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                    </span>
+                </td>
+                <td>
+                    {% if p.declarerLeFam %}
+                        <span class="badge badge-success">Déclaré</span>
+                    {% else %}
+                        <span class="badge badge-warning">Non déclaré</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+    </div>
+</div>
+
+{% endblock %}

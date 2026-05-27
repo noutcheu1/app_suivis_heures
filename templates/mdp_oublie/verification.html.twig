@@ -1,0 +1,174 @@
+{% extends 'base.html.twig' %}
+{% block title %}Réinitialisation du mot de passe — La Maison des Chaudoudoux{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+.reset-card {
+    width: 100%; max-width: 420px;
+    background: #fff; border-radius: 18px; overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,.25), 0 4px 16px rgba(0,0,0,.1);
+}
+.reset-top { padding: 36px 36px 24px; text-align: center; }
+.reset-logo {
+    width: 56px; height: 56px; background: #4f46e5;
+    border-radius: 16px; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+}
+.reset-logo i { font-size: 24px; color: #fff; }
+.reset-title { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
+.reset-subtitle { font-size: 13px; color: #64748b; margin: 0; }
+.reset-body { padding: 0 36px 32px; }
+.field-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .6px; color: #64748b; display: block; margin-bottom: 6px;
+}
+.input-wrap { position: relative; margin-bottom: 4px; }
+.input-wrap .input-icon {
+    position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%); font-size: 14px; color: #94a3b8; pointer-events: none;
+}
+.input-wrap input {
+    width: 100%; padding: 0 42px 0 38px; height: 44px;
+    border: 1.5px solid #e2e8f0; border-radius: 10px;
+    background: #f8fafc; color: #0f172a;
+    font-size: 14px; font-family: inherit;
+    box-sizing: border-box; outline: none; transition: all .2s;
+}
+.input-wrap input:focus {
+    border-color: #4f46e5; background: #fff;
+    box-shadow: 0 0 0 4px rgba(79,70,229,.1);
+}
+.input-wrap input::placeholder { color: #cbd5e1; }
+.eye-btn {
+    position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%); background: none; border: none; cursor: pointer;
+    color: #cbd5e1; padding: 4px; line-height: 1; transition: color .15s;
+}
+.eye-btn:hover { color: #4f46e5; }
+.field-hint { font-size: 11px; color: #94a3b8; margin: 4px 0 14px; }
+.btn-reset {
+    width: 100%; height: 44px; background: #4f46e5; color: #fff;
+    border: none; border-radius: 10px; font-size: 14px; font-weight: 600;
+    font-family: inherit; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; gap: 8px;
+    transition: all .15s; box-shadow: 0 4px 14px rgba(79,70,229,.35);
+}
+.btn-reset:hover { background: #4338ca; transform: translateY(-1px); }
+.error-box {
+    background: #fef2f2; border: 1.5px solid #fecaca;
+    border-radius: 10px; padding: 11px 14px; font-size: 13px; color: #991b1b;
+    display: flex; align-items: center; gap: 9px; margin-bottom: 16px;
+}
+.back-link { text-align: center; margin-top: 16px; font-size: 13px; }
+.back-link a { color: #64748b; font-weight: 500; }
+.back-link a:hover { color: #4f46e5; }
+.reset-footer {
+    padding: 14px 36px; border-top: 1px solid #f1f5f9; background: #f8fafc;
+    text-align: center; font-size: 11.5px; color: #94a3b8;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="reset-card">
+
+    <div class="reset-top">
+        <div class="reset-logo"><i class="fas fa-lock-open"></i></div>
+        <h1 class="reset-title">Nouveau mot de passe</h1>
+        <p class="reset-subtitle">Saisissez le code reçu par email</p>
+    </div>
+
+    <div class="reset-body">
+
+        {% if error is defined and error %}
+        <div class="error-box">
+            <i class="fas fa-exclamation-circle"></i>
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ path('mdp_oublie_verification_mvc') }}">
+            <input type="hidden" name="identifiant" value="{{ identifiant }}">
+
+            <div class="mb-3">
+                <label class="field-label">Code reçu par email</label>
+                <div class="input-wrap">
+                    <i class="fas fa-envelope-open-text input-icon"></i>
+                    <input type="number" name="code"
+                           placeholder="123456"
+                           autocomplete="one-time-code" required autofocus>
+                </div>
+                <p class="field-hint">Vérifiez votre boîte de réception</p>
+            </div>
+
+            <div class="mb-3">
+                <label class="field-label">Nouveau mot de passe</label>
+                <div class="input-wrap">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" id="newPass" name="nouveau_mot_de_passe"
+                           placeholder="••••••••" autocomplete="new-password" required>
+                    <button type="button" class="eye-btn" onclick="toggleVis('newPass','eyeNew')">
+                        <i class="fas fa-eye" id="eyeNew"></i>
+                    </button>
+                </div>
+                <p class="field-hint">Minimum 8 caractères</p>
+            </div>
+
+            <div class="mb-3">
+                <label class="field-label">Confirmer le mot de passe</label>
+                <div class="input-wrap">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" id="confPass" name="confirmation_mot_de_passe"
+                           placeholder="••••••••" autocomplete="new-password" required>
+                    <button type="button" class="eye-btn" onclick="toggleVis('confPass','eyeConf')">
+                        <i class="fas fa-eye" id="eyeConf"></i>
+                    </button>
+                </div>
+                <p class="field-hint" id="matchHint">Les mots de passe doivent correspondre</p>
+            </div>
+
+            <button type="submit" class="btn-reset">
+                <i class="fas fa-check"></i> Réinitialiser le mot de passe
+            </button>
+        </form>
+
+        <div class="back-link">
+            <a href="{{ path('app_login') }}">
+                <i class="fas fa-arrow-left" style="font-size:11px;margin-right:4px;"></i>
+                Retour à la connexion
+            </a>
+        </div>
+
+    </div>
+
+    <div class="reset-footer">
+        <i class="fas fa-shield-alt"></i>
+        Connexion sécurisée — données chiffrées
+    </div>
+
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+function toggleVis(inputId, iconId) {
+    const i = document.getElementById(inputId);
+    const e = document.getElementById(iconId);
+    i.type = i.type === 'password' ? 'text' : 'password';
+    e.className = i.type === 'text' ? 'fas fa-eye-slash' : 'fas fa-eye';
+}
+const p1 = document.getElementById('newPass');
+const p2 = document.getElementById('confPass');
+const hint = document.getElementById('matchHint');
+function checkMatch() {
+    if (!p2.value) { hint.textContent = 'Les mots de passe doivent correspondre'; hint.style.color = ''; return; }
+    if (p1.value === p2.value) { hint.textContent = 'Les mots de passe correspondent ✓'; hint.style.color = '#10b981'; }
+    else { hint.textContent = 'Les mots de passe ne correspondent pas'; hint.style.color = '#ef4444'; }
+}
+p1.addEventListener('input', checkMatch);
+p2.addEventListener('input', checkMatch);
+</script>
+{% endblock %}

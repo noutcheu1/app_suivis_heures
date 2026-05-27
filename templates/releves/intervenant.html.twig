@@ -1,0 +1,79 @@
+{% extends 'base.html.twig' %}
+{% block title %}Relevés — {{ user.nom }} {{ user.prenom }}{% endblock %}
+{% block page_title %}Mes relevés{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            {% if isAdmin %}
+            <h1>Relevés de {{ user.nom }} {{ user.prenom }}</h1>
+            {% else %}
+            <h1>Mes relevés</h1>
+            {% endif %}
+            <p style="margin:4px 0 0;">Sélectionnez un mois pour consulter le relevé</p>
+        </div>
+        {% if isAdmin %}
+        <a href="{{ path('intervenant_panel_mvc', {id: intervenantId}) }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{% if parMois is empty %}
+<div class="empty-state">
+    <div class="empty-state-icon"><i class="fas fa-calendar-times"></i></div>
+    <h3>Aucun relevé disponible</h3>
+    <p>Aucune prestation enregistrée pour le moment.</p>
+</div>
+{% else %}
+
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-calendar-alt" style="color:var(--primary);"></i>
+        <span class="card-title">Relevés par mois</span>
+        <span class="badge badge-muted" style="margin-left:auto;">{{ parMois|length }} mois</span>
+    </div>
+    <div class="card-body" style="padding:0;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Période</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in parMois %}
+            <tr>
+                <td style="font-weight:600;">{{ item.label }}</td>
+                <td>
+                    {% for type in item.types %}
+                    <span class="badge {{ type == 'MENA' ? 'badge-muted' : 'badge-info' }}" style="margin-right:4px;">
+                        {{ type == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                    </span>
+                    {% endfor %}
+                </td>
+                <td>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    {% for type in item.types %}
+                        <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: intervenantId, type: type, mois: item.offset}) }}"
+                           class="btn btn-sm {{ type == 'MENA' ? 'btn-secondary' : 'btn-primary' }}">
+                            <i class="fas fa-eye"></i>
+                            {{ type == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
+                        </a>
+                    {% endfor %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endif %}
+
+{% endblock %}

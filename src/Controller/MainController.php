@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Security\Auth;
+use App\Service\AuthService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -10,17 +11,27 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class MainController extends AbstractController
 {
-    #[Route('/', name: 'type_selection')]
+    public function __construct(
+        private AuthService $authService
+    ) {}
+
+    /**
+     * Page d'accueil — redirige vers dashboard si connecté,
+     * sinon vers la sélection du type (intervenant/famille)
+     * 
+     * ⚠ Cette route NE doit PAS s'appeler 'dashboard' — DashboardController 
+     * gère déjà la route '/' avec le nom 'dashboard'.
+     * On sépare ici : '/' = type_selection UNIQUEMENT si pas connecté.
+     */
+    #[Route('/type-selection', name: 'type_selection')]
     public function index(Request $request): Response
     {
-        $auth = new Auth($request->getSession());
-
-        if ($auth->check()) {
+        if ($this->authService->check()) {
             return $this->redirectToRoute('dashboard');
         }
 
         return $this->render(
-            'type_selection.html.twig', 
+            'type_selection_new.html.twig',
             ['auth' => false]
         );
     }
@@ -35,7 +46,6 @@ final class MainController extends AbstractController
         $session = $request->getSession();
         $session->set('type', $type);
 
-        return $this->redirectToRoute('app_login'); // redirection vers le login
+        return $this->redirectToRoute('app_login');
     }
-
 }

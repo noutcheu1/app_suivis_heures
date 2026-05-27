@@ -1,0 +1,91 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<h1>
+    Bonjour, {{ user.nom_Candidats }} {{ user.prenom_Candidats }}
+</h1>
+
+<p>Bienvenue sur votre tableau de bord.</p>
+{% if isAdmin %}
+<ul class="menu">
+    <li>
+        <a href="{{ path('intervenants') }}">
+            <img src="{{ asset('assets/icons/intervenants.png') }}">
+            Liste des Intervenants
+        </a>
+    </li>
+    <li>
+        <a href=" {{ path('recap_intervenant') }}?mois=0">
+            <img src="{{ asset('assets/icons/tab.png') }}">
+            Récapitulatif des interventions
+        </a>
+    </li>
+    {% if mode_no_dev %}
+    <li>
+        <a href="{{ path('admin_prepare_paie') }}?mois=0">
+            <img src="{{ asset('assets/icons/piece.png') }}">
+            Préparation à la paie
+        </a>
+    </li>
+    {% endif %}
+    <li>
+        <a href="{{ path('fiche_vierge') }}">
+            <img src="{{ asset('assets/icons/folder.png') }}">
+            Fiches relevé d'heures vierge
+        </a>
+    </li>
+    
+</ul>
+<br>
+<ul class="menu">
+    <li>
+        <a href="{{ path('famille') }}">
+            <img src="{{ asset('assets/icons/famille.png') }}">
+            Liste des Familles
+        </a>
+    </li>
+    {% if mode_no_dev %}
+    <li>
+        <a href="{{ path('admin_retour_famille') }}">
+            <img src="{{ asset('assets/icons/erreur.png') }}">
+            Liste des retours des familles
+        </a>
+    </li>
+    <li>
+        <a href="<?= BASE_URL ?>/admin/exceptionTarif?mois=0">
+            <img src="{{ asset('assets/icons/plusmoin.png') }}">
+            Liste des exceptions de tarif
+        </a>
+    </li>
+    <li>
+        <a href="<?= BASE_URL ?>/admin/modifTarif">
+            <img src="{{ asset('assets/icons/facture.png') }}">
+            Modifier les tarifs
+        </a>
+    </li>
+    {% endif %}
+</ul>
+{% endif %}
+{% if not isAdmin %}
+<ul class="menu">
+    <li>
+        <a href="{{ path('mon_suivie') }}">
+            <img src="{{ asset('assets/icons/calendar.png') }}">
+            Ajouter mes heures
+        </a>
+    </li>
+    <li>
+        <a href="{{ path('mes_fiches', {type:'ENFA', page:1, mois:0}) }}">
+            <img src="{{ asset('assets/icons/folderENFA.png') }}">
+            Mes relevés Garde d'enfant
+        </a>
+    </li>
+    <li>
+        <a href="{{ path('mes_fiches', {type:'MENA', page:1, mois:0}) }}">
+            <img src="{{ asset('assets/icons/folderMENA.png') }}">
+            Mes relevés Ménage
+        </a>
+    </li>
+</ul>
+{% endif %}
+{% endblock %}

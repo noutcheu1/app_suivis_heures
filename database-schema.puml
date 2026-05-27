@@ -1,246 +1,640 @@
-@startuml Database Schema Chaudoudoux
+@startuml bdchaudoudoux
+
+' ================================================================
+' SCHÉMA BASE DE DONNÉES — bdchaudoudoux
+' Application : Suivi Heures — Association Chaudoudoux
+' Version : 1.0 — Mai 2026
+'
+' Convention de lecture :
+'   <<PK>>      = clé primaire
+'   <<FK>>      = clé étrangère
+'   <<PK, FK>>  = les deux
+'   <<UNIQUE>>  = contrainte d'unicité
+'   ..          = séparateur de groupe logique dans la table
+' ================================================================
 
 skinparam class {
-    BackgroundColor LightBlue
-    BorderColor DarkBlue
-    ArrowColor DarkBlue
+  BackgroundColor       #FAFAFA
+  BorderColor           #AAAAAA
+  ArrowColor            #555555
+  FontName              Monospaced
+  FontSize              12
+  HeaderBackgroundColor #DDEEFF
+  AttributeFontSize     12
 }
 
-skinparam note {
-    BackgroundColor LightYellow
-    BorderColor Orange
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 80
+
+hide methods
+hide stereotypes
+
+
+' ================================================================
+' PACKAGE 1 — Personnes
+' Contient les données des familles, intervenants et candidats.
+' Ce sont les acteurs principaux du métier de l'association.
+' ================================================================
+
+package "Personnes" #E8F8F0 {
+
+  ' ------------------------------------------------------------
+  ' candidats
+  ' Dossiers de candidature des futurs intervenants.
+  ' Un candidat devient intervenant si sa candidature est retenue.
+  ' Le champ numSS_Candidats est utilisé comme username de connexion
+  ' dans users_suivi pour le rôle "intervenant".
+  ' ------------------------------------------------------------
+  class candidats {
+    + numCandidat_Candidats        : int(4)         <<PK>>
+    ..
+    titre_Candidats                : varchar(3)
+    nom_Candidats                  : varchar(50)
+    prenom_Candidats               : varchar(50)
+    nomJF_Candidats                : varchar(50)
+    dateNaiss_Candidats            : datetime
+    lieuNaiss_Candidats            : varchar(20)
+    paysNaiss_Candidats            : varchar(20)
+    nationalite_Candidats          : varchar(25)
+    numTitreSejour                 : varchar(15)
+    dateTitreSejour                : date
+    numSS_Candidats                : varchar(21)
+    Mutuelle_Candidats             : varchar(40)
+    CMU_Candidats                  : tinyint(1)
+    statutHandicap_Candidats       : tinyint(1)
+    ..
+    adresse_Candidats              : varchar(50)
+    cp_Candidats                   : char(5)
+    ville_Candidats                : varchar(50)
+    secteur_Candidats              : varchar(50)
+    Quartier_Candidats             : varchar(50)
+    telPortable_Candidats          : varchar(14)
+    telFixe_Candidats              : varchar(14)
+    TelUrg_Candidats               : varchar(14)
+    email_Candidats                : varchar(60)
+    ..
+    permis_Candidats               : tinyint(1)
+    vehicule_Candidats             : tinyint(1)
+    statutPro_Candidats            : varchar(15)
+    situationFamiliale_Candidats   : varchar(15)
+    diplomes_Candidats             : varchar(150)
+    qualifications_Candidats       : varchar(100)
+    travailVoulu_Candidats         : varchar(50)
+    expBBmoins1a_Candidats         : tinyint(1)
+    enfantHand_Candidats           : tinyint(1)
+    disponibilites_Candidats       : varchar(1000)
+    observations_Candidats         : varchar(1000)
+    candidatureRetenue_Candidats   : varchar(150)
+    dateEntretien_Candidats        : datetime
+  }
+
+  ' ------------------------------------------------------------
+  ' intervenants
+  ' Salariés actifs de l'association.
+  ' Toujours rattachés à un candidat (candidature retenue).
+  ' numSalarie_Intervenants est la clé technique utilisée
+  ' dans horaireinter et relevemensuelinter.
+  ' ------------------------------------------------------------
+  class intervenants {
+    + numSalarie_Intervenants           : int(5)      <<PK>>
+    ..
+    idSalarie_Intervenants              : varchar(10)
+    # candidats_numcandidat_candidats   : int(4)      <<FK>>
+    ..
+    dateEntree_Intervenants             : date
+    dateSortie_Intervenants             : date
+    archive_Intervenants                : tinyint(1)
+    archiveTemporaire                   : tinyint(1)
+    dateDebutArchiveTemporaire          : date
+    dateFinArchiveTemporaire            : date
+    ..
+    Certification_Intervenants          : varchar(240)
+    tauxH_Intervenants                  : decimal(10,2)
+    nbHeureSem_Intervenants             : varchar(100)
+    nbHeureMois_Intervenants            : varchar(100)
+    rechCompl_Intervenants              : tinyint(1)
+    repassage_Intervenants              : tinyint(1)
+    ProposerPSC1_Intervenants           : tinyint(1)
+    justificatifs_Intervenants          : varchar(50)
+    arretTravail_Intervenants           : tinyint(1)
+    dateFinArret_Intervenants           : date
+    ..
+    suivi_Intervenants                  : varchar(250)
+    dateModif_Intervenants              : varchar(100)
+  }
+
+  ' ------------------------------------------------------------
+  ' famille
+  ' Clients bénéficiaires des services à domicile.
+  ' PM_Famille et PGE_Famille sont les codes clients utilisés
+  ' comme username dans users_suivi pour le rôle "famille".
+  ' Une famille peut avoir plusieurs types de prestations (GE, M).
+  ' ------------------------------------------------------------
+  class famille {
+    + numero_Famille        : varchar(10)    <<PK>>
+    ..
+    Famille_Famille         : varchar(100)
+    dateEntree_Famille      : datetime
+    dateSortie_Famille      : datetime
+    archive_Famille         : tinyint(1)
+    ..
+    adresse_Famille         : varchar(50)
+    cp_Famille              : char(5)
+    ville_Famille           : varchar(50)
+    secteur_Famille         : varchar(50)
+    quartier_Famille        : varchar(30)
+    telDom_Famille          : char(14)
+    arretBus_Famille        : varchar(50)
+    numBus_Famille          : varchar(20)
+    ..
+    numAlloc_Famille        : varchar(15)
+    numURSSAF_Famille       : varchar(20)
+    AG_Famille              : tinyint(1)
+    PM_Famille              : varchar(10)
+    REG_Famille             : varchar(10)
+    PGE_Famille             : varchar(10)
+    option_Famille          : varchar(10)
+    mand_Famille            : tinyint(1)
+    prestM_Famille          : tinyint(1)
+    prestGE_Famille         : tinyint(1)
+    modePaiement_Famille    : varchar(50)
+    ..
+    typeLogement_Famille    : varchar(30)
+    superficie_Famille      : int(4)
+    nbEtage_Famille         : int(3)
+    nbChambres_Famille      : int(3)
+    nbSDB_Famille           : int(3)
+    nbSanitaire_Famille     : int(3)
+    gardePart_Famille       : tinyint(1)
+    repassage_Famille       : tinyint(1)
+    ..
+    aPourvoir_Famille       : tinyint(1)
+    aPourvoir_PM            : tinyint(1)
+    Date_aPourvoir_PM       : date
+    aPourvoir_PGE           : tinyint(1)
+    Date_aPourvoir_PGE      : date
+    sortieMand_Famille      : date
+    sortiePGE_Famille       : date
+    sortiePM_Famille        : date
+    ..
+    enfantHand_Famille      : tinyint(1)
+    vehicule_Famille        : tinyint(1)
+    nbSemVacancesM          : tinyint(4)
+    nbSemVacancesGE         : tinyint(4)
+    ..
+    observations_Famille    : varchar(1000)
+    Remarques_Famille       : varchar(1000)
+    suivi_Famille           : varchar(250)
+    dateModif_Famille       : varchar(100)
+  }
+
+  ' ------------------------------------------------------------
+  ' enfants
+  ' Enfants rattachés à une famille.
+  ' La dateNaiss sert à calculer l'âge pour les tranches tarifaires
+  ' (ex : tarif différent si enfant < 3 ans ou < 6 ans).
+  ' ------------------------------------------------------------
+  class enfants {
+    + idEnfant_Enfants      : int(10)        <<PK>>
+    ..
+    nom_Enfants             : varchar(50)
+    prenom_Enfants          : varchar(50)
+    dateNaiss_Enfants       : datetime
+    concernGarde_Enfants    : tinyint(1)
+    # numero_Famille        : varchar(10)    <<FK>>
+  }
+
+  ' ------------------------------------------------------------
+  ' parents
+  ' Contacts adultes (père, mère, tuteur) d'une famille.
+  ' Une famille peut avoir plusieurs contacts adultes.
+  ' ------------------------------------------------------------
+  class parents {
+    + idParent_Parents      : int(5)         <<PK>>
+    ..
+    titre_Parents           : varchar(3)
+    nom_Parents             : varchar(50)
+    prenom_Parents          : varchar(50)
+    telTravail_Parents      : char(14)
+    telPortable_Parents     : char(14)
+    email_Parents           : varchar(60)
+    profession_Parents      : varchar(25)
+    # numero_Famille        : varchar(10)    <<FK>>
+  }
+
 }
 
-' =============================================
-' Tables principales
-' =============================================
 
-class intervenants_unifie {
-    +id (PK)
-    +num_salarie
-    +num_ss
-    +titre
-    +nom
-    +prenom
-    +date_naissance
-    +lieu_naissance
-    +pays_naissance
-    +nationalite
-    +num_titre_sejour
-    +date_titre_sejour
-    +adresse
-    +code_postal
-    +ville
-    +secteur
-    +quartier
-    +tel_portable
-    +tel_fixe
-    +tel_urgence
-    +email
-    +statut_handicap
-    +permis
-    +vehicule
-    +statut_pro
-    +situation_familiale
-    +diplomes
-    +qualifications
-    +exp_bb_moins_1an
-    +enfant_handicape
-    +date_entree
-    +date_sortie
-    +archive
-    +certification
-    +taux_horaire
-    +recherche_complement
-    +nb_heures_semaine
-    +nb_heures_mois
-    +proposer_psc1
-    +justificatifs
-    +date_modification
-    +suivi
-    +arret_travail
-    +date_fin_arret
-    +archive_temporaire
-    +date_debut_archive_temporaire
-    +date_fin_archive_temporaire
-    +repassage
-    +mutuelle
-    +cmu
-    +disponibilites
-    +observations
-    +candidature_retenue
-    +date_entretien
-    +travail_voulu
-    +nom_jeune_fille
-    +created_at
-    +updated_at
+' ================================================================
+' PACKAGE 2 — Planning & Activité
+' Gestion des créneaux, besoins, disponibilités et affectations.
+' ================================================================
+
+package "Planning & Activité" #FFF8E8 {
+
+  ' ------------------------------------------------------------
+  ' proposer
+  ' Table centrale du planning.
+  ' Représente l'affectation d'un intervenant à une famille
+  ' sur un créneau horaire précis pour un type de prestation.
+  ' La PK composite empêche les doublons de créneau.
+  ' ------------------------------------------------------------
+  class proposer {
+    + # idPresta_Prestations    : char(4)       <<PK, FK>>
+    + # numSalarie_Intervenants : int(5)        <<PK, FK>>
+    + # numero_Famille          : varchar(10)   <<PK, FK>>
+    + # idADH_TypeADH           : varchar(5)    <<PK, FK>>
+    + DateDeb_Proposer          : date          <<PK>>
+    + jour_Proposer             : varchar(15)   <<PK>>
+    ..
+    hDeb_Proposer               : time
+    hFin_Proposer               : time
+    dateFin_Proposer            : date
+    Statut_Proposer             : varchar(20)
+    options_Proposer            : varchar(10)
+    frequence_Proposer          : int(1)
+    modalites_Proposer          : varchar(200)
+    validInterv_Proposer        : tinyint(1)
+    validFamille_Proposer       : tinyint(1)
+    dateModif_Proposer          : varchar(50)
+  }
+
+  ' ------------------------------------------------------------
+  ' prestations
+  ' Référentiel des types de prestations.
+  ' Exemples : GE (garde enfants), M (ménage), MAND (mandataire).
+  ' ------------------------------------------------------------
+  class prestations {
+    + idPresta_Prestations  : char(4)        <<PK>>
+    ..
+    type_Prestations        : varchar(15)
+  }
+
+  ' ------------------------------------------------------------
+  ' typeadh
+  ' Référentiel des types d'adhésion associative.
+  ' Chaque affectation est liée à un type d'adhésion.
+  ' ------------------------------------------------------------
+  class typeadh {
+    + idADH_TypeADH         : varchar(5)     <<PK>>
+    ..
+    intitule_TypeADH        : varchar(20)
+  }
+
+  ' ------------------------------------------------------------
+  ' besoinsfamille
+  ' Créneaux souhaités déclarés par une famille.
+  ' Utilisé pour le matching avec les disponibilités intervenants.
+  ' ------------------------------------------------------------
+  class besoinsfamille {
+    + id                    : int(50)        <<PK>>
+    ..
+    # numero_famille        : varchar(255)   <<FK>>
+    jour                    : varchar(50)
+    jourException           : varchar(20)
+    heureDebut              : time
+    heureFin                : time
+    activite                : varchar(15)
+    frequence               : tinyint(1)
+    heureSemaine            : decimal(5,2)
+    heureIntervention       : decimal(5,2)
+  }
+
+  ' ------------------------------------------------------------
+  ' disponibilitesintervenants
+  ' Créneaux de disponibilité déclarés par un candidat
+  ' ou mis à jour après son embauche comme intervenant.
+  ' Miroir de besoinsfamille côté intervenant.
+  ' ------------------------------------------------------------
+  class disponibilitesintervenants {
+    + id                    : int(50)        <<PK>>
+    ..
+    numero_Candidat         : varchar(255)
+    numero_Intervenant      : varchar(255)
+    jour                    : varchar(50)
+    heureDebut              : time
+    heureFin                : time
+    activite                : varchar(15)
+    frequence               : tinyint(1)
+  }
+
+  ' ------------------------------------------------------------
+  ' antimatching
+  ' Blacklist de paires famille/intervenant incompatibles.
+  ' Empêche de proposer un intervenant à une famille
+  ' avec qui il y a eu un problème antérieur.
+  ' Séparé par type de prestation (GE, M).
+  ' ------------------------------------------------------------
+  class antimatching {
+    + id                    : int(50)        <<PK>>
+    ..
+    numero_Famille          : varchar(255)
+    numero_Intervenant      : varchar(255)
+    menage                  : tinyint(1)
+    GE                      : tinyint(1)
+  }
+
+  ' ------------------------------------------------------------
+  ' partage
+  ' Garde partagée : deux familles se partagent un intervenant.
+  ' Relation symétrique entre deux entrées de famille.
+  ' ------------------------------------------------------------
+  class partage {
+    + # famille1            : varchar(10)    <<PK, FK>>
+    + # famille2            : varchar(10)    <<PK, FK>>
+  }
+
 }
 
-class famille_normalisee {
-    +id (PK)
-    +numero_famille
-    +nom_famille
-    +adresse
-    +code_postal
-    +ville
-    +secteur
-    +quartier
-    +tel_dom
-    +email
-    +num_alloc
-    +num_urssaf
-    +date_entree
-    +date_sortie
-    +archive
-    +type_logement
-    +superficie
-    +nb_etage
-    +nb_chambres
-    +nb_sdb
-    +nb_sanitaire
-    +arret_bus
-    +num_bus
-    +vehicule
-    +garde_partielle
-    +repassage
-    +prest_menage
-    +prest_garde_enfants
-    +nb_sem_vacances_menage
-    +nb_sem_vacances_ge
-    +options_famille
-    +mode_paiement
-    +mandataire
-    +observations_famille
-    +remarques_famille
-    +enfant_handicape
-    +created_at
-    +updated_at
+
+' ================================================================
+' PACKAGE 3 — Facturation & Tarifs
+' Gestion des factures et des tarifs fixes libellés.
+' À ne pas confondre avec tarifs_suivi (tranches horaires JSON).
+' ================================================================
+
+package "Facturation & Tarifs" #F0EEFA {
+
+  ' ------------------------------------------------------------
+  ' factures
+  ' Factures émises à une famille.
+  ' Le montant est lié à un tarif fixe libellé (table tarifs).
+  ' Différent des tarifs horaires de tarifs_suivi.
+  ' ------------------------------------------------------------
+  class factures {
+    + idFact_Factures       : int(5)         <<PK>>
+    ..
+    # numero_Famille        : varchar(10)    <<FK>>
+    # montantFact_Factures  : int(3)         <<FK>>
+    dateFact_Factures       : datetime
+    encaisse_Factures       : tinyint(1)
+    montantEnc_Factures     : decimal(10,0)
+    modePaiement_Facture    : varchar(50)
+  }
+
+  ' ------------------------------------------------------------
+  ' tarifs
+  ' Référentiel de tarifs fixes libellés.
+  ' Exemples : frais de dossier, adhésion annuelle…
+  ' Cette table est distincte de tarifs_suivi qui gère
+  ' les taux horaires GE/M en JSON avec tranches et horodatage.
+  ' ------------------------------------------------------------
+  class tarifs {
+    + id_Tarifs             : int(3)         <<PK>>
+    ..
+    libelle_Tarifs          : varchar(100)
+    montant_Tarifs          : decimal(10,1)
+  }
+
 }
 
-class tarifs_unifiee {
-    +id (PK)
-    +type_prestation
-    +libelle_prestation
-    +tarif_horaire_base
-    +tarif_horaire_majoration
-    +frais_gestion
-    +km_enfants
-    +abonnement
-    +date_debut_validite
-    +date_fin_validite
-    +created_at
-    +updated_at
+
+' ================================================================
+' PACKAGE 4 — Formation
+' Catalogue des formations et suivi par intervenant.
+' ================================================================
+
+package "Formation" #FEF0F0 {
+
+  ' ------------------------------------------------------------
+  ' formations
+  ' Catalogue des formations proposées aux intervenants.
+  ' Exemples : PSC1, gestes et postures, petite enfance.
+  ' ------------------------------------------------------------
+  class formations {
+    + idForm_Formations     : int(5)         <<PK>>
+    ..
+    intitule_Formations     : varchar(500)
+    duree_Formations        : varchar(15)
+    description_Formations  : varchar(500)
+    organisme_Formations    : varchar(100)
+    type_Formations         : varchar(20)
+    remuneration_formation  : tinyint(1)
+  }
+
+  ' ------------------------------------------------------------
+  ' suivre
+  ' Table de liaison intervenant <-> formation.
+  ' numFamille est optionnel : renseigné si la formation
+  ' concerne une famille spécifique.
+  ' ------------------------------------------------------------
+  class suivre {
+    + # idForm_Formations       : int(5)     <<PK, FK>>
+    + # numSalarie_Intervenants : int(5)     <<PK, FK>>
+    ..
+    numFamille              : varchar(10)
+  }
+
 }
 
-' =============================================
-' Tables de normalisation (Formes Normales)
-' =============================================
 
-class disponibilites_intervenants {
-    +id (PK)
-    +intervenant_id (FK)
-    +jour_semaine
-    +periode_journee
-    +disponible
-    +created_at
+' ================================================================
+' PACKAGE 5 — Authentification suivi heures
+' Table dédiée à l'app suivi heures, indépendante de users.
+' ================================================================
+
+package "Authentification suivi heures" #F5F5F5 {
+
+  ' ------------------------------------------------------------
+  ' users_suivi
+  ' Comptes de connexion de l'application suivi heures.
+  ' Indépendante de la table users (autres applications).
+  '
+  ' Le champ username contient selon le rôle :
+  '   admin       → identifiant libre (ex: 9.99.99.99.999.999.99)
+  '   intervenant → numSS_Candidats (numéro de sécurité sociale)
+  '   famille     → PM_Famille ou PGE_Famille
+  '
+  ' La résolution vers l'entité métier (famille ou intervenants)
+  ' se fait côté PHP en croisant username + role.
+  ' ------------------------------------------------------------
+  class users_suivi {
+    + id                    : int(11)        <<PK, AUTO_INCREMENT>>
+    ..
+    username                : varchar(255)   <<UNIQUE>>
+    role                    : enum(admin, intervenant, famille)
+    ..
+    mdp                     : varchar(255)
+    ..
+    tokenReinit             : varchar(64)
+    tokenExpire             : datetime
+    ..
+    creeLe                  : datetime
+  }
+
 }
 
-class observations_intervenants {
-    +id (PK)
-    +intervenant_id (FK)
-    +type_observation
-    +observation
-    +date_observation
-    +auteur_observation
-    +created_at
+
+' ================================================================
+' PACKAGE 6 — Suivi des heures
+' Tables métier de l'application suivi heures.
+' ================================================================
+
+package "Suivi des heures" #EEEDFE {
+
+  ' ------------------------------------------------------------
+  ' tarifs_suivi
+  ' Grilles tarifaires horodatées pour le calcul des récaps familles.
+  ' Remplace tarifs2. Les taux sont stockés en JSON pour supporter
+  ' des tranches horaires configurables.
+  '
+  ' Logique d'application :
+  '   On prend le tarif dont dateDebut est le plus récent
+  '   inférieur ou égal au mois du récapitulatif famille.
+  '
+  ' Format dateDebut : YYYY-MM (ex: 2025-07)
+  '
+  ' Exemple alheureGE :
+  '   [["$h >= 16","V"],["$h < 16 && $h >= 13", 27.00],
+  '    ["$h < 13 && $h >= 10", 30.00],["$h < 10", 35.00]]
+  '
+  ' Exemple fraisGestion :
+  '   [["$age < 6","$h < 19", 25.00],["$age >= 6","$h < 8", 15.00]]
+  ' ------------------------------------------------------------
+  class tarifs_suivi {
+    + id                    : int(15)        <<PK, AUTO_INCREMENT>>
+    ..
+    alheureGE               : text
+    alheureM                : text
+    fraisGestion            : text
+    parIntervention         : decimal(5,2)
+    maxParIntervention      : decimal(5,2)
+    KMenfants               : decimal(5,2)
+    abonnement              : decimal(5,2)
+    dateDebut               : varchar(7)
+  }
+
+  ' ------------------------------------------------------------
+  ' horaireinter
+  ' Heures de travail saisies par l'intervenant au fil des jours.
+  ' Chaque ligne = une intervention (un créneau dans une journée).
+  '
+  ' Cycle de vie d'une ligne :
+  '   1. Intervenant saisit (ajouterLe)
+  '   2. Famille valide (validerFam=1) ou signale (remarque)
+  '   3. Si signalement → admin modifie → famille revalide
+  '
+  ' typePresta : GE = garde enfants / M = ménage
+  ' desactiver : suppression logique (la ligne reste en base)
+  ' kmAvecEnfant : km remboursés selon tarifs_suivi.KMenfants
+  ' ------------------------------------------------------------
+  class horaireinter {
+    + id                    : int(15)        <<PK, AUTO_INCREMENT>>
+    ..
+    # numFam                : varchar(10)    <<FK>>
+    nomFam                  : varchar(50)
+    # numInter              : int(5)         <<FK>>
+    ..
+    datePresta              : date
+    heureDebutPresta        : time
+    heureFinPresta          : time
+    typePresta              : varchar(4)
+    kmAvecEnfant            : decimal(5,1)
+    ..
+    ajouterLe               : datetime
+    modifierLe              : datetime
+    desactiver              : tinyint(1)
+    ..
+    validerFam              : tinyint(1)
+    validerLe               : datetime
+    remarque                : text
+    remarqueLe              : datetime
+  }
+
+  ' ------------------------------------------------------------
+  ' relevemensuelinter
+  ' Relevé mensuel de l'intervenant.
+  ' PK composite : un relevé par (mois, intervenant, type prestation).
+  '
+  ' Contient :
+  '   - les heures travaillées hors structure (heureDehors)
+  '   - la signature de l'intervenant (signer + signerLe)
+  '
+  ' Format moisannee : MM-YYYY (ex: 05-2026)
+  ' L'intervenant peut signer le mois actuel et le précédent.
+  ' ------------------------------------------------------------
+  class relevemensuelinter {
+    + moisannee             : varchar(7)     <<PK>>
+    + # numInter            : int(5)         <<PK, FK>>
+    + typePresta            : varchar(4)     <<PK>>
+    ..
+    heureDehors             : time
+    heureDehorsAjouterLe    : datetime
+    ..
+    signer                  : tinyint(1)
+    signerLe                : datetime
+  }
+
+  ' ------------------------------------------------------------
+  ' relevemensuelfam
+  ' Récapitulatif mensuel famille.
+  ' PK composite : un récap par (famille, mois, type prestation).
+  '
+  ' Contient :
+  '   - le mode de règlement choisi (chèque, CESU, virement…)
+  '   - les exceptions de facturation (libelerSupl / montantSupl)
+  '   - le questionnaire de satisfaction (4 notes sur 5)
+  '   - la signature de la famille (signerLe)
+  '
+  ' Format moisannee : MM-YYYY (ex: 05-2026)
+  ' ------------------------------------------------------------
+  class relevemensuelfam {
+    + # numFam              : varchar(10)    <<PK, FK>>
+    + moisannee             : varchar(7)     <<PK>>
+    + typePresta            : varchar(4)     <<PK>>
+    ..
+    typeReglement           : varchar(15)
+    numCheque               : varchar(15)
+    nbrCESU                 : int(11)
+    montantPrincipal        : decimal(5,2)
+    complementCESU          : varchar(15)
+    montantComplement       : decimal(5,2)
+    libelerSupl             : text
+    montantSupl             : decimal(5,2)
+    ..
+    avisPonctualite         : int(11)
+    avisReguRela            : int(11)
+    avisRespectHo           : int(11)
+    avisQualiteTr           : int(11)
+    ..
+    signerLe                : datetime
+  }
+
 }
 
-' =============================================
-' Tables existantes (conservées)
-' =============================================
 
-class horaireinter {
-    +id (PK)
-    +numFam
-    +nomFam
-    +numInter
-    +datePresta
-    +heureDebutPresta
-    +heureFinPresta
-    +typePresta
-    +kmAvecEnfant
-    +ajouterLe
-    +modifierLe
-    +desactiver
-    +validerFam
-    +validerLe
-    +remarque
-    +remarqueLe
-}
+' ================================================================
+' RELATIONS
+' ================================================================
 
-class relevemensuelinter {
-    +moisannee (PK)
-    +numInter (PK)
-    +typePresta (PK)
-    +heureDehors
-    +heureDehorsAjouterLe
-    +signer
-    +signerLe
-}
+' --- Personnes ---
+candidats           "1" --o{ "0..*" intervenants              : "devient"
+famille             "1" --o{ "0..*" enfants                   : "a"
+famille             "1" --o{ "0..*" parents                   : "a"
 
-class relevemensuelfam {
-    +id (PK)
-    +numero_famille
-    +mois_annee
-    +total_heures
-    +total_montant
-    +valide
-    +date_validation
-}
+' --- Planning ---
+famille             "1" --o{ "0..*" proposer                  : "bénéficie de"
+intervenants        "1" --o{ "0..*" proposer                  : "effectue"
+prestations         "1" --o{ "0..*" proposer                  : "type de prestation"
+typeadh             "1" --o{ "0..*" proposer                  : "type d'adhésion"
+famille             "1" --o{ "0..*" besoinsfamille            : "déclare ses besoins"
+famille             "1" --o{ "0..*" partage                   : "partage (famille 1)"
+famille             "1" --o{ "0..*" partage                   : "partage (famille 2)"
 
-class users2 {
-    +identifiant (PK)
-    +mdp
-}
+' --- Facturation ---
+famille             "1" --o{ "0..*" factures                  : "reçoit"
+tarifs              "1" --o{ "0..*" factures                  : "tarifie"
 
-' =============================================
-' Relations
-' =============================================
+' --- Formation ---
+formations          "1" --o{ "0..*" suivre                    : "dispensée dans"
+intervenants        "1" --o{ "0..*" suivre                    : "suit"
 
-intervenants_unifie ||--o{ disponibilites_intervenants : "1..N"
-intervenants_unifie ||--o{ observations_intervenants : "1..N"
-intervenants_unifie ||--o{ horaireinter : "1..N"
-intervenants_unifie ||--o{ relevemensuelinter : "1..N"
-famille_normalisee ||--o{ horaireinter : "1..N"
-famille_normalisee ||--o{ relevemensuelfam : "1..N"
-
-' =============================================
-' Notes explicatives
-' =============================================
-
-note right of intervenants_unifie
-  **Table unifiée principale**
-  - Fusion de candidats et intervenants
-  - Respecte 1FN, 2FN, 3FN
-  - 4,259 enregistrements
-end note
-
-note right of disponibilites_intervenants
-  **Normalisation 1FN**
-  - Évite les champs multivalués
-  - Structure atomique
-end note
-
-note right of observations_intervenants
-  **Normalisation 2FN/3FN**
-  - Sépare les dépendances
-  - Type d'observation structuré
-end note
-
-note bottom of tarifs_unifiee
-  **Tarifs unifiés**
-  - 3 types de prestations
-  - Frais et majorations
-end note
+' --- Suivi des heures ---
+famille             "1" --o{ "0..*" horaireinter              : "valide"
+intervenants        "1" --o{ "0..*" horaireinter              : "saisit"
+intervenants        "1" --o{ "0..*" relevemensuelinter        : "a son relevé mensuel"
+famille             "1" --o{ "0..*" relevemensuelfam          : "signe son récap mensuel"
 
 @enduml

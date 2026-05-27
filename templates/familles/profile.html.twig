@@ -1,0 +1,130 @@
+{% extends 'base.html.twig' %}
+{% block title %}Profil — {{ famille.nomFamille }}{% endblock %}
+{% block page_title %}Mon profil{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:16px;">
+            <div style="width:48px;height:48px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas fa-house-user" style="font-size:20px;color:var(--primary);"></i>
+            </div>
+            <div>
+                <h1>{{ famille_label(famille) }}</h1>
+                <p>Famille — <code style="font-size:12px;">{{ famille.numeroFamille }}</code></p>
+            </div>
+        </div>
+        <a href="{{ path('famille_panel_mvc') }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Mon espace
+        </a>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+        <i class="fas fa-info-circle" style="color:var(--primary);"></i>
+        <span class="card-title">Informations du compte</span>
+    </div>
+    <div class="card-body">
+        <dl style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;font-size:13.5px;margin:0;">
+
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">N° client</dt>
+                <dd style="margin:0;font-weight:600;font-family:monospace;">{{ famille.numeroFamille }}</dd>
+            </div>
+
+            {% if famille.adresse %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Adresse</dt>
+                <dd style="margin:0;">
+                    {{ famille.adresse }}
+                    {% if famille.codePostal %}<br>{{ famille.codePostal }}{% endif %}
+                    {% if famille.ville %} {{ famille.ville }}{% endif %}
+                </dd>
+            </div>
+            {% endif %}
+
+            {% if famille.telDom %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Téléphone</dt>
+                <dd style="margin:0;">{{ famille.telDom }}</dd>
+            </div>
+            {% endif %}
+
+            {% if famille.email is defined and famille.email %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Email</dt>
+                <dd style="margin:0;"><a href="mailto:{{ famille.email }}" style="color:var(--primary);">{{ famille.email }}</a></dd>
+            </div>
+            {% endif %}
+
+            {% if famille.secteur is defined and famille.secteur %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Secteur</dt>
+                <dd style="margin:0;">{{ famille.secteur }}</dd>
+            </div>
+            {% endif %}
+
+            {% if famille.quartier is defined and famille.quartier %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Quartier</dt>
+                <dd style="margin:0;">{{ famille.quartier }}</dd>
+            </div>
+            {% endif %}
+
+            {% if famille.modePaiement is defined and famille.modePaiement %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Mode de paiement</dt>
+                <dd style="margin:0;">{{ famille.modePaiement }}</dd>
+            </div>
+            {% endif %}
+
+        </dl>
+    </div>
+</div>
+
+{% if parents is defined and parents is not empty %}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-user-friends" style="color:var(--primary);"></i>
+        <span class="card-title">Parents / Contacts</span>
+    </div>
+    <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;">
+        {% for parent in parents %}
+            <div style="background:var(--bg-subtle,#f9fafb);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;">
+                <div style="font-weight:700;font-size:14px;margin-bottom:10px;">
+                    {{ parent.nomComplet }}
+                    {% if parent.profession %}
+                        <span style="font-weight:400;font-size:11px;color:var(--text-muted);display:block;margin-top:2px;">{{ parent.profession }}</span>
+                    {% endif %}
+                </div>
+                <dl style="margin:0;display:grid;gap:6px;font-size:13px;">
+                    {% if parent.telPortable %}
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <dt style="color:var(--text-muted);min-width:80px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Portable</dt>
+                        <dd style="margin:0;"><a href="tel:{{ parent.telPortable }}" style="color:var(--primary);">{{ parent.telPortable }}</a></dd>
+                    </div>
+                    {% endif %}
+                    {% if parent.telTravail %}
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <dt style="color:var(--text-muted);min-width:80px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Travail</dt>
+                        <dd style="margin:0;"><a href="tel:{{ parent.telTravail }}" style="color:var(--primary);">{{ parent.telTravail }}</a></dd>
+                    </div>
+                    {% endif %}
+                    {% if parent.email %}
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <dt style="color:var(--text-muted);min-width:80px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Email</dt>
+                        <dd style="margin:0;"><a href="mailto:{{ parent.email }}" style="color:var(--primary);">{{ parent.email }}</a></dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+        {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

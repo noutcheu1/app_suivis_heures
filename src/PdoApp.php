@@ -1076,8 +1076,8 @@ class PdoApp
      * @param string $nomFam Nom de la famille
      * @param int $numInt Numéro de l'intervenant
      * @param string $date Date de la prestation (format YYYY-MM-DD)
-     * @param string $hDebut Heure de début de la prestation (format HH:MM:SS)
-     * @param string $hFin Heure de fin de la prestation (format HH:MM:SS)
+     * @param string $hDebut Heure de début de la prestation (format H:i:SS)
+     * @param string $hFin Heure de fin de la prestation (format H:i:SS)
      * @param string $type Type de prestation
      * @return bool True si l'insertion a réussi, false sinon
      */
@@ -1195,8 +1195,8 @@ class PdoApp
  * @param string $nomFam Nom de la famille
  * @param int $numInt Numéro de l'intervenant
  * @param string $date Date de la prestation (format YYYY-MM-DD)
- * @param string $hDebut Heure de début de la prestation (format HH:MM:SS)
- * @param string $hFin Heure de fin de la prestation (format HH:MM:SS)
+ * @param string $hDebut Heure de début de la prestation (format H:i:SS)
+ * @param string $hFin Heure de fin de la prestation (format H:i:SS)
  * @param string $type Type de prestation
  * @return bool True si l'insertion a réussi, false sinon
  */

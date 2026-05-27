@@ -1,0 +1,138 @@
+{% extends 'base.html.twig' %}
+{% block title %}Mot de passe oublié — La Maison des Chaudoudoux{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+.forgot-card {
+    width: 100%; max-width: 420px;
+    background: #fff; border-radius: 18px; overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,.25), 0 4px 16px rgba(0,0,0,.1);
+}
+.forgot-top { padding: 36px 36px 24px; text-align: center; }
+.forgot-logo {
+    width: 56px; height: 56px; background: #f59e0b;
+    border-radius: 16px; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+}
+.forgot-logo i { font-size: 24px; color: #fff; }
+.forgot-title { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
+.forgot-subtitle { font-size: 13px; color: #64748b; margin: 0; }
+.forgot-body { padding: 0 36px 32px; }
+.field-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .6px; color: #64748b; display: block; margin-bottom: 6px;
+}
+.input-wrap { position: relative; margin-bottom: 14px; }
+.input-wrap .input-icon {
+    position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%); font-size: 14px; color: #94a3b8; pointer-events: none;
+}
+.input-wrap input {
+    width: 100%; padding: 0 16px 0 38px; height: 44px;
+    border: 1.5px solid #e2e8f0; border-radius: 10px;
+    background: #f8fafc; color: #0f172a;
+    font-size: 14px; font-family: inherit;
+    box-sizing: border-box; outline: none; transition: all .2s;
+}
+.input-wrap input:focus {
+    border-color: #f59e0b; background: #fff;
+    box-shadow: 0 0 0 4px rgba(245,158,11,.1);
+}
+.input-wrap input::placeholder { color: #cbd5e1; }
+.btn-forgot {
+    width: 100%; height: 44px; background: #f59e0b; color: #fff;
+    border: none; border-radius: 10px; font-size: 14px; font-weight: 600;
+    font-family: inherit; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; gap: 8px;
+    transition: all .15s; box-shadow: 0 4px 14px rgba(245,158,11,.35);
+}
+.btn-forgot:hover { background: #d97706; transform: translateY(-1px); }
+.success-box {
+    background: #ecfdf5; border: 1.5px solid #6ee7b7;
+    border-radius: 10px; padding: 12px 14px;
+    font-size: 13px; color: #065f46;
+    display: flex; align-items: flex-start; gap: 9px;
+    margin-bottom: 16px;
+}
+.error-box {
+    background: #fef2f2; border: 1.5px solid #fecaca;
+    border-radius: 10px; padding: 11px 14px;
+    font-size: 13px; color: #991b1b;
+    display: flex; align-items: center; gap: 9px; margin-bottom: 16px;
+}
+.back-link { text-align: center; margin-top: 16px; font-size: 13px; }
+.back-link a { color: #64748b; font-weight: 500; }
+.back-link a:hover { color: #f59e0b; }
+.forgot-footer {
+    padding: 14px 36px; border-top: 1px solid #f1f5f9; background: #f8fafc;
+    text-align: center; font-size: 11.5px; color: #94a3b8;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="forgot-card">
+
+    <div class="forgot-top">
+        <div class="forgot-logo"><i class="fas fa-key"></i></div>
+        <h1 class="forgot-title">Mot de passe oublié</h1>
+        <p class="forgot-subtitle">Recevez un code de réinitialisation par email</p>
+    </div>
+
+    <div class="forgot-body">
+
+        {% if error is defined and error %}
+        <div class="error-box">
+            <i class="fas fa-exclamation-circle"></i>
+            {{ error }}
+        </div>
+        {% endif %}
+
+        {% if success is defined and success %}
+        <div class="success-box">
+            <i class="fas fa-check-circle" style="flex-shrink:0;margin-top:1px;"></i>
+            <div>
+                {{ success }}
+                <div style="margin-top:8px;">
+                    <a href="{{ path('mdp_oublie_verification_mvc') }}"
+                       style="font-weight:600;color:#065f46;">
+                        Saisir mon code →
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <form method="POST" action="{{ path('mdp_oublie_mvc') }}">
+            <div class="mb-3">
+                <label class="field-label">Votre identifiant</label>
+                <div class="input-wrap">
+                    <i class="fas fa-id-badge input-icon"></i>
+                    <input type="text" name="identifiant"
+                           placeholder="N° sécu ou code client"
+                           autocomplete="username" required>
+                </div>
+            </div>
+            <button type="submit" class="btn-forgot">
+                <i class="fas fa-paper-plane"></i> Recevoir un code
+            </button>
+        </form>
+        {% endif %}
+
+        <div class="back-link">
+            <a href="{{ path('app_login') }}">
+                <i class="fas fa-arrow-left" style="font-size:11px;margin-right:4px;"></i>
+                Retour à la connexion
+            </a>
+        </div>
+
+    </div>
+
+    <div class="forgot-footer">
+        <i class="fas fa-shield-alt"></i>
+        Connexion sécurisée — données chiffrées
+    </div>
+
+</div>
+{% endblock %}

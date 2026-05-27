@@ -2,114 +2,139 @@
 
 namespace App\Service;
 
-use App\Entity\User2;
-use App\Entity\Intervenant;
+use App\Entity\Principal\Famille;
+use App\Entity\Principal\Intervenant;
+use App\Entity\Horaire\UserSuivi;
+use App\Repository\CandidatRepository;
+use App\Repository\FamilleRepository;
 use App\Repository\IntervenantRepository;
-use Symfony\Component\HttpFoundation\Session\SessionInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Bundle\SecurityBundle\Security;
+
 
 class AuthService
 {
-    private ?User2 $user = null;
-    private ?Intervenant $intervenant = null;
+    public const ADMIN_IDENTIFIANT = '9.99.99.99.999.999.99';
 
     public function __construct(
-        private User2Service $user2Service,
+        private UserSuiviService $UserSuiviService,
         private IntervenantRepository $intervenantRepository,
-        private SessionInterface $session
+        private FamilleRepository $familleRepository,
+        private CandidatRepository $candidatRepository,
+        private Security $security,
+        private RequestStack $requestStack
     ) {}
 
-    /**
-     * Authentifie un utilisateur
-     */
-    public function login(string $identifiant, string $motDePasse): bool
+    private function getSession()
     {
-        $user = $this->user2Service->authentifier($identifiant, $motDePasse);
-        
-        if (!$user) {
-            return false;
+        return $this->requestStack->getSession();
+    }
+
+    public function check(): bool
+    {
+        return $this->security->isGranted('IS_AUTHENTICATED_FULLY');
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->security->isGranted('ROLE_ADMIN');
+    }
+
+    public function isIntervenant(): bool
+    {
+        return $this->security->isGranted('ROLE_INTERVENANT');
+    }
+
+    public function isFamille(): bool
+    {
+        return $this->security->isGranted('ROLE_FAMILLE');
+    }
+
+    public function getRole(): ?string
+    {
+        if ($this->isAdmin())       return 'admin';
+        if ($this->isIntervenant()) return 'intervenant';
+        if ($this->isFamille())     return 'famille';
+        return null;
+    }
+
+    public function getUser(): ?UserSuivi
+    {
+         
+        return $this->security->getUser();
+    }
+
+    public function getIntervenant(): ?Intervenant
+    {
+        $user = $this->getUser();
+        if (!$user) return null;
+
+        $username = $user->getUserIdentifier();
+
+        // Approche principale : trouver le Candidat par numSS (avec normalisation
+        // de format), puis charger l'Intervenant via la FK intervenants → candidats.
+        $candidat = $this->candidatRepository->findByNumSs($username);
+        if ($candidat?->getId()) {
+            $intervenant = $this->intervenantRepository->findByCandidatId($candidat->getId());
+            if ($intervenant) return $intervenant;
         }
+        // Fallback : recherche directe dans vue_intervenants (plusieurs formats)
+        return $this->intervenantRepository->findByAnyIdentifier($username);
+    }
 
-        $this->user = $user;
-        $this->session->set('user', $user);
-        $this->session->set('auth', true);
 
-        // Chercher l'intervenant correspondant
-        $intervenant = $this->intervenantRepository->findByNumSalarie($identifiant);
-        if ($intervenant) {
-            $this->intervenant = $intervenant;
-            $this->session->set('intervenant', $intervenant);
-            $this->session->set('intervenant_id', $intervenant->getId());
+    public function getFamille(): ?Famille
+    {
+        $user = $this->getUser();
+        if (!$user) return null;
+        return $this->familleRepository->findByNumero($user->getUserIdentifier());
+    }
+
+    public function intervenant_id(): ?int
+    {
+        return $this->getIntervenant()?->getId();
+    }
+
+    /**
+     * Returns true only when the logged-in user is linked to an intervenant
+     * whose candidature has been accepted (not 'En attente').
+     */
+    public function isIntervenantAccepted(): bool
+    {
+        return $this->getIntervenant()?->isAccepted() ?? false;
+    }
+
+    /**
+     * Returns true when the intervenant is not archived (permanently or temporarily today).
+     */
+    public function isIntervenantActif(): bool
+    {
+        $iv = $this->getIntervenant();
+        if (!$iv) return false;
+        if ($iv->getArchive()) return false;
+        if ($iv->getArchiveTemporaire()) {
+            $today = new \DateTime('today');
+            $debut = $iv->getDateDebutArchiveTemporaire();
+            $fin   = $iv->getDateFinArchiveTemporaire();
+            if ($debut && $today >= $debut && (!$fin || $today <= $fin)) {
+                return false;
+            }
         }
-
         return true;
     }
 
-    /**
-     * Déconnecte l'utilisateur
-     */
-    public function logout(): void
+    public function famille_id(): ?string
     {
-        $this->session->clear();
-        $this->user = null;
-        $this->intervenant = null;
+        return $this->getFamille()?->getNumeroFamille();
     }
 
-    /**
-     * Vérifie si l'utilisateur est authentifié
-     */
-    public function check(): bool
-    {
-        return $this->session->get('auth', false);
-    }
-
-    /**
-     * Vérifie si l'utilisateur est admin
-     */
-    public function isAdmin(): bool
-    {
-        // Logique à adapter selon votre système de rôles
-        // Pour l'instant, on considère admin si l'identifiant commence par 'admin'
-        $identifiant = $this->session->get('user')?->getIdentifiant();
-        return $identifiant && str_starts_with($identifiant, 'admin');
-    }
-
-    /**
-     * Retourne l'ID de l'intervenant connecté
-     */
-    public function intervenant_id(): ?int
-    {
-        return $this->session->get('intervenant_id');
-    }
-
-    /**
-     * Retourne l'utilisateur connecté
-     */
-    public function getUser(): ?User2
-    {
-        return $this->session->get('user');
-    }
-
-    /**
-     * Retourne l'intervenant connecté
-     */
-    public function getIntervenant(): ?Intervenant
-    {
-        return $this->session->get('intervenant');
-    }
-
-    /**
-     * Définit le type d'utilisateur (FAM ou INTER)
-     */
     public function setType(string $type): void
     {
-        $this->session->set('type', $type);
+        $this->getSession()->set('type', $type);
     }
 
-    /**
-     * Retourne le type d'utilisateur
-     */
     public function getType(): ?string
     {
-        return $this->session->get('type');
+        return $this->getSession()->get('type');
     }
 }

@@ -1,0 +1,182 @@
+{% extends 'base.html.twig' %}
+{% block title %}Détail des heures{% endblock %}
+{% block page_title %}Détail des heures{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <h1>Détail des heures d'intervention</h1>
+</div>
+
+{% if prestations is defined and prestations|length > 0 %}
+
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+        <i class="fas fa-table-list" style="color:var(--primary);"></i>
+        <span class="card-title">Prestations</span>
+        <span class="badge badge-muted" style="margin-left:auto;">{{ prestations|length }}</span>
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+        <table class="data-table" id="hoursTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Famille</th>
+                    <th>Type</th>
+                    <th>Début</th>
+                    <th>Fin</th>
+                    <th>Durée</th>
+                    <th>Km</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for prestation in prestations %}
+            <tr class="hour-row"
+                data-debut="{{ prestation.heureDebutPresta ? prestation.heureDebutPresta|date('H:i') : '' }}"
+                data-fin="{{ prestation.heureFinPresta ? prestation.heureFinPresta|date('H:i') : '' }}">
+                <td>{{ prestation.datePresta|date('d/m/Y') }}</td>
+                <td style="font-weight:500;">{{ prestation.numFam ? famille_label(prestation.numFam) : '-' }}</td>
+                <td>
+                    <span class="badge {{ prestation.typePresta == 'ENFA' ? 'badge-info' : (prestation.typePresta == 'MENA' ? 'badge-muted' : 'badge-warning') }}">
+                        {{ prestation.typePresta == 'ENFA' ? "Garde d'enfants" : (prestation.typePresta == 'MENA' ? 'Ménage' : (prestation.typePresta|default('Autre'))) }}
+                    </span>
+                </td>
+                <td>{{ prestation.heureDebutPresta ? prestation.heureDebutPresta|date('H:i') : '—' }}</td>
+                <td>{{ prestation.heureFinPresta ? prestation.heureFinPresta|date('H:i') : '—' }}</td>
+                <td class="duration-cell" style="font-weight:600;color:var(--success);" data-calculated="false">—</td>
+                <td>{{ prestation.kmAvecEnfant|default(0) }}</td>
+                <td>
+                    {% if prestation.declarerLeFam %}
+                        <span class="badge badge-success">Déclaré</span>
+                    {% else %}
+                        <span class="badge badge-warning">Non déclaré</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="background:var(--bg);font-weight:600;">
+                    <td colspan="5" style="padding:12px 16px;color:var(--text-muted);">Total</td>
+                    <td id="totalHours" style="padding:12px 16px;color:var(--success);">—</td>
+                    <td id="totalKm" style="padding:12px 16px;">{{ prestations|reduce((sum, p) => sum + (p.kmAvecEnfant|default(0)), 0) }} km</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" class="stats-grid">
+
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-chart-pie" style="color:var(--primary);font-size:13px;"></i>
+            <span class="card-title">Résumé par type</span>
+        </div>
+        <div class="card-body" id="typeSummary">
+            <p style="color:var(--text-muted);font-size:13px;">Calcul en cours…</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-chart-bar" style="color:var(--primary);font-size:13px;"></i>
+            <span class="card-title">Statistiques</span>
+        </div>
+        <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;">
+                <div>
+                    <div id="avgHours" style="font-size:20px;font-weight:700;color:var(--text);">—</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Moyenne/jour</div>
+                </div>
+                <div>
+                    <div id="maxHours" style="font-size:20px;font-weight:700;color:var(--text);">—</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Maximum</div>
+                </div>
+                <div>
+                    <div id="minHours" style="font-size:20px;font-weight:700;color:var(--text);">—</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Minimum</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+@media (max-width:640px) { .stats-grid { grid-template-columns: 1fr; } }
+</style>
+
+{% else %}
+<div class="empty-state">
+    <div class="empty-state-icon"><i class="fas fa-clock"></i></div>
+    <h3>Aucune heure enregistrée</h3>
+    <p>Commencez par ajouter vos heures de travail</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const table = document.getElementById('hoursTable');
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tbody .hour-row');
+    let totalMinutes = 0;
+    const minutesByType = {};
+    const allMinutes = [];
+
+    function parseTime(s) {
+        if (!s) return null;
+        const parts = s.split(':');
+        return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    }
+    function formatMinutes(m) {
+        const h = Math.floor(m / 60);
+        const min = m % 60;
+        return h + 'h' + (min < 10 ? '0' : '') + min;
+    }
+
+    rows.forEach(row => {
+        const debut = parseTime(row.dataset.debut);
+        const fin   = parseTime(row.dataset.fin);
+        if (debut !== null && fin !== null) {
+            const dur = fin > debut ? fin - debut : (fin + 1440 - debut);
+            const typeEl = row.querySelector('.badge');
+            const type = typeEl ? typeEl.textContent.trim() : '?';
+
+            row.querySelector('.duration-cell').textContent = formatMinutes(dur);
+            totalMinutes += dur;
+            allMinutes.push(dur);
+            minutesByType[type] = (minutesByType[type] || 0) + dur;
+        }
+    });
+
+    const totalCell = document.getElementById('totalHours');
+    if (totalCell) totalCell.textContent = formatMinutes(totalMinutes);
+
+    const summaryDiv = document.getElementById('typeSummary');
+    if (summaryDiv) {
+        let html = '<dl style="margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13.5px;">';
+        for (const [type, min] of Object.entries(minutesByType)) {
+            html += `<dt style="color:var(--text-muted);font-weight:500;">${type}</dt><dd style="margin:0;font-weight:600;">${formatMinutes(min)}</dd>`;
+        }
+        html += `<dt style="color:var(--text-muted);font-weight:500;border-top:1px solid var(--border);padding-top:6px;">Total</dt><dd style="margin:0;font-weight:700;border-top:1px solid var(--border);padding-top:6px;">${formatMinutes(totalMinutes)}</dd>`;
+        html += '</dl>';
+        summaryDiv.innerHTML = html;
+    }
+
+    if (allMinutes.length > 0) {
+        const avg = allMinutes.reduce((a, b) => a + b, 0) / allMinutes.length;
+        document.getElementById('avgHours').textContent = formatMinutes(Math.round(avg));
+        document.getElementById('maxHours').textContent = formatMinutes(Math.max(...allMinutes));
+        document.getElementById('minHours').textContent = formatMinutes(Math.min(...allMinutes));
+    }
+});
+</script>
+{% endblock %}

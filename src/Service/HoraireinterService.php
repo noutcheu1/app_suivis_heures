@@ -1,0 +1,946 @@
+<?php
+
+namespace App\Service;
+
+use App\Entity\Horaire\Horaireinter;
+use App\Repository\AppConfigRepository;
+use App\Repository\FamilleRepository;
+use App\Repository\HoraireinterRepository;
+use App\Repository\ProposerRepository;
+use App\Repository\RelevemensuelinterRepository;
+use Doctrine\ORM\EntityManagerInterface;
+
+class HoraireinterService
+{
+    public function __construct(
+        private HoraireinterRepository       $repository,
+        private RelevemensuelinterRepository $releveRepository,
+        private EntityManagerInterface       $entityManager,
+        private ProposerRepository           $proposerRepository,
+        private FamilleRepository            $familleRepository,
+        private AppConfigRepository          $appConfigRepository,
+    ) {}
+
+    /**
+     * Ajoute une nouvelle prestation d'heures.
+     * Lève une exception si le couple (numInter, numFam) n'est pas dans proposer.
+     */
+    public function ajouterPrestation(array $donnees): Horaireinter
+    {
+        $numInter = (int)($donnees['numInter'] ?? 0);
+        $numFam   = $donnees['numFam'] ?? null;
+
+        if ($numInter && $numFam && !$this->proposerRepository->isIntervenantAssignedToFamille($numInter, $numFam)) {
+            throw new \LogicException(
+                sprintf('L\'intervenant %d n\'est pas assigné à la famille %s dans le planning.', $numInter, $numFam)
+            );
+        }
+
+        $datePresta  = new \DateTime($donnees['datePresta']);
+        $heureDebut  = new \DateTime($donnees['heureDebutPresta']);
+        $typePresta  = $donnees['typePresta'] ?? '';
+
+        if ($this->repository->existsDoublon($numInter, $datePresta, $heureDebut, $typePresta)) {
+            throw new \LogicException('Une prestation avec cette heure de début existe déjà pour ce jour.');
+        }
+
+        if ($numFam && $numFam !== '0' && $this->repository->existsDoublonFamilleDate($numInter, $numFam, $datePresta, $typePresta)) {
+            throw new \LogicException('Vous avez déjà une prestation enregistrée pour cette famille ce jour-là.');
+        }
+
+        $horaire = new Horaireinter();
+
+        $horaire->setNumFam($numFam);
+        $horaire->setNomFam($donnees['nomFam'] ?? '');
+        $horaire->setNumInter($numInter);
+        $horaire->setDatePresta(new \DateTime($donnees['datePresta']));
+        $horaire->setHeureDebutPresta(new \DateTime($donnees['heureDebutPresta']));
+        $horaire->setHeureFinPresta(new \DateTime($donnees['heureFinPresta']));
+        $horaire->setTypePresta($donnees['typePresta'] ?? '');
+        $horaire->setKmAvecEnfant($donnees['kmAvecEnfant'] ?? null);
+        $horaire->setAjouterLe(new \DateTime());
+        $horaire->setDesactiver(false);
+        $horaire->setDeclarerLeFam(null);
+        
+        // Calculer les heures totales
+        $heures = $this->calculerHeures(
+            $donnees['heureDebutPresta'],
+            $donnees['heureFinPresta']
+        );
+        $horaire->setHeuresTotal($heures);
+        
+        $this->entityManager->persist($horaire);
+        $this->entityManager->flush();
+        
+        return $horaire;
+    }
+
+    /**
+     * Calcule les heures entre deux timestamps
+     */
+    private function calculerHeures(string $debut, string $fin): float
+    {
+        $dateDebut = new \DateTime($debut);
+        $dateFin = new \DateTime($fin);
+
+        $seconds = $dateFin->getTimestamp() - $dateDebut->getTimestamp();
+
+            if ($seconds < 0) {
+                $seconds += 24 * 3600;
+            }
+
+            return round($seconds / 3600, 2);
+    }
+
+    /**
+     * Retourne les prestations d'un intervenant pour une période
+     */
+    public function getPrestationsParIntervenant(int $numInter, ?\DateTimeInterface $dateDebut = null, ?\DateTimeInterface $dateFin = null): array
+    {
+        $qb = $this->repository->createQueryBuilder('h')
+            ->where('h.numInter = :numInter')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('numInter', $numInter)
+            ->setParameter('desactiver', false)
+            ->orderBy('h.datePresta', 'DESC')
+            ->addOrderBy('h.heureDebutPresta', 'DESC');
+
+        if ($dateDebut) {
+            $qb->andWhere('h.datePresta >= :dateDebut')
+               ->setParameter('dateDebut', $dateDebut);
+        }
+
+        if ($dateFin) {
+            $qb->andWhere('h.datePresta <= :dateFin')
+               ->setParameter('dateFin', $dateFin);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    public function getMoisDisponibles(int $numInter): array
+    {
+        return $this->repository->findMoisDisponibles($numInter);
+    }
+
+    /**
+     * Retourne les prestations d'une famille
+     */
+    public function getPrestationsParFamille(string $numFam): array
+    {
+        return $this->repository->createQueryBuilder('h')
+            ->where('h.numFam = :numFam')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('numFam', $numFam)
+            ->setParameter('desactiver', false)
+            ->orderBy('h.datePresta', 'DESC')
+            ->addOrderBy('h.heureDebutPresta', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Retourne les prestations non encore déclarées par la famille
+     */
+    public function getPrestationsNonDeclarees(string $numFam): array
+    {
+        return $this->repository->createQueryBuilder('h')
+            ->where('h.numFam = :numFam')
+            ->andWhere('h.declarerLeFam IS NULL')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('numFam', $numFam)
+            ->setParameter('desactiver', false)
+            ->orderBy('h.datePresta', 'ASC')
+            ->addOrderBy('h.heureDebutPresta', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Crée une entrée Horaireinter avec les heures de la famille (intervenant n'a pas encore saisi).
+     */
+    public function declarerNouvellePresation(
+        string $numFam, string $nomFam, int $numInter,
+        string $dateStr, string $typePresta,
+        string $heureDebut, string $heureFin
+    ): bool {
+        $debut = \DateTime::createFromFormat('H:i', $heureDebut);
+        $fin   = \DateTime::createFromFormat('H:i', $heureFin);
+        $date  = \DateTime::createFromFormat('Y-m-d', $dateStr);
+
+        if (!$debut || !$fin || !$date) {
+            return false;
+        }
+
+        $horaire = new \App\Entity\Horaire\Horaireinter();
+        $horaire->setNumFam($numFam);
+        $horaire->setNomFam($nomFam);
+        $horaire->setNumInter($numInter);
+        $horaire->setDatePresta($date);
+        $horaire->setHeureDebutPresta(null);
+        $horaire->setHeureFinPresta(null);
+        $horaire->setTypePresta($typePresta);
+        $horaire->setAjouterLe(new \DateTime());
+        $horaire->setDesactiver(false);
+        $horaire->setHeureDebutFam($debut);
+        $horaire->setHeureFinFam($fin);
+        $horaire->setDeclarerLeFam(new \DateTime());
+
+        $this->entityManager->persist($horaire);
+        $this->entityManager->flush();
+        return true;
+    }
+
+    /**
+     * Enregistre les heures déclarées par la famille pour une prestation
+     */
+    public function declarerHeuresFam(int $id, string $numFam, string $heureDebut, string $heureFin): bool
+    {
+        $horaire = $this->repository->find($id);
+
+        if (!$horaire || $horaire->getNumFam() !== $numFam) {
+            return false;
+        }
+
+        $horaire->setHeureDebutFam(\DateTime::createFromFormat('H:i', $heureDebut) ?: null);
+        $horaire->setHeureFinFam(\DateTime::createFromFormat('H:i', $heureFin) ?: null);
+        $horaire->setDeclarerLeFam(new \DateTime());
+
+        $this->entityManager->flush();
+
+        return true;
+    }
+
+    /**
+     * Une prestation est verrouillée si son mois est strictement antérieur au mois courant.
+     * Les admins peuvent toujours modifier ; c'est au contrôleur de passer $adminBypass = true.
+     */
+    public function isVerrouille(Horaireinter $h): bool
+    {
+        $today = new \DateTime('today');
+        $presta = $h->getDatePresta();
+        if (!$presta) {
+            return false;
+        }
+        return $presta->format('Y-m') < $today->format('Y-m');
+    }
+
+    /**
+     * Désactive une prestation
+     */
+    public function desactiverPrestation(int $id, bool $adminBypass = false): bool
+    {
+        $horaire = $this->repository->find($id);
+
+        if (!$horaire) {
+            return false;
+        }
+
+        if (!$adminBypass && $this->isVerrouille($horaire)) {
+            return false;
+        }
+
+        $horaire->setDesactiver(true);
+        $horaire->setModifierLe(new \DateTime());
+
+        $this->entityManager->flush();
+
+        return true;
+    }
+
+    public function restaurerPrestation(int $id): bool
+    {
+        $horaire = $this->repository->find($id);
+
+        if (!$horaire) {
+            return false;
+        }
+
+        $horaire->setDesactiver(false);
+        $horaire->setModifierLe(new \DateTime());
+
+        $this->entityManager->flush();
+
+        return true;
+    }
+
+    /**
+     * Modifie une prestation
+     */
+    public function modifierPrestation(int $id, array $donnees, bool $adminBypass = false): bool
+    {
+        $horaire = $this->repository->find($id);
+
+        if (!$horaire) {
+            return false;
+        }
+
+        if (!$adminBypass && $this->isVerrouille($horaire)) {
+            return false;
+        }
+
+        // Vérification doublon lors de la modification
+        if (isset($donnees['datePresta']) && isset($donnees['heureDebutPresta'])) {
+            $datePresta = new \DateTime($donnees['datePresta']);
+            $heureDebut = new \DateTime($donnees['heureDebutPresta']);
+            $typePresta = $donnees['typePresta'] ?? $horaire->getTypePresta();
+            $numInter   = (int)$horaire->getNumInter();
+            $numFam     = $horaire->getNumFam();
+
+            if ($this->repository->existsDoublon($numInter, $datePresta, $heureDebut, $typePresta, $id)) {
+                throw new \LogicException('Une prestation avec cette heure de début existe déjà pour ce jour.');
+            }
+
+            if ($numFam && $numFam !== '0' && $this->repository->existsDoublonFamilleDate($numInter, $numFam, $datePresta, $typePresta, $id)) {
+                throw new \LogicException('Vous avez déjà une prestation enregistrée pour cette famille ce jour-là.');
+            }
+        }
+
+        if (isset($donnees['datePresta'])) {
+            $horaire->setDatePresta(new \DateTime($donnees['datePresta']));
+        }
+        if (isset($donnees['heureDebutPresta']) && isset($donnees['heureFinPresta'])) {
+            $horaire->setHeureDebutPresta(new \DateTime($donnees['heureDebutPresta']));
+            $horaire->setHeureFinPresta(new \DateTime($donnees['heureFinPresta']));
+            
+            // Recalculer les heures
+            $heures = $this->calculerHeures(
+                $donnees['heureDebutPresta'],
+                $donnees['heureFinPresta']
+            );
+            $horaire->setHeuresTotal($heures);
+        }
+        if (isset($donnees['kmAvecEnfant'])) {
+            $horaire->setKmAvecEnfant($donnees['kmAvecEnfant']);
+        }
+
+        $horaire->setModifierLe(new \DateTime());
+        
+        $this->entityManager->flush();
+        
+        return true;
+    }
+
+    public function getPrestation(int $id): ?object
+    {
+        return $this->repository->find($id);
+    }
+
+    /**
+     * Vérifie si un intervenant peut encore saisir des heures pour une date donnée
+     */
+    public function peutSaisirHeures(\DateTimeInterface $dateSaisie): bool
+    {
+        $delai = $this->appConfigRepository->getConfig()->getNbrJourSaisie();
+        $dateLimite = (new \DateTime())->sub(new \DateInterval("P{$delai}D"));
+        return $dateSaisie >= $dateLimite;
+    }
+
+    public function getNbrJourSaisie(): int
+    {
+        return $this->appConfigRepository->getConfig()->getNbrJourSaisie();
+    }
+
+    /**
+     * Compter les heures du mois
+     */
+    public function countHeuresMois(string $mois): float
+    {
+        return $this->repository->countByMonth($mois);
+    }
+    
+    /**
+     * Compter les heures par intervenant pour un mois
+     */
+    public function countHeuresParIntervenant(int $intervenantId, string $mois = null): float
+    {
+        return $this->repository->countByIntervenant($intervenantId, $mois);
+    }
+    
+    /**
+     * Compter les heures par famille pour un mois
+     */
+    public function countHeuresMoisParFamille(string $familleId, string $mois): float
+    {
+        return $this->repository->countByFamille($familleId, $mois);
+    }
+
+    /**
+     * Construit la structure JSON du relevé mensuel pour le front-end.
+     * @param object|null $intervenant Entité Intervenant (pour le nom dans la signature)
+     */
+    public function getReleveData(int $numInter, string $type, int $moisOffset, ?object $intervenant = null): array
+    {
+        $date = new \DateTime('first day of this month');
+        if ($moisOffset !== 0) {
+            $date->modify("$moisOffset month");
+        }
+        $year  = (int)$date->format('Y');
+        $month = (int)$date->format('m');
+
+        // Période universelle : du 25 du mois précédent au 24 du mois courant
+        $startDate = new \DateTime(sprintf('%04d-%02d-25', $year, $month));
+        $startDate->modify('-1 month');
+        $endDate   = new \DateTime(sprintf('%04d-%02d-24', $year, $month));
+
+        $moisAnnee = sprintf('%02d/%04d', $month, $year);
+
+        $prestations = $this->repository->findByIntervenantPeriodType($numInter, $startDate, $endDate, $type);
+
+        // ── Pré-calcul des distances trajet (ENFA et MENA, familles hors Rennes) ────
+        // Règle : famille À Rennes → distanceAller = 0 (pas de km trajet)
+        //         famille HORS Rennes → distance routière intervenant → famille via API
+        // Toutes les requêtes HTTP sont envoyées en parallèle (curl_multi).
+        $distancesParFamille = [];
+        if ($intervenant?->getAdresse()) {
+            $adresseIntervenant = trim(
+                ($intervenant->getAdresse() ?? '') . ', ' .
+                ($intervenant->getCodePostal() ?? '') . ' ' .
+                ($intervenant->getVille() ?? '')
+            );
+
+            // Identifier les familles hors Rennes qui ont une adresse
+            $adressesFamillesHorsRennes = [];
+            foreach ($prestations as $p) {
+                $numFam = $p->getNumFam() ?? '';
+                if (!$numFam || isset($adressesFamillesHorsRennes[$numFam]) || isset($distancesParFamille[$numFam])) {
+                    continue;
+                }
+                $famille = $this->familleRepository->findByNumero($numFam);
+                if (!$famille) {
+                    $distancesParFamille[$numFam] = 0.0;
+                    continue;
+                }
+                // Famille à Rennes → 0 km
+                if ($this->estARennes($famille->getVille(), $famille->getCodePostal())) {
+                    $distancesParFamille[$numFam] = 0.0;
+                } elseif ($famille->getAdresse()) {
+                    $adressesFamillesHorsRennes[$numFam] = trim(
+                        $famille->getAdresse() . ', ' .
+                        ($famille->getCodePostal() ?? '') . ' ' .
+                        ($famille->getVille() ?? '')
+                    );
+                }
+            }
+
+            if ($adressesFamillesHorsRennes) {
+                // Géocoder toutes les adresses en parallèle (intervenant + familles hors Rennes)
+                $allAddresses = array_merge([$adresseIntervenant], array_values($adressesFamillesHorsRennes));
+                $geoResults   = $this->geocodeAddressesBatch($allAddresses);
+                $coordsInter  = $geoResults[$adresseIntervenant] ?? null;
+
+                // Calculer toutes les distances en parallèle
+                $pairs = [];
+                foreach ($adressesFamillesHorsRennes as $numFam => $adresseFam) {
+                    $coordsFam = $geoResults[$adresseFam] ?? null;
+                    if ($coordsInter && $coordsFam) {
+                        $pairs[$numFam] = ['start' => $coordsInter, 'end' => $coordsFam];
+                    }
+                }
+                foreach ($this->getDistancesBatch($pairs) as $numFam => $km) {
+                    $distancesParFamille[$numFam] = $km ?? 0.0;
+                }
+            }
+        }
+
+        // ── Construction de la map familles ──────────────────────────────────
+        $famillesMap = [];
+        foreach ($prestations as $p) {
+            $nom = $p->getNomFam();
+            if (!isset($famillesMap[$nom])) {
+                $numFam  = $p->getNumFam() ?? '';
+                $famille = $numFam ? $this->familleRepository->findByNumero($numFam) : null;
+                $famillesMap[$nom] = [
+                    'nomFam'         => $nom,
+                    'numFam'         => $numFam,
+                    'ville_Famille'  => $famille?->getVille() ?? '',
+                    'distanceAller'  => $distancesParFamille[$numFam] ?? 0.0,
+                    'prestations'    => [],
+                    'totalSecondes'  => 0,
+                    'totalKm'        => 0.0,   // trajet intervenant→famille (hors Rennes)
+                    'totalKmEnfants' => 0.0,   // km avec enfants saisis (ENFA uniquement)
+                    'nbPrestations'  => 0,
+                ];
+            }
+            $dateKey  = $p->getDatePresta()->format('Y-m-d');
+            $debut    = $p->getHeureDebutPresta();
+            $fin      = $p->getHeureFinPresta();
+            $debutSec = $debut->getTimestamp() - $debut->setTime(0,0)->getTimestamp();
+            $finSec   = $fin->getTimestamp()  - $fin->setTime(0,0)->getTimestamp();
+            if ($finSec < $debutSec) $finSec += 86400;
+            $dureeSec = $finSec - $debutSec;
+            $dH = intdiv($dureeSec, 3600);
+            $dM = ($dureeSec % 3600) / 60;
+
+            $timeStr = $dM > 0 ? "{$dH}h" . sprintf('%02d', $dM) : "{$dH}h";
+            $famillesMap[$nom]['prestations'][$dateKey][] = $timeStr;
+
+            $famillesMap[$nom]['totalSecondes']  += $dureeSec;
+            $famillesMap[$nom]['nbPrestations']++;
+            $famillesMap[$nom]['totalKm']        += $famillesMap[$nom]['distanceAller'];
+            $famillesMap[$nom]['totalKmEnfants'] += $type === 'ENFA'
+                ? (float)($p->getKmAvecEnfant() ?? 0)
+                : 0.0;
+        }
+
+        $joursNoms = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+        $calStart = clone $startDate;
+        $calEnd   = clone $endDate;
+        $jours = [];
+        $cur = clone $calStart;
+        while ($cur <= $calEnd) {
+            $jours[] = [
+                'date'       => $cur->format('Y-m-d'),
+                'jour'       => $joursNoms[(int)$cur->format('N') - 1],
+                'numeroJour' => (int)$cur->format('j'),
+                'semaine'    => (int)$cur->format('W'),
+            ];
+            $cur->modify('+1 day');
+        }
+
+        $totalKm        = array_sum(array_column(array_values($famillesMap), 'totalKm'));
+        $totalKmEnfants = array_sum(array_column(array_values($famillesMap), 'totalKmEnfants'));
+
+        $releve = $this->releveRepository->findByMoisAnneeIntervenant($moisAnnee, $numInter, $type);
+        $signerData = ['etat' => false, 'date' => '', 'nom' => ''];
+        if ($releve && $releve->isSigner()) {
+            $signerData = [
+                'etat' => true,
+                'date' => $releve->getSignerLe()?->format('d/m/Y') ?? '',
+                'nom'  => $intervenant ? ($intervenant->getPrenom() . ' ' . $intervenant->getNom()) : '',
+            ];
+        }
+
+        $heureDehors = null;
+        if ($releve?->getHeureDehors()) {
+            $h = (int)$releve->getHeureDehors()->format('H');
+            $m = (int)$releve->getHeureDehors()->format('i');
+            $heureDehors = sprintf('%dh%02d', $h, $m);
+        }
+
+        $moisNoms = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+        $intervenantData = [
+            'nom'               => $intervenant?->getNom() ?? '',
+            'prenom'            => $intervenant?->getPrenom() ?? '',
+            'Téléhone'          => $intervenant?->getTelPortable() ?? '',
+            'adresse'           => $intervenant?->getAdresse() ?? '',
+            'ville de résidence'=> $intervenant?->getVille() ?? '',
+        ];
+
+        return [
+            'type'        => $type,
+            'periode'     => ['mois' => ucfirst($moisNoms[$month - 1]), 'anner' => (string)$year, 'fin' => $endDate->format('Y-m-d')],
+            'familles'    => array_values($famillesMap),
+            'jours'       => $jours,
+            'totaux'      => ['kmMois' => $totalKm, 'kmEnfantsMois' => $totalKmEnfants],
+            'signer'      => $signerData,
+            'heureDehors' => $heureDehors,
+            'intervenant' => $intervenantData,
+        ];
+    }
+
+    /**
+     * Signe le relevé du mois courant ou précédent uniquement
+     */
+    public function signerReleve(int $numInter, string $type, string $periodeFin): array
+    {
+        $date      = new \DateTime($periodeFin);
+        $moisAnnee = $date->format('m/Y');
+
+        $now      = new \DateTime();
+        $prevDate = (clone $now)->modify('-1 month');
+
+        if (!in_array($moisAnnee, [$now->format('m/Y'), $prevDate->format('m/Y')])) {
+            return ['success' => false, 'message' => 'Vous ne pouvez signer que le mois actuel ou le mois précédent'];
+        }
+
+        $this->releveRepository->signerReleve($moisAnnee, $numInter, $type);
+
+        return ['success' => true];
+    }
+
+    /**
+     * Statistiques du mois courant pour le dashboard intervenant
+     */
+    public function getDashboardStats(int $numInter): array
+    {
+        $start = new \DateTime('first day of this month 00:00:00');
+        $end   = new \DateTime('last day of this month 23:59:59');
+        $prestations = $this->getPrestationsParIntervenant($numInter, $start, $end);
+        $cmptvalider = 0;
+        $cmpt = 0;
+        $totalSec = 0; $declareesSec = 0; $attenteSec = 0; $nbEcarts = 0; $totalKm = 0.0;
+        foreach ($prestations as $p) {
+            $d = (int)$p->getHeureDebutPresta()->format('H') * 3600 + (int)$p->getHeureDebutPresta()->format('i') * 60;
+            $f = (int)$p->getHeureFinPresta()->format('H')   * 3600 + (int)$p->getHeureFinPresta()->format('i')   * 60;
+            $dur = max(0, $f - $d);
+            $totalSec += $dur;
+            $cmpt++;
+            $totalKm += (float)($p->getKmAvecEnfant() ?? 0);
+            if ($p->getDeclarerLeFam()) {
+                $cmptvalider++;
+                $declareesSec += $dur;
+                $df = $p->getHeureDebutFam(); $ff = $p->getHeureFinFam();
+                if ($df && $ff) {
+                    $dfs = (int)$df->format('H') * 3600 + (int)$df->format('i') * 60;
+                    $ffs = (int)$ff->format('H') * 3600 + (int)$ff->format('i') * 60;
+                    if (abs(($ffs - $dfs) - $dur) > 60) { $nbEcarts++; }
+                }
+            } else {
+                $attenteSec += $dur;
+            }
+        }
+
+        return [
+            'totalHeures'    => $this->secToHhMm($totalSec),
+            'heuresValidees' => $this->secToHhMm($declareesSec),
+            'heuresAttente'  => $this->secToHhMm($attenteSec),
+            'nbSignalements' => $nbEcarts,
+            'cmptvalider'    => $cmptvalider,
+            'cmpt'           => $cmpt,
+            'nbPrestations'  => count($prestations),
+            'totalKm'        => $totalKm,
+        ];
+    }
+
+    /**
+     * Relevés du mois courant et précédent non encore signés
+     */
+    public function getRelevesASigner(int $numInter): array
+    {
+        $now  = new \DateTime();
+        $prev = (clone $now)->modify('-1 month');
+        $nonSignes = [];
+
+        foreach ([$now, $prev] as $date) {
+            $mois  = $date->format('m/Y');
+            $m     = (int)$date->format('m');
+            $y     = (int)$date->format('Y');
+            $start = new \DateTime(sprintf('%04d-%02d-25', $y, $m));
+            $start->modify('-1 month');
+            $end   = new \DateTime(sprintf('%04d-%02d-24', $y, $m));
+
+            foreach (['ENFA', 'MENA'] as $type) {
+                $nb = count($this->repository->findByIntervenantPeriodType($numInter, $start, $end, $type));
+                if ($nb === 0) continue;
+                $releve = $this->releveRepository->findByMoisAnneeIntervenant($mois, $numInter, $type);
+                if (!$releve || !$releve->isSigner()) {
+                    $nonSignes[] = [
+                        'mois'         => $mois,
+                        'type'         => $type,
+                        'libelle'      => $type === 'ENFA' ? "Garde d'enfants" : 'Ménage',
+                        'nbPrestations'=> $nb,
+                    ];
+                }
+            }
+        }
+        return $nonSignes;
+    }
+
+    /**
+     * Statistiques du mois courant pour le dashboard famille
+     */
+    public function getDashboardStatsFamille(string $numFam): array
+    {
+        $start = new \DateTime('first day of this month 00:00:00');
+        $end   = new \DateTime('last day of this month 23:59:59');
+
+        $all = $this->repository->createQueryBuilder('h')
+            ->where('h.numFam = :numFam')
+            ->andWhere('h.desactiver = :d')
+            ->andWhere('h.datePresta BETWEEN :s AND :e')
+            ->setParameter('numFam', $numFam)
+            ->setParameter('d', false)
+            ->setParameter('s', $start)
+            ->setParameter('e', $end)
+            ->getQuery()->getResult();
+
+        $totalSec = 0; $declareesSec = 0; $attenteSec = 0; $nbEcarts = 0;
+        foreach ($all as $p) {
+            // Utiliser heures famille si heures intervenant absentes
+            $debut = $p->getHeureDebutPresta() ?? $p->getHeureDebutFam();
+            $fin   = $p->getHeureFinPresta()   ?? $p->getHeureFinFam();
+            if (!$debut || !$fin) { continue; }
+            $dur = $this->durationSec($debut, $fin);
+            $totalSec += $dur;
+            if ($p->getDeclarerLeFam()) {
+                $declareesSec += $dur;
+                $df = $p->getHeureDebutFam(); $ff = $p->getHeureFinFam();
+                if ($df && $ff && $p->getHeureDebutPresta() && $p->getHeureFinPresta()) {
+                    if (abs($this->durationSec($df, $ff) - $dur) > 60) { $nbEcarts++; }
+                }
+            } else {
+                $attenteSec += $dur;
+            }
+        }
+
+        return [
+            'totalHeures'    => $this->secToHhMm($totalSec),
+            'heuresValidees' => $this->secToHhMm($declareesSec),
+            'heuresAttente'  => $this->secToHhMm($attenteSec),
+            'nbSignalements' => $nbEcarts,
+            'nbPrestations'  => count($all),
+            'nbAttente'      => count(array_filter($all, fn($p) => !$p->getDeclarerLeFam())),
+        ];
+    }
+
+    /**
+     * Prestations déclarées par la famille avec un écart vs heures intervenant
+     */
+    public function getSignalementsFamille(string $numFam): array
+    {
+        $prestations = $this->repository->createQueryBuilder('h')
+            ->where('h.numFam = :numFam')
+            ->andWhere('h.desactiver = :d')
+            ->andWhere('h.declarerLeFam IS NOT NULL')
+            ->andWhere('h.heureDebutFam IS NOT NULL')
+            ->andWhere('h.heureFinFam IS NOT NULL')
+            ->setParameter('numFam', $numFam)
+            ->setParameter('d', false)
+            ->orderBy('h.datePresta', 'DESC')
+            ->getQuery()->getResult();
+
+        return array_filter($prestations, function ($p) {
+            if (!$p->getHeureDebutPresta() || !$p->getHeureFinPresta()) { return false; }
+            $durInter = $this->durationSec($p->getHeureDebutPresta(), $p->getHeureFinPresta());
+            $durFam   = $this->durationSec($p->getHeureDebutFam(), $p->getHeureFinFam());
+            return abs($durFam - $durInter) > 60;
+        });
+    }
+
+    /**
+     * Toutes les prestations de toutes les familles avec un écart entre heures fam et heures inter.
+     * Utilisé par l'admin pour choisir la source de facturation.
+     */
+    public function getTousLesEcarts(): array
+    {
+        $prestations = $this->repository->createQueryBuilder('h')
+            ->andWhere('h.desactiver = :d')
+            ->andWhere('h.declarerLeFam IS NOT NULL')
+            ->andWhere('h.heureDebutFam IS NOT NULL')
+            ->andWhere('h.heureFinFam IS NOT NULL')
+            ->setParameter('d', false)
+            ->orderBy('h.datePresta', 'DESC')
+            ->getQuery()->getResult();
+
+        return array_values(array_filter($prestations, function ($p) {
+            if (!$p->getHeureDebutPresta() || !$p->getHeureFinPresta()) { return false; }
+            $durInter = $this->durationSec($p->getHeureDebutPresta(), $p->getHeureFinPresta());
+            $durFam   = $this->durationSec($p->getHeureDebutFam(), $p->getHeureFinFam());
+            return abs($durFam - $durInter) > 60;
+        }));
+    }
+
+    /**
+     * Définit la source de facturation ('inter' ou 'fam') pour une prestation.
+     */
+    public function choisirSourceFacturation(int $id, string $source): bool
+    {
+        if (!in_array($source, ['inter', 'fam'], true)) {
+            return false;
+        }
+        $horaire = $this->repository->find($id);
+        if (!$horaire) {
+            return false;
+        }
+        $horaire->setSourceFacturation($source);
+        $this->entityManager->flush();
+        return true;
+    }
+
+    /**
+     * Agrège les prestations par (numInter, typePresta) pour la préparation de paie.
+     * ENFA : mois complet. MENA : du 25 du mois précédent au 24 du mois courant.
+     */
+    public function getPreparationPaie(int $year, int $month): array
+    {
+        // Période universelle : 25 du mois précédent au 24 du mois courant
+        $periodEnd   = new \DateTime(sprintf('%04d-%02d-24', $year, $month));
+        $periodStart = new \DateTime(sprintf('%04d-%02d-25', $year, $month));
+        $periodStart->modify('-1 month');
+
+        $grouped = [];
+        foreach ([
+            ['ENFA', $periodStart, $periodEnd],
+            ['MENA', $periodStart, $periodEnd],
+        ] as [$type, $start, $end]) {
+            foreach ($this->repository->findByPeriodAndType($type, $start, $end) as $h) {
+                $key = $h->getNumInter() . '|' . $h->getTypePresta();
+                if (!isset($grouped[$key])) {
+                    $grouped[$key] = [
+                        'numInter'    => $h->getNumInter(),
+                        'typePresta'  => $h->getTypePresta(),
+                        'totalSec'    => 0,
+                        'nbrTrajet'   => 0,
+                        'kmAvecEnfant'=> 0.0,
+                        'familles'    => [],
+                    ];
+                }
+                if ($h->getHeureDebutPresta() && $h->getHeureFinPresta()) {
+                    $sec = $h->getHeureFinPresta()->getTimestamp() - $h->getHeureDebutPresta()->getTimestamp();
+                    if ($sec < 0) $sec += 86400;
+                    $grouped[$key]['totalSec'] += $sec;
+                }
+                $grouped[$key]['nbrTrajet']++;
+                $grouped[$key]['kmAvecEnfant'] += (float)($h->getKmAvecEnfant() ?? 0);
+                if ($h->getNumFam()) {
+                    $grouped[$key]['familles'][$h->getNumFam()] = true;
+                }
+            }
+        }
+
+        foreach ($grouped as &$g) {
+            $s = $g['totalSec'];
+            $g['heuresDecimal']   = str_replace('.', ',', number_format($s / 3600, 2));
+            $g['heuresFormatted'] = sprintf('%dh%02d', intdiv($s, 3600), ($s % 3600) / 60);
+            $g['familles']        = array_keys($g['familles']);
+        }
+        unset($g);
+
+        usort($grouped, fn($a, $b) => $a['typePresta'] <=> $b['typePresta'] ?: $a['numInter'] <=> $b['numInter']);
+
+        return $grouped;
+    }
+
+    private function durationSec(?\DateTimeInterface $debut, ?\DateTimeInterface $fin): int
+    {
+        if (!$debut || !$fin) { return 0; }
+        return max(0, ((int)$fin->format('H') * 3600 + (int)$fin->format('i') * 60)
+                    - ((int)$debut->format('H') * 3600 + (int)$debut->format('i') * 60));
+    }
+
+    private function secToHhMm(int $sec): string
+    {
+        $h = intdiv($sec, 3600);
+        $m = intdiv($sec % 3600, 60);
+        return sprintf('%dh%02d', $h, $m);
+    }
+
+    /**
+     * Retourne true si la famille est à Rennes (km trajet = 0).
+     * On se base sur le nom de ville exact ET les codes postaux officiels de Rennes.
+     * Bruz (35170), Cesson (35510), etc. → false → km calculé.
+     */
+    private function estARennes(?string $ville, ?string $cp): bool
+    {
+        $cpRennes   = ['35000', '35200', '35700'];
+        $nomRennes  = 'rennes';
+
+        $cpMatch    = $cp   && in_array(trim($cp), $cpRennes, true);
+        $villeMatch = $ville && strtolower(trim($ville)) === $nomRennes;
+
+        return $cpMatch || $villeMatch;
+    }
+
+    /**
+     * Géocode plusieurs adresses en parallèle via Nominatim.
+     * Retourne un tableau indexé par adresse => [lat, lon] ou null.
+     *
+     * @param  string[] $addresses
+     * @return array<string, array{0:float,1:float}|null>
+     */
+    private function geocodeAddressesBatch(array $addresses): array
+    {
+        $addresses = array_unique(array_filter($addresses));
+        if (!$addresses) return [];
+
+        $mh      = curl_multi_init();
+        $handles = [];
+
+        foreach ($addresses as $addr) {
+            $url = 'https://nominatim.openstreetmap.org/search?q=' . urlencode($addr) . '&format=json&limit=1';
+            $ch  = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 6,
+                CURLOPT_HTTPHEADER     => ['Accept-Language: fr', 'User-Agent: ChaudoudouxApp/1.0'],
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$addr] = $ch;
+        }
+
+        do {
+            $status = curl_multi_exec($mh, $running);
+            if ($running) curl_multi_select($mh);
+        } while ($running > 0 && $status === CURLM_OK);
+
+        $results = [];
+        foreach ($handles as $addr => $ch) {
+            $body = curl_multi_getcontent($ch);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+            $data = $body ? json_decode($body, true) : null;
+            $results[$addr] = (!empty($data[0]))
+                ? [(float)$data[0]['lat'], (float)$data[0]['lon']]
+                : null;
+        }
+        curl_multi_close($mh);
+
+        return $results;
+    }
+
+    /**
+     * Calcule les distances routières en parallèle via OSRM pour plusieurs paires.
+     * Chaque paire est [start:[lat,lon], end:[lat,lon]].
+     * Retourne un tableau indexé par clé => distance en km ou null.
+     *
+     * @param  array<string, array{start:array, end:array}> $pairs
+     * @return array<string, float|null>
+     */
+    private function getDistancesBatch(array $pairs): array
+    {
+        if (!$pairs) return [];
+
+        $mh      = curl_multi_init();
+        $handles = [];
+
+        foreach ($pairs as $key => $pair) {
+            [$sLat, $sLon] = $pair['start'];
+            [$eLat, $eLon] = $pair['end'];
+            $url = sprintf(
+                'https://router.project-osrm.org/route/v1/driving/%f,%f;%f,%f?overview=false',
+                $sLon, $sLat, $eLon, $eLat
+            );
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 8,
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$key] = $ch;
+        }
+
+        do {
+            $status = curl_multi_exec($mh, $running);
+            if ($running) curl_multi_select($mh);
+        } while ($running > 0 && $status === CURLM_OK);
+
+        $results = [];
+        foreach ($handles as $key => $ch) {
+            $body = curl_multi_getcontent($ch);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+            $data  = $body ? json_decode($body, true) : null;
+            $distM = $data['routes'][0]['legs'][0]['distance'] ?? null;
+            $results[$key] = $distM !== null ? round($distM / 1000, 1) : null;
+        }
+        curl_multi_close($mh);
+
+        return $results;
+    }
+
+    /**
+     * Enregistre des heures travaillées hors structure pour un intervenant
+     */
+    public function ajouterHeuresHorsStructure(int $numInter, int $heure, int $minute, string $periodeFin, string $type): array
+    {
+        $date      = new \DateTime($periodeFin);
+        $moisAnnee = $date->format('m/Y');
+        $heureTime = new \DateTime(sprintf('1970-01-01 %02d:%02d:00', $heure, $minute));
+
+        $this->releveRepository->ajouterHeureDehors($moisAnnee, $numInter, $type, $heureTime);
+
+        return ['success' => true];
+    }
+}

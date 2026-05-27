@@ -1,0 +1,176 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ isAdmin ? 'Admin — Saisie heures' : 'Saisir mes heures' }}{% endblock %}
+{% block page_title %}{{ isAdmin ? 'Saisie admin' : 'Saisir des heures' }}{% endblock %}
+
+{% block body %}
+<style>
+.tp-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;}
+.tp-box{display:flex;align-items:center;gap:4px;height:58px;padding:0 16px;border:2px solid var(--border);border-radius:16px;background:var(--bg);cursor:pointer;transition:border-color .2s,box-shadow .2s,background .2s;}
+.tp-box:hover{background:var(--bg-secondary,var(--bg));}
+.tp-box:focus-within{border-color:var(--primary);box-shadow:0 0 0 4px rgba(0,0,0,.05);}
+.tp-icon{font-size:15px;color:var(--primary);margin-right:6px;flex-shrink:0;opacity:.75;}
+.tp-sel{-webkit-appearance:none;-moz-appearance:none;appearance:none;border:none;background:transparent;outline:none;font-size:26px;font-weight:800;color:var(--text);font-family:inherit;cursor:pointer;padding:0;width:2.5em;text-align:center;line-height:1;}
+.tp-sel option{font-size:14px;font-weight:400;}
+.tp-sep{font-size:20px;font-weight:700;color:var(--text-muted);padding:0 2px;line-height:1;user-select:none;}
+</style>
+
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            {% if isAdmin %}
+                <h1>{{ editId ? 'Modifier une prestation' : 'Ajouter des heures oubliées' }}</h1>
+                <p>{{ user.nom }} {{ user.prenom }}</p>
+            {% else %}
+                <h1>Saisir vos heures</h1>
+                <p>
+                    Période du <strong>{{ periodeDebut|date('d/m/Y') }}</strong>
+                    au <strong>{{ 'now'|date('d/m/Y') }}</strong>
+                </p>
+            {% endif %}
+        </div>
+        <a href="{{ path('intervenant_panel_mvc', {id: user.id}) }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+
+<div class="card" style="max-width:540px;">
+    <div class="card-header">
+        <i class="fas fa-clock" style="color:var(--primary);"></i>
+        <span class="card-title">Nouvelle prestation</span>
+    </div>
+    <div class="card-body">
+
+        {# Map proposer : numFamille → [typePrestation, ...] pour cet intervenant #}
+        {% set proposerMap = {} %}
+        {% for a in assignations %}
+            {% set existing = proposerMap[a.numeroFamille] is defined ? proposerMap[a.numeroFamille] : [] %}
+            {% set proposerMap = proposerMap|merge({(a.numeroFamille): existing|merge([a.typePrestation])}) %}
+        {% endfor %}
+
+        <form lang="fr" id="form_ajout_heure" class="form_ajout_heure" action="">
+
+            {# Date #}
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                    Date de la prestation
+                </label>
+                <input type="date" id="date" name="date" required
+                       style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                       onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+            </div>
+
+            {# Type en premier pour filtrer les familles #}
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                    Type de prestation
+                </label>
+                <select id="type" name="type" required
+                        style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                    <option value="" disabled selected>Choisir un type</option>
+                    <option value="ENFA">Garde d'enfants</option>
+                    <option value="MENA">Ménage</option>
+                </select>
+            </div>
+
+            {# Famille — filtrée selon le type sélectionné #}
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                    Famille
+                </label>
+                <select name="famille" id="famille"
+                        style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                    <option value="" disabled selected>Choisir une famille</option>
+                    <option value="0" data-prestations="ENFA,MENA">Famille OCCASIONNELLE</option>
+                    {% for famille in familles %}
+                        {% set types = proposerMap[famille.numeroFamille] is defined ? proposerMap[famille.numeroFamille] : [] %}
+                        <option data-num="{{ famille.numeroFamille }}"
+                                data-prestations="{{ types|join(',') }}"
+                                data-nom="{{ famille_label(famille) }}"
+                                value="{{ famille.numeroFamille }}">
+                            {{ famille_label(famille) }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div id="familleOccaContainer" hidden style="position:relative;margin-top:8px;">
+                    <input type="text" id="familleOccaSearch" autocomplete="off"
+                           placeholder="Rechercher une famille..."
+                           style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                           onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                    <div id="familleOccaSuggestions" style="display:none;position:absolute;top:44px;left:0;right:0;z-index:200;background:var(--bg);border:1.5px solid var(--primary);border-top:none;border-radius:0 0 var(--radius-md) var(--radius-md);max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1);"></div>
+                </div>
+                <input type="hidden" id="nomRemplacement" name="nomRemplacement" value="">
+            </div>
+
+            {# Trajet km — visible uniquement pour ENFA #}
+            <div id="trajetContainer" hidden style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                    Trajet avec enfants (km)
+                </label>
+                <input type="number" id="trajet" name="trajet" min="0" max="200" step="0.1"
+                       placeholder="ex : 4.5"
+                       style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                       onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+            </div>
+
+            {# Heures — sélecteurs 24h modernes #}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+
+                <!-- Heure de début -->
+                <div>
+                    <label class="tp-label">Heure de début</label>
+                    <div class="tp-box" onclick="this.querySelector('select').focus()">
+                        <i class="fas fa-clock tp-icon"></i>
+                        <select id="heureDebut" name="heureDebut" required class="tp-sel">
+                            <option value="" disabled selected>--</option>
+                            {% for h in 0..23 %}<option value="{{ '%02d'|format(h) }}">{{ '%02d'|format(h) }}</option>{% endfor %}
+                        </select>
+                        <span class="tp-sep">h</span>
+                        <select id="minuteDebut" name="minuteDebut" class="tp-sel">
+                            {% for m in range(0, 55, 5) %}<option value="{{ '%02d'|format(m) }}"{{ m == 0 ? ' selected' : '' }}>{{ '%02d'|format(m) }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Heure de fin -->
+                <div>
+                    <label class="tp-label">Heure de fin</label>
+                    <div class="tp-box" onclick="this.querySelector('select').focus()">
+                        <i class="fas fa-clock tp-icon"></i>
+                        <select id="heureFin" name="heureFin" required class="tp-sel">
+                            <option value="" disabled selected>--</option>
+                            {% for h in 0..23 %}<option value="{{ '%02d'|format(h) }}">{{ '%02d'|format(h) }}</option>{% endfor %}
+                        </select>
+                        <span class="tp-sep">h</span>
+                        <select id="minuteFin" name="minuteFin" class="tp-sel">
+                            {% for m in range(0, 55, 5) %}<option value="{{ '%02d'|format(m) }}"{{ m == 0 ? ' selected' : '' }}>{{ '%02d'|format(m) }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;">
+                <i class="fas fa-check"></i> Valider la prestation
+            </button>
+
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+const ID = {{ user.id }};
+{% set familles_occ_labels = [] %}{% for f in toutesLesFamilles %}{% set familles_occ_labels = familles_occ_labels|merge([famille_label(f)]) %}{% endfor %}
+const FAMILLES_OCC = {{ familles_occ_labels|json_encode|raw }};
+const PLANNING_URL = "{{ path('intervenant_planning_mvc', {id: user.id}) }}";
+</script>
+<script src="{{ asset('/assets/js/suivie.js') }}" defer></script>
+{% endblock %}
