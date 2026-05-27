@@ -1,0 +1,235 @@
+{% extends 'base.html.twig' %}
+{% block title %}Relevé {{ typeLibelle }} — {{ intervenant.nom }} {{ intervenant.prenom }}{% endblock %}
+{% block page_title %}Relevé d'heures{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    [id^="monTableau0"] { font-size:13px; margin-bottom:6px; }
+    table { width:100%; border-collapse:collapse; text-align:center; }
+    th, td { border:1px solid #333; padding:10px; }
+    th { background-color:transparent; }
+    .no-borders { border:none; }
+    .title { text-decoration:underline; }
+    .cell-position-left  { text-align:left; }
+    .cell-position-right { text-align:right; }
+    tr.dimanche { background-color:#e0e0e0; color:#333; }
+    th:nth-child(n+4):nth-child(-n+8) { width:15%; }
+    @media screen and (max-aspect-ratio: 1/1) {
+        main { width:200%; max-width:none; }
+        header { width:200%; position:relative; }
+        .header-content { width:50%; margin-left:0; text-align:center; box-sizing:border-box; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <h1>Génération en cours…</h1>
+    <p>Veuillez patienter, ne touchez à rien</p>
+</div>
+
+{% for familles in famillesPages %}
+{% set p = loop.index %}
+<div class="fiche-page">
+
+    {# ── En-tête intervenant ─────────────────────────────────── #}
+    <table id="monTableau0{{ p }}">
+        <tr>
+            <th class="no-borders title" colspan="4">
+                {{ typeLibelle }} - RELEVÉ D'HEURES - {{ periode.mois|upper }} {{ periode.anner }}
+            </th>
+        </tr>
+        <tr>
+            <td class="no-borders" colspan="4" style="font-size:10px;">
+                LES FEUILLES D'HEURES DOIVENT ÊTRE SIGNÉES AU PLUS TARD LE 30/31 DU MOIS
+            </td>
+        </tr>
+        <tr class="cell-position-right bold">
+            <td rowspan="2" class="title">Nom :</td>
+            <td rowspan="2">{{ intervenant.nom }} {{ intervenant.prenom }}</td>
+            <td>Tel :</td>
+            <td>{{ intervenant['Téléhone'] }}</td>
+        </tr>
+        <tr class="cell-position-right bold">
+            <td>Adresse :</td>
+            <td>{{ intervenant.adresse }}{% if intervenant['ville de résidence'] %}, {{ intervenant['ville de résidence'] }}{% endif %}</td>
+        </tr>
+        <tr class="cell-position-right">
+            <td colspan="4" class="no-borders" style="font-size:10px;">
+                Toute absence doit être justifiée
+            </td>
+        </tr>
+    </table>
+
+    {# ── Tableau jours × familles ────────────────────────────── #}
+    <table id="monTableau1{{ p }}">
+        <tr>
+            <td class="no-borders"></td>
+            <td class="no-borders"></td>
+            <td class="no-borders"></td>
+            <th colspan="5" class="bold">FAMILLES</th>
+        </tr>
+        <tr>
+            
+            <td class="no-borders" colspan="3"></td>
+            
+            {% for i in 0..4 %}
+                <th style="width:15%;" class="bold">
+                    <div style="display:flex; flex-direction:column; align-items:center; gap:4px; padding:4px 0;">
+                        <span>{{ i + 1 }}</span>
+                        {% if familles[i] is defined %}
+                            <span style="font-weight:bold;">{{ famille_label(familles[i].numFam) }}</span>
+                            <i style="font-size:7px;" class="villes">{{ familles[i].ville_Famille }}</i>
+                        {% endif %}
+                    </div>
+                </th>
+            {% endfor %}
+        </tr>
+        <tr>
+            <td class="no-borders"></td>
+            <th colspan="2" class="bold">Date</th>
+            {% for i in 1..5 %}
+                <th style="width:15%;"><br></th>
+            {% endfor %}
+        </tr>
+
+        {% for jour in jours %}
+        <tr{% if jour.isDimanche %} class="dimanche"{% endif %}>
+            {% if jour.isDimanche %}
+                <td></td>
+            {% elseif jour.nouvelleSemaine %}
+                <td class="bold" rowspan="{{ jour.rowspan }}">S{{ jour.numeroSemaine }}</td>
+            {% endif %}
+            <td class="bold">{{ jour.nomJourCourt }}</td>
+            <td>{{ jour.numeroJour }}{% if jour.afficherMois %}-{{ jour.nomMois }}{% endif %}</td>
+            {% for i in 0..4 %}
+                <td style="font-size:10px;">
+                    {%- if familles[i] is defined and familles[i].prestations[jour.date] is defined -%}
+                        {{ familles[i].prestations[jour.date]|join('<br>')|raw }}
+                        {%- if familles[i].distanceAller > 0 -%}
+                            <br><span style="color:#555;">{{ familles[i].distanceAller|number_format(1, ',', '') }} km</span>
+                        {%- endif -%}
+                    {%- endif -%}
+                </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+
+        <tr>
+            <td class="no-borders"></td>
+            <th colspan="2">TOTAL Heures</th>
+            {% for i in 0..4 %}
+                <td>{% if familles[i] is defined %}{{ familles[i].totalHeures }}{% endif %}</td>
+            {% endfor %}
+        </tr>
+        <tr>
+            <td class="no-borders"></td>
+            <th colspan="2">Km trajet (hors Rennes)</th>
+            {% for i in 0..4 %}
+                <td style="font-size:10px;">
+                    
+                    {%- if isAdmin and familles[i] is defined -%}
+                        {{ familles[i].nbPrestations }}&nbsp x 
+                        {%- if familles[i].distanceAller > 0 -%}
+                            {{ familles[i].distanceAller <= 15 ? familles[i].distanceAller|number_format(1, ',', ' ') : '15' }}
+                        {%- else -%}&nbsp 0{%- endif -%}
+                    {%- endif -%}
+                </td>
+            {% endfor %}
+        </tr>
+        {% if afficherKm %}
+        <tr>
+            <td class="no-borders"></td>
+            <th colspan="2">Km avec enfants</th>
+            {% for i in 0..4 %}
+                <td style="font-size:10px;">
+                    {%- if familles[i] is defined and familles[i].totalKmEnfants > 0 -%}
+                        {{ familles[i].totalKmEnfants|number_format(1, ',', ' ') }} km
+                    {%- endif -%}
+                </td>
+            {% endfor %}
+        </tr>
+        {% endif %}
+
+        <tr>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+        </tr>
+        <tr>
+            <td class="no-borders"></td>
+            <td colspan="2" class="no-borders">TOTAL MENSUEL DES HEURES</td>
+            <td>{{ totalHeures }}</td>
+            <th class="no-borders"></th>
+            <td></td>
+            {% if totaux.kmMois > 0 or totaux.kmEnfantsMois > 0 %}
+                <th class="no-borders">
+                    TOTAL KM TRAJET{% if afficherKm %} / AVEC ENFANTS{% endif %}
+                </th>
+                <td>
+                    {{ totaux.kmMois|number_format(1, ',', ' ') }} km
+                    {% if afficherKm and totaux.kmEnfantsMois > 0 %}
+                        / {{ totaux.kmEnfantsMois|number_format(1, ',', ' ') }} km
+                    {% endif %}
+                </td>
+            {% else %}
+                <td class="no-borders" colspan="2"></td>
+            {% endif %}
+        </tr>
+        <tr>
+            <td class="no-borders" colspan="4"></td>
+            <td class="no-borders" colspan="2" style="text-align:left;">
+                Date :{% if signer.etat %} {{ signer.date }}{% endif %}
+            </td>
+            <td class="no-borders bold" colspan="2" style="text-align:left;">
+                Signature :{% if signer.etat %} {{ signer.nom }}{% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+            <td class="no-borders"><br></td>
+        </tr>
+        <tr>
+            <th colspan="8">
+                VOUS DEVEZ NOUS INDIQUER LE NOMBRE TOTAL D'HEURES QUE VOUS AVEZ EFFECTUÉES
+                DANS LE MOIS POUR TOUT VOS EMPLOYEURS QUI VOUS PAYENT DIRECTEMENT
+                SOIT TOTAL DE VOTRE MOIS : {{ heureDehors ?? '_ _ _ h _ _' }} ***
+            </th>
+        </tr>
+    </table>
+
+</div>
+{% endfor %}
+
+{% if famillesPages is empty %}
+<div class="card" style="margin-top:20px;">
+    <div class="card-body" style="text-align:center;padding:40px;">
+        <p style="color:var(--text-muted);">Aucune prestation enregistrée pour ce mois.</p>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="{{ asset('assets/js/build_relever_d_heure_pdf.js') }}"></script>
+<script>
+    genererFichesPDF('{{ filename }}');
+</script>
+{% endblock %}
