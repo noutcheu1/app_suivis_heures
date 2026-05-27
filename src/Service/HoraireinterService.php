@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Entity\Horaire\Horaireinter;
+use App\Repository\AppConfigRepository;
+use App\Repository\FamilleRepository;
 use App\Repository\HoraireinterRepository;
 use App\Repository\ProposerRepository;
 use App\Repository\RelevemensuelinterRepository;
@@ -15,6 +17,8 @@ class HoraireinterService
         private RelevemensuelinterRepository $releveRepository,
         private EntityManagerInterface       $entityManager,
         private ProposerRepository           $proposerRepository,
+        private FamilleRepository            $familleRepository,
+        private AppConfigRepository          $appConfigRepository,
     ) {}
 
     /**
@@ -327,36 +331,14 @@ class HoraireinterService
      */
     public function peutSaisirHeures(\DateTimeInterface $dateSaisie): bool
     {
-        $config = $this->getConfiguration();
-        $delai = $config['nbrJourSaisie'] ?? 7;
-        
+        $delai = $this->appConfigRepository->getConfig()->getNbrJourSaisie();
         $dateLimite = (new \DateTime())->sub(new \DateInterval("P{$delai}D"));
-        
         return $dateSaisie >= $dateLimite;
     }
 
     public function getNbrJourSaisie(): int
     {
-        return (int)($this->getConfiguration()['nbrJourSaisie'] ?? 7);
-    }
-
-    /**
-     * Récupère la configuration depuis configuration.json
-     */
-    private function getConfiguration(): array
-    {
-        $configFile = __DIR__ . '/../../configuration.json';
-        
-        if (!file_exists($configFile)) {
-            return [
-                'nbrJourSaisie' => 7,
-                'nbrPalierTarifGE' => 4,
-                'nbrPalierTarifM' => 0
-            ];
-        }
-
-        $content = file_get_contents($configFile);
-        return json_decode($content, true) ?: [];
+        return $this->appConfigRepository->getConfig()->getNbrJourSaisie();
     }
 
     /**
@@ -405,37 +387,100 @@ class HoraireinterService
 
         $prestations = $this->repository->findByIntervenantPeriodType($numInter, $startDate, $endDate, $type);
 
+        // ── Pré-calcul des distances trajet (ENFA et MENA, familles hors Rennes) ────
+        // Règle : famille À Rennes → distanceAller = 0 (pas de km trajet)
+        //         famille HORS Rennes → distance routière intervenant → famille via API
+        // Toutes les requêtes HTTP sont envoyées en parallèle (curl_multi).
+        $distancesParFamille = [];
+        if ($intervenant?->getAdresse()) {
+            $adresseIntervenant = trim(
+                ($intervenant->getAdresse() ?? '') . ', ' .
+                ($intervenant->getCodePostal() ?? '') . ' ' .
+                ($intervenant->getVille() ?? '')
+            );
+
+            // Identifier les familles hors Rennes qui ont une adresse
+            $adressesFamillesHorsRennes = [];
+            foreach ($prestations as $p) {
+                $numFam = $p->getNumFam() ?? '';
+                if (!$numFam || isset($adressesFamillesHorsRennes[$numFam]) || isset($distancesParFamille[$numFam])) {
+                    continue;
+                }
+                $famille = $this->familleRepository->findByNumero($numFam);
+                if (!$famille) {
+                    $distancesParFamille[$numFam] = 0.0;
+                    continue;
+                }
+                // Famille à Rennes → 0 km
+                if ($this->estARennes($famille->getVille(), $famille->getCodePostal())) {
+                    $distancesParFamille[$numFam] = 0.0;
+                } elseif ($famille->getAdresse()) {
+                    $adressesFamillesHorsRennes[$numFam] = trim(
+                        $famille->getAdresse() . ', ' .
+                        ($famille->getCodePostal() ?? '') . ' ' .
+                        ($famille->getVille() ?? '')
+                    );
+                }
+            }
+
+            if ($adressesFamillesHorsRennes) {
+                // Géocoder toutes les adresses en parallèle (intervenant + familles hors Rennes)
+                $allAddresses = array_merge([$adresseIntervenant], array_values($adressesFamillesHorsRennes));
+                $geoResults   = $this->geocodeAddressesBatch($allAddresses);
+                $coordsInter  = $geoResults[$adresseIntervenant] ?? null;
+
+                // Calculer toutes les distances en parallèle
+                $pairs = [];
+                foreach ($adressesFamillesHorsRennes as $numFam => $adresseFam) {
+                    $coordsFam = $geoResults[$adresseFam] ?? null;
+                    if ($coordsInter && $coordsFam) {
+                        $pairs[$numFam] = ['start' => $coordsInter, 'end' => $coordsFam];
+                    }
+                }
+                foreach ($this->getDistancesBatch($pairs) as $numFam => $km) {
+                    $distancesParFamille[$numFam] = $km ?? 0.0;
+                }
+            }
+        }
+
+        // ── Construction de la map familles ──────────────────────────────────
         $famillesMap = [];
         foreach ($prestations as $p) {
             $nom = $p->getNomFam();
             if (!isset($famillesMap[$nom])) {
+                $numFam  = $p->getNumFam() ?? '';
+                $famille = $numFam ? $this->familleRepository->findByNumero($numFam) : null;
                 $famillesMap[$nom] = [
-                    'nomFam'      => $nom,
-                    'numFam'      => $p->getNumFam() ?? '',
-                    'prestations' => [],
-                    'totalSecondes' => 0,
-                    'totalKm'     => 0.0,
+                    'nomFam'         => $nom,
+                    'numFam'         => $numFam,
+                    'ville_Famille'  => $famille?->getVille() ?? '',
+                    'distanceAller'  => $distancesParFamille[$numFam] ?? 0.0,
+                    'prestations'    => [],
+                    'totalSecondes'  => 0,
+                    'totalKm'        => 0.0,   // trajet intervenant→famille (hors Rennes)
+                    'totalKmEnfants' => 0.0,   // km avec enfants saisis (ENFA uniquement)
+                    'nbPrestations'  => 0,
                 ];
             }
-            $dateKey = $p->getDatePresta()->format('Y-m-d');
-            $debut   = $p->getHeureDebutPresta();
-            $fin     = $p->getHeureFinPresta();
+            $dateKey  = $p->getDatePresta()->format('Y-m-d');
+            $debut    = $p->getHeureDebutPresta();
+            $fin      = $p->getHeureFinPresta();
             $debutSec = $debut->getTimestamp() - $debut->setTime(0,0)->getTimestamp();
-            $finSec   = $fin->getTimestamp() - $fin->setTime(0,0)->getTimestamp();
-            if ($finSec < $debutSec) {
-                $finSec += 86400;
-            }
+            $finSec   = $fin->getTimestamp()  - $fin->setTime(0,0)->getTimestamp();
+            if ($finSec < $debutSec) $finSec += 86400;
             $dureeSec = $finSec - $debutSec;
             $dH = intdiv($dureeSec, 3600);
             $dM = ($dureeSec % 3600) / 60;
-            
-            $famillesMap[$nom]['prestations'][$dateKey][] = $dM > 0 ? "{$dH}h" . sprintf('%02d', $dM) : "{$dH}h";
 
-            $famillesMap[$nom]['totalSecondes'] += $dureeSec;
+            $timeStr = $dM > 0 ? "{$dH}h" . sprintf('%02d', $dM) : "{$dH}h";
+            $famillesMap[$nom]['prestations'][$dateKey][] = $timeStr;
 
-            if ($p->getKmAvecEnfant()) {
-                $famillesMap[$nom]['totalKm'] += (float)$p->getKmAvecEnfant();
-            }
+            $famillesMap[$nom]['totalSecondes']  += $dureeSec;
+            $famillesMap[$nom]['nbPrestations']++;
+            $famillesMap[$nom]['totalKm']        += $famillesMap[$nom]['distanceAller'];
+            $famillesMap[$nom]['totalKmEnfants'] += $type === 'ENFA'
+                ? (float)($p->getKmAvecEnfant() ?? 0)
+                : 0.0;
         }
 
         $joursNoms = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
@@ -453,7 +498,8 @@ class HoraireinterService
             $cur->modify('+1 day');
         }
 
-        $totalKm = array_sum(array_column(array_values($famillesMap), 'totalKm'));
+        $totalKm        = array_sum(array_column(array_values($famillesMap), 'totalKm'));
+        $totalKmEnfants = array_sum(array_column(array_values($famillesMap), 'totalKmEnfants'));
 
         $releve = $this->releveRepository->findByMoisAnneeIntervenant($moisAnnee, $numInter, $type);
         $signerData = ['etat' => false, 'date' => '', 'nom' => ''];
@@ -487,7 +533,7 @@ class HoraireinterService
             'periode'     => ['mois' => ucfirst($moisNoms[$month - 1]), 'anner' => (string)$year, 'fin' => $endDate->format('Y-m-d')],
             'familles'    => array_values($famillesMap),
             'jours'       => $jours,
-            'totaux'      => ['kmMois' => $totalKm],
+            'totaux'      => ['kmMois' => $totalKm, 'kmEnfantsMois' => $totalKmEnfants],
             'signer'      => $signerData,
             'heureDehors' => $heureDehors,
             'intervenant' => $intervenantData,
@@ -769,6 +815,119 @@ class HoraireinterService
         $h = intdiv($sec, 3600);
         $m = intdiv($sec % 3600, 60);
         return sprintf('%dh%02d', $h, $m);
+    }
+
+    /**
+     * Retourne true si la famille est à Rennes (km trajet = 0).
+     * On se base sur le nom de ville exact ET les codes postaux officiels de Rennes.
+     * Bruz (35170), Cesson (35510), etc. → false → km calculé.
+     */
+    private function estARennes(?string $ville, ?string $cp): bool
+    {
+        $cpRennes   = ['35000', '35200', '35700'];
+        $nomRennes  = 'rennes';
+
+        $cpMatch    = $cp   && in_array(trim($cp), $cpRennes, true);
+        $villeMatch = $ville && strtolower(trim($ville)) === $nomRennes;
+
+        return $cpMatch || $villeMatch;
+    }
+
+    /**
+     * Géocode plusieurs adresses en parallèle via Nominatim.
+     * Retourne un tableau indexé par adresse => [lat, lon] ou null.
+     *
+     * @param  string[] $addresses
+     * @return array<string, array{0:float,1:float}|null>
+     */
+    private function geocodeAddressesBatch(array $addresses): array
+    {
+        $addresses = array_unique(array_filter($addresses));
+        if (!$addresses) return [];
+
+        $mh      = curl_multi_init();
+        $handles = [];
+
+        foreach ($addresses as $addr) {
+            $url = 'https://nominatim.openstreetmap.org/search?q=' . urlencode($addr) . '&format=json&limit=1';
+            $ch  = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 6,
+                CURLOPT_HTTPHEADER     => ['Accept-Language: fr', 'User-Agent: ChaudoudouxApp/1.0'],
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$addr] = $ch;
+        }
+
+        do {
+            $status = curl_multi_exec($mh, $running);
+            if ($running) curl_multi_select($mh);
+        } while ($running > 0 && $status === CURLM_OK);
+
+        $results = [];
+        foreach ($handles as $addr => $ch) {
+            $body = curl_multi_getcontent($ch);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+            $data = $body ? json_decode($body, true) : null;
+            $results[$addr] = (!empty($data[0]))
+                ? [(float)$data[0]['lat'], (float)$data[0]['lon']]
+                : null;
+        }
+        curl_multi_close($mh);
+
+        return $results;
+    }
+
+    /**
+     * Calcule les distances routières en parallèle via OSRM pour plusieurs paires.
+     * Chaque paire est [start:[lat,lon], end:[lat,lon]].
+     * Retourne un tableau indexé par clé => distance en km ou null.
+     *
+     * @param  array<string, array{start:array, end:array}> $pairs
+     * @return array<string, float|null>
+     */
+    private function getDistancesBatch(array $pairs): array
+    {
+        if (!$pairs) return [];
+
+        $mh      = curl_multi_init();
+        $handles = [];
+
+        foreach ($pairs as $key => $pair) {
+            [$sLat, $sLon] = $pair['start'];
+            [$eLat, $eLon] = $pair['end'];
+            $url = sprintf(
+                'https://router.project-osrm.org/route/v1/driving/%f,%f;%f,%f?overview=false',
+                $sLon, $sLat, $eLon, $eLat
+            );
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 8,
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$key] = $ch;
+        }
+
+        do {
+            $status = curl_multi_exec($mh, $running);
+            if ($running) curl_multi_select($mh);
+        } while ($running > 0 && $status === CURLM_OK);
+
+        $results = [];
+        foreach ($handles as $key => $ch) {
+            $body = curl_multi_getcontent($ch);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+            $data  = $body ? json_decode($body, true) : null;
+            $distM = $data['routes'][0]['legs'][0]['distance'] ?? null;
+            $results[$key] = $distM !== null ? round($distM / 1000, 1) : null;
+        }
+        curl_multi_close($mh);
+
+        return $results;
     }
 
     /**

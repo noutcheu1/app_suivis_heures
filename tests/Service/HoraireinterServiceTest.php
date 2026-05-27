@@ -2,8 +2,12 @@
 
 namespace App\Tests\Service;
 
-use App\Entity\Horaireinter;
+use App\Entity\Horaire\AppConfig;
+use App\Entity\Horaire\Horaireinter;
+use App\Repository\AppConfigRepository;
+use App\Repository\FamilleRepository;
 use App\Repository\HoraireinterRepository;
+use App\Repository\ProposerRepository;
 use App\Repository\RelevemensuelinterRepository;
 use App\Service\HoraireinterService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -14,9 +18,12 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(HoraireinterService::class)]
 class HoraireinterServiceTest extends TestCase
 {
-    private HoraireinterRepository&MockObject $repository;
+    private HoraireinterRepository&MockObject       $repository;
     private RelevemensuelinterRepository&MockObject $releveRepository;
-    private EntityManagerInterface&MockObject $em;
+    private EntityManagerInterface&MockObject       $em;
+    private ProposerRepository&MockObject           $proposerRepo;
+    private FamilleRepository&MockObject            $familleRepo;
+    private AppConfigRepository&MockObject          $appConfigRepo;
     private HoraireinterService $service;
 
     protected function setUp(): void
@@ -24,11 +31,20 @@ class HoraireinterServiceTest extends TestCase
         $this->repository       = $this->createMock(HoraireinterRepository::class);
         $this->releveRepository = $this->createMock(RelevemensuelinterRepository::class);
         $this->em               = $this->createMock(EntityManagerInterface::class);
+        $this->proposerRepo     = $this->createMock(ProposerRepository::class);
+        $this->familleRepo      = $this->createMock(FamilleRepository::class);
+        $this->appConfigRepo    = $this->createMock(AppConfigRepository::class);
+
+        $defaultConfig = new AppConfig();
+        $this->appConfigRepo->method('getConfig')->willReturn($defaultConfig);
 
         $this->service = new HoraireinterService(
             $this->repository,
             $this->releveRepository,
-            $this->em
+            $this->em,
+            $this->proposerRepo,
+            $this->familleRepo,
+            $this->appConfigRepo,
         );
     }
 
@@ -40,6 +56,9 @@ class HoraireinterServiceTest extends TestCase
     {
         $this->em->expects($this->once())->method('persist');
         $this->em->expects($this->once())->method('flush');
+        $this->proposerRepo->method('isIntervenantAssignedToFamille')->willReturn(true);
+        $this->repository->method('existsDoublon')->willReturn(false);
+        $this->repository->method('existsDoublonFamilleDate')->willReturn(false);
 
         $donnees = [
             'numFam'          => 'FAM001',
@@ -86,6 +105,9 @@ class HoraireinterServiceTest extends TestCase
     {
         $this->em->method('persist');
         $this->em->method('flush');
+        $this->proposerRepo->method('isIntervenantAssignedToFamille')->willReturn(true);
+        $this->repository->method('existsDoublon')->willReturn(false);
+        $this->repository->method('existsDoublonFamilleDate')->willReturn(false);
 
         $donnees = [
             'numFam'          => 'FAM002',
@@ -101,7 +123,6 @@ class HoraireinterServiceTest extends TestCase
         $result = $this->service->ajouterPrestation($donnees);
 
         $this->assertFalse($result->isDesactiver());
-        $this->assertFalse($result->isValiderFam());
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -161,15 +182,22 @@ class HoraireinterServiceTest extends TestCase
         $this->assertNotEmpty($data['periode']['fin']);
     }
 
-    public function testGetReleveData_joursCouvrentToutLeMois(): void
+    public function testGetReleveData_joursCouvrentPeriode(): void
     {
         $this->repository->method('findByIntervenantPeriodType')->willReturn([]);
         $this->releveRepository->method('findByMoisAnneeIntervenant')->willReturn(null);
 
         $data = $this->service->getReleveData(1, 'ENFA', 0);
 
-        $nbJoursMois = (int)(new \DateTime('last day of this month'))->format('j');
-        $this->assertCount($nbJoursMois, $data['jours']);
+        // Même calcul que le service : du 25 du mois précédent au 24 du mois courant
+        $year  = (int)date('Y');
+        $month = (int)date('m');
+        $start = new \DateTime(sprintf('%04d-%02d-25', $year, $month));
+        $start->modify('-1 month');
+        $end   = new \DateTime(sprintf('%04d-%02d-24', $year, $month));
+        $expected = (int)$start->diff($end)->days + 1;
+
+        $this->assertCount($expected, $data['jours']);
     }
 
     public function testGetReleveData_jourContainsRequiredFields(): void
@@ -179,11 +207,13 @@ class HoraireinterServiceTest extends TestCase
 
         $data = $this->service->getReleveData(1, 'ENFA', 0);
 
+        $this->assertNotEmpty($data['jours']);
         $jour = $data['jours'][0];
         foreach (['date', 'jour', 'numeroJour', 'semaine'] as $field) {
             $this->assertArrayHasKey($field, $jour, "Champ '$field' manquant dans jours[]");
         }
-        $this->assertSame(1, $jour['numeroJour']);
+        // Le premier jour de la période est le 25 du mois précédent
+        $this->assertSame(25, $jour['numeroJour']);
     }
 
     public function testGetReleveData_groupsPrestationsByFamily(): void
@@ -229,7 +259,7 @@ class HoraireinterServiceTest extends TestCase
 
     public function testGetReleveData_signerTrue_whenReleve_isSigned(): void
     {
-        $releve = new \App\Entity\Relevemensuelinter();
+        $releve = new \App\Entity\Horaire\Relevemensuelinter();
         $releve->setSigner(true);
         $releve->setSignerLe(new \DateTime('2026-05-07'));
 
@@ -266,7 +296,7 @@ class HoraireinterServiceTest extends TestCase
             ->method('ajouterHeureDehors')
             ->willReturnCallback(function (string $moisAnnee) use (&$capturedMoisAnnee) {
                 $capturedMoisAnnee = $moisAnnee;
-                return new \App\Entity\Relevemensuelinter();
+                return new \App\Entity\Horaire\Relevemensuelinter();
             });
 
         $this->service->ajouterHeuresHorsStructure(1, 2, 0, '2026-03-31', 'ENFA');
@@ -283,7 +313,7 @@ class HoraireinterServiceTest extends TestCase
         $this->releveRepository
             ->expects($this->once())
             ->method('signerReleve')
-            ->willReturn(new \App\Entity\Relevemensuelinter());
+            ->willReturn(new \App\Entity\Horaire\Relevemensuelinter());
 
         $periodeFin = (new \DateTime('last day of this month'))->format('Y-m-d');
         $result = $this->service->signerReleve(1, 'ENFA', $periodeFin);
@@ -296,7 +326,7 @@ class HoraireinterServiceTest extends TestCase
         $this->releveRepository
             ->expects($this->once())
             ->method('signerReleve')
-            ->willReturn(new \App\Entity\Relevemensuelinter());
+            ->willReturn(new \App\Entity\Horaire\Relevemensuelinter());
 
         $periodeFin = (new \DateTime('last day of last month'))->format('Y-m-d');
         $result = $this->service->signerReleve(1, 'ENFA', $periodeFin);
@@ -340,7 +370,6 @@ class HoraireinterServiceTest extends TestCase
         $h->setNumInter(1);
         $h->setAjouterLe(new \DateTime());
         $h->setDesactiver(false);
-        $h->setValiderFam(false);
         return $h;
     }
 }

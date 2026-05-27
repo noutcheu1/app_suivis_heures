@@ -33,22 +33,121 @@
     </div>
     <div class="card-body">
         <dl style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;font-size:13.5px;margin:0;">
-        {% for key, value in user %}
-            {% if value is not null and value != '' %}
+
+            {% macro field(label, value) %}
+                {% if value is not null and value != '' %}
+                <div>
+                    <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">{{ label }}</dt>
+                    <dd style="margin:0;">{{ value }}</dd>
+                </div>
+                {% endif %}
+            {% endmacro %}
+
+            {% if user.numSs %}
             <div>
-                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">
-                    {{ key|capitalize|replace({'_': ' '}) }}
-                </dt>
-                <dd style="margin:0;">
-                    {% if key == 'email' %}
-                        <a href="mailto:{{ value }}" style="color:var(--primary);">{{ value }}</a>
-                    {% else %}
-                        {{ value }}
-                    {% endif %}
-                </dd>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Numéro SS</dt>
+                <dd style="margin:0;font-weight:600;">{{ user.numSs }}</dd>
             </div>
             {% endif %}
-        {% endfor %}
+
+            {% if user.numSalarie %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">N° salarié</dt>
+                <dd style="margin:0;">{{ user.numSalarie }}</dd>
+            </div>
+            {% endif %}
+
+            {% if user.titre %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Titre</dt>
+                <dd style="margin:0;">{{ user.titre }}</dd>
+            </div>
+            {% endif %}
+
+            {% if user.dateNaissance %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Date de naissance</dt>
+                <dd style="margin:0;">{{ user.dateNaissance|date('d/m/Y') }}</dd>
+            </div>
+            {% endif %}
+
+            {% if user.lieuNaissance %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Lieu de naissance</dt>
+                <dd style="margin:0;">{{ user.lieuNaissance }}</dd>
+            </div>
+            {% endif %}
+
+            {% if user.nationalite %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Nationalité</dt>
+                <dd style="margin:0;">{{ user.nationalite }}</dd>
+            </div>
+            {% endif %}
+
+            {% if user.adresse %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Adresse</dt>
+                <dd style="margin:0;">{{ user.adresse }}{% if user.codePostal %}, {{ user.codePostal }}{% endif %}{% if user.ville %} {{ user.ville }}{% endif %}</dd>
+            </div>
+            {% endif %}
+
+            {% if user.telPortable %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Tél. portable</dt>
+                <dd style="margin:0;"><a href="tel:{{ user.telPortable }}" style="color:var(--primary);">{{ user.telPortable }}</a></dd>
+            </div>
+            {% endif %}
+
+            {% if user.telFixe %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Tél. fixe</dt>
+                <dd style="margin:0;"><a href="tel:{{ user.telFixe }}" style="color:var(--primary);">{{ user.telFixe }}</a></dd>
+            </div>
+            {% endif %}
+
+            {% if user.telUrgence %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Tél. urgence</dt>
+                <dd style="margin:0;"><a href="tel:{{ user.telUrgence }}" style="color:var(--primary);">{{ user.telUrgence }}</a></dd>
+            </div>
+            {% endif %}
+
+            {% if user.email %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Email</dt>
+                <dd style="margin:0;"><a href="mailto:{{ user.email }}" style="color:var(--primary);">{{ user.email }}</a></dd>
+            </div>
+            {% endif %}
+
+            {% if user.statutPro %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Statut professionnel</dt>
+                <dd style="margin:0;">{{ user.statutPro }}</dd>
+            </div>
+            {% endif %}
+
+            {% if user.diplomes %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Diplômes</dt>
+                <dd style="margin:0;">{{ user.diplomes }}</dd>
+            </div>
+            {% endif %}
+
+            {% if user.dateEntree %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Date d'entrée</dt>
+                <dd style="margin:0;">{{ user.dateEntree|date('d/m/Y') }}</dd>
+            </div>
+            {% endif %}
+
+            {% if user.tauxHoraire %}
+            <div>
+                <dt style="color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Taux horaire</dt>
+                <dd style="margin:0;">{{ user.tauxHoraire }} €/h</dd>
+            </div>
+            {% endif %}
+
         </dl>
     </div>
 </div>

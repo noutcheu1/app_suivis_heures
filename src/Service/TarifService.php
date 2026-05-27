@@ -3,9 +3,9 @@
 namespace App\Service;
 
 use App\Entity\Horaire\Tarif;
+use App\Repository\AppConfigRepository;
 use App\Repository\TarifRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 class TarifService
 {
@@ -15,11 +15,11 @@ class TarifService
     public function __construct(
         private TarifRepository        $repository,
         private EntityManagerInterface $entityManager,
-        #[Autowire('%kernel.project_dir%')] string $projectDir
+        private AppConfigRepository    $appConfigRepository,
     ) {
-        $config = json_decode((string)@file_get_contents($projectDir . '/configuration.json'), true) ?? [];
-        $this->nbrPalierGE = (int)($config['nbrPalierTarifGE'] ?? 4);
-        $this->nbrPalierM  = (int)($config['nbrPalierTarifM']  ?? 0);
+        $config = $this->appConfigRepository->getConfig();
+        $this->nbrPalierGE = $config->getNbrPalierTarifGE();
+        $this->nbrPalierM  = $config->getNbrPalierTarifM();
     }
 
     public function getTarifActif(?\DateTimeInterface $date = null): ?Tarif

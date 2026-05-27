@@ -183,6 +183,7 @@ final class RelevesControllerMVC extends AbstractController
             'totalHeures'   => $fmt($totalSec),
             'signer'        => $releveData['signer'],
             'afficherKm'    => $type === 'ENFA',
+            'isAdmin'       => $this->authService->isAdmin(),
             'filename'      => $filename,
             'heureDehors'   => $releveData['heureDehors'] ?? null,
         ]);

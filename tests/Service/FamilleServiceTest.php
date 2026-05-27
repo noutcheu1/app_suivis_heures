@@ -2,9 +2,10 @@
 
 namespace App\Tests\Service;
 
-use App\Entity\Famille;
+use App\Entity\Principal\Famille;
+use App\Repository\EnfantRepository;
 use App\Repository\FamilleRepository;
-use App\Repository\HoraireinterRepository;
+use App\Service\FactureService;
 use App\Service\FamilleService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -18,21 +19,24 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(FamilleService::class)]
 class FamilleServiceTest extends TestCase
 {
-    private FamilleRepository&MockObject $familleRepo;
-    private HoraireinterRepository&MockObject $horaireRepo;
+    private FamilleRepository&MockObject  $familleRepo;
+    private EnfantRepository&MockObject   $enfantRepo;
     private EntityManagerInterface&MockObject $em;
+    private FactureService&MockObject     $factureService;
     private FamilleService $service;
 
     protected function setUp(): void
     {
-        $this->familleRepo = $this->createMock(FamilleRepository::class);
-        $this->horaireRepo = $this->createMock(HoraireinterRepository::class);
-        $this->em          = $this->createMock(EntityManagerInterface::class);
+        $this->familleRepo    = $this->createMock(FamilleRepository::class);
+        $this->enfantRepo     = $this->createMock(EnfantRepository::class);
+        $this->em             = $this->createMock(EntityManagerInterface::class);
+        $this->factureService = $this->createMock(FactureService::class);
 
         $this->service = new FamilleService(
             $this->familleRepo,
+            $this->enfantRepo,
             $this->em,
-            $this->horaireRepo
+            $this->factureService,
         );
     }
 
@@ -42,7 +46,7 @@ class FamilleServiceTest extends TestCase
 
     public function testGetFamillesDeIntervenant_returnsEmptyArray_whenNoFamilies(): void
     {
-        $this->horaireRepo->method('findDistinctFamilleNumsByIntervenant')->with(99)->willReturn([]);
+        $this->familleRepo->method('findByIntervenantActif')->with(99)->willReturn([]);
 
         $result = $this->service->getFamillesDeIntervenant(99);
 
@@ -55,17 +59,10 @@ class FamilleServiceTest extends TestCase
         $famille1 = $this->buildFamille('FAM001', 'Dupont');
         $famille2 = $this->buildFamille('FAM002', 'Martin');
 
-        $this->horaireRepo
-            ->method('findDistinctFamilleNumsByIntervenant')
-            ->with(5)
-            ->willReturn(['FAM001', 'FAM002']);
-
         $this->familleRepo
-            ->method('findByNumero')
-            ->willReturnMap([
-                ['FAM001', $famille1],
-                ['FAM002', $famille2],
-            ]);
+            ->method('findByIntervenantActif')
+            ->with(5)
+            ->willReturn([$famille1, $famille2]);
 
         $result = $this->service->getFamillesDeIntervenant(5);
 
@@ -74,20 +71,13 @@ class FamilleServiceTest extends TestCase
         $this->assertSame($famille2, $result[1]);
     }
 
-    public function testGetFamillesDeIntervenant_skipsUnknownFamilyNums(): void
+    public function testGetFamillesDeIntervenant_returnsOnlyMatchingFamilies(): void
     {
         $famille1 = $this->buildFamille('FAM001', 'Dupont');
 
-        $this->horaireRepo
-            ->method('findDistinctFamilleNumsByIntervenant')
-            ->willReturn(['FAM001', 'FAM_INCONNUE']);
-
         $this->familleRepo
-            ->method('findByNumero')
-            ->willReturnMap([
-                ['FAM001', $famille1],
-                ['FAM_INCONNUE', null],
-            ]);
+            ->method('findByIntervenantActif')
+            ->willReturn([$famille1]);
 
         $result = $this->service->getFamillesDeIntervenant(3);
 
@@ -97,9 +87,9 @@ class FamilleServiceTest extends TestCase
 
     public function testGetFamillesDeIntervenant_queriesRepositoryWithCorrectId(): void
     {
-        $this->horaireRepo
+        $this->familleRepo
             ->expects($this->once())
-            ->method('findDistinctFamilleNumsByIntervenant')
+            ->method('findByIntervenantActif')
             ->with(42)
             ->willReturn([]);
 

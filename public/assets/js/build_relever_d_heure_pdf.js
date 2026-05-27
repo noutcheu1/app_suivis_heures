@@ -21,39 +21,6 @@ function soulignementPDF(data, offset = 0) {
     doc.line(x, y, x + textWidth, y);
 }
 
-// --- Fonction qui applique les styles en fonction des classes HTML ---
-function applyCellStyles(cellData) {
-        const cell = cellData.cell;
-        const raw = cell.raw;                // l’élément TD ou TH d’origine
-        if (!raw) return;
-
-        // Alignement horizontal
-        if (raw.classList.contains('cell-position-left')) cell.styles.halign = 'left';
-        else if (raw.classList.contains('cell-position-right')) cell.styles.halign = 'right';
-        
-        // Style gras
-        if (raw.classList.contains('bold')) cell.styles.fontStyle = 'bold';
-        
-        // Titre (souligné + plus gros)
-        if (raw.classList.contains('title')) {
-            cell.styles.fontSize = 11;
-            cell.styles.fontStyle = 'bold';
-            cell.styles.halign = 'center';
-            // Le soulignement n’existe pas directement dans autoTable, on peut ajouter un trait plus tard (optionnel)
-        }
-        
-        // Cellule sans bordure
-        if (raw.classList.contains('no-borders')) {
-            cell.styles.lineWidth = 0;
-        }
-        
-        // Ligne "dimanche" – couleur de fond grise
-        const parentRow = raw.closest('tr');
-        if (parentRow && parentRow.classList.contains('dimanche')) {
-            cell.styles.fillColor = [220, 220, 220]; // gris clair
-        }
-    }
-
 
 function applyStylesByClass(data) {
     const el = data.cell.raw;
@@ -78,10 +45,23 @@ function applyStylesByClass(data) {
     if (hasClass('title') || hasClass('bold')) {
         data.cell.styles.fontStyle = 'bold';
     }
+
+    // Titre (souligné + plus gros)
+    if (hasClass('dim_villes')) {
+        data.cell.styles.fontSize = 1;
+       
+        // Le soulignement n’existe pas directement dans autoTable, on peut ajouter un trait plus tard (optionnel)
+    }
+    if (hasClass('title')) {
+        
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.halign = 'center';
+        // Le soulignement n’existe pas directement dans autoTable, on peut ajouter un trait plus tard (optionnel)
+    }
     // Optionnel : forcer couleur de fond pour dimanche (décommentez si besoin)
-    // if (hasClass('dimanche')) {
-    //     data.cell.styles.fillColor = [224, 224, 224];
-    // }
+    if (hasClass('dim_villes')) {
+        data.cell.styles.fillColor = [224, 224, 224];
+    }
 }
 
 function applyComplexStyleByClass(data) {
@@ -261,6 +241,48 @@ function genererFichesPDF(filename) {
                         data.cell.styles.cellPadding   = 0.3 * sc;
                         data.cell.styles.minCellHeight = 1   * sc;
                     }
+                    // Cellule famille (numéro + nom + ville) : vider le texte, redessiné manuellement
+                    const villesEl = cell?.querySelector?.('i.villes');
+                    if (villesEl) {
+                        data.cell.text.splice(0, data.cell.text.length);
+                        data.cell.styles.cellPadding   = 0;
+                        data.cell.styles.minCellHeight = 11 * sc;
+                    }
+                },
+                didDrawCell(data) {
+                    const cell = data.cell.raw;
+                    const villesEl = cell?.querySelector?.('i.villes');
+                    if (!villesEl) return;
+
+                    const cityText = villesEl.textContent.trim();
+                    const spans    = cell.querySelectorAll('span');
+                    const numText  = spans[0]?.textContent.trim() ?? '';
+                    const nameText = spans[1]?.textContent.trim() ?? '';
+
+                    const doc  = data.doc;
+                    const cx   = data.cell.x + data.cell.width / 2;
+                    const cy   = data.cell.y;
+                    const ch   = data.cell.height;
+                    const origSize = doc.getFontSize();
+                    const origFont = doc.getFont();
+
+                    // Numéro (en haut)
+                    doc.setFontSize(7 * sc);
+                    doc.setFont(undefined, 'normal');
+                    doc.text(numText, cx, cy + 2.5 * sc, { align: 'center' });
+
+                    // Nom famille (milieu, bold)
+                    doc.setFontSize(7 * sc);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(nameText, cx, cy + ch / 2, { align: 'center' });
+
+                    // Ville (bas, italic petit)
+                    doc.setFontSize(5 * sc);
+                    doc.setFont(undefined, 'italic');
+                    doc.text(cityText, cx, cy + ch - 2 * sc, { align: 'center' });
+
+                    doc.setFontSize(origSize);
+                    doc.setFont(origFont.fontName, origFont.fontStyle);
                 },
             });
             y = targetDoc.lastAutoTable.finalY;

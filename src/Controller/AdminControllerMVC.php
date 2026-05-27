@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Horaire\Horaireinter;
 use App\Entity\Horaire\VacancesConfig;
 use App\Entity\Principal\Proposer;
+use App\Repository\AppConfigRepository;
 use App\Repository\FamilleRepository;
 use App\Repository\HoraireinterRepository;
 use App\Repository\IntervenantRepository;
@@ -36,6 +37,7 @@ final class AdminControllerMVC extends AbstractController
         private ReleveMensuelFamilleService $releveMensuelFamilleService,
         private FactureService              $factureService,
         private VacancesConfigRepository    $vacancesRepo,
+        private AppConfigRepository         $appConfigRepo,
         private HoraireinterRepository      $horaireRepo,
         private ProposerRepository          $proposerRepo,
         private FamilleRepository           $familleRepo,
@@ -752,6 +754,33 @@ final class AdminControllerMVC extends AbstractController
         }
 
         return $this->redirectToRoute('admin_vacances_mvc');
+    }
+
+    // ── Configuration générale ────────────────────────────────────────────────
+
+    #[Route('/admin-mvc/configuration', name: 'admin_config_mvc')]
+    public function configuration(Request $request): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $config = $this->appConfigRepo->getConfig();
+
+        if ($request->isMethod('POST')) {
+            $config->setNbrJourSaisie((int)$request->request->get('nbrJourSaisie', 10));
+            $config->setNbrPalierTarifGE((int)$request->request->get('nbrPalierTarifGE', 4));
+            $config->setNbrPalierTarifM((int)$request->request->get('nbrPalierTarifM', 0));
+            $config->touch();
+            $this->em->flush();
+            $this->addFlash('success', 'Configuration enregistrée.');
+            return $this->redirectToRoute('admin_config_mvc');
+        }
+
+        return $this->render('admin/configuration.html.twig', [
+            'auth'   => $this->authService->check(),
+            'config' => $config,
+        ]);
     }
 
     /**

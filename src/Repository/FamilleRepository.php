@@ -37,7 +37,28 @@ class FamilleRepository extends ServiceEntityRepository
             ->andWhere("$alias.numeroFamille != 9999")
             ->setParameter('archive', 0);
     }
+    public function getVilleFamille($numFam){
+        $conn = $this->getEntityManager()->getConnection();
 
+        return $conn->fetchOne(
+            'SELECT ville
+             FROM famille
+             WHERE numeroFamille = :numFam',
+            ['numFam' => $numFam]
+        );
+    }
+    public function getKmHeure($numFam)
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        return (float) $conn->fetchOne(
+            'SELECT kmAvecEnfant
+             FROM famille
+             WHERE numeroFamille = :numFam',
+            ['numFam' => $numFam]
+        );
+    
+    }
     /**
      * Calcule la période du 25 du mois précédent au 24 du mois en cours.
      *

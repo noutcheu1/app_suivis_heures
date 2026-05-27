@@ -29,7 +29,7 @@ class RelevemensuelfamRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('r')
             ->where('r.numFam = :numFam')
             ->setParameter('numFam', $numFam)
-            ->orderBy('r.moisannee', 'DESC')
+            ->orderBy('r.numFam', 'ASC')
             ->getQuery()
             ->getResult();
     }
@@ -59,7 +59,7 @@ class RelevemensuelfamRepository extends ServiceEntityRepository
             ->where('r.numFam = :numFam')
             ->andWhere('r.signerLe IS NULL')
             ->setParameter('numFam', $numFam)
-            ->orderBy('r.moisannee', 'DESC')
+            ->orderBy('r.numFam', 'ASC')
             ->getQuery()
             ->getResult();
     }
