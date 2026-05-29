@@ -8,6 +8,7 @@ use App\Repository\FamilleRepository;
 use App\Repository\HoraireinterRepository;
 use App\Repository\ProposerRepository;
 use App\Repository\RelevemensuelinterRepository;
+use App\Repository\TarifFamilleRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 class HoraireinterService
@@ -19,6 +20,7 @@ class HoraireinterService
         private ProposerRepository           $proposerRepository,
         private FamilleRepository            $familleRepository,
         private AppConfigRepository          $appConfigRepository,
+        private TarifFamilleRepository       $tarifFamilleRepository,
     ) {}
 
     /**
@@ -217,12 +219,12 @@ class HoraireinterService
      */
     public function isVerrouille(Horaireinter $h): bool
     {
-        $today = new \DateTime('today');
         $presta = $h->getDatePresta();
         if (!$presta) {
             return false;
         }
-        return $presta->format('Y-m') < $today->format('Y-m');
+        $limite = (new \DateTime('today'))->modify('-' . $this->getNbrJourSaisie() . ' days');
+        return $presta < $limite;
     }
 
     /**
@@ -401,6 +403,7 @@ class HoraireinterService
 
             // Identifier les familles hors Rennes qui ont une adresse
             $adressesFamillesHorsRennes = [];
+            $exoneresKm = [];
             foreach ($prestations as $p) {
                 $numFam = $p->getNumFam() ?? '';
                 if (!$numFam || isset($adressesFamillesHorsRennes[$numFam]) || isset($distancesParFamille[$numFam])) {
@@ -411,8 +414,12 @@ class HoraireinterService
                     $distancesParFamille[$numFam] = 0.0;
                     continue;
                 }
-                // Famille à Rennes → 0 km
-                if ($this->estARennes($famille->getVille(), $famille->getCodePostal())) {
+                if ($this->tarifFamilleRepository->isExonereKmFamille($numFam)) {
+                    $exoneresKm[$numFam] = true;
+                }
+                // Famille à Rennes → 0 km (distance réelle nulle)
+                // Famille exonérée → on calcule quand même la vraie distance pour affichage
+                if (!isset($exoneresKm[$numFam]) && $this->estARennes($famille->getVille(), $famille->getCodePostal())) {
                     $distancesParFamille[$numFam] = 0.0;
                 } elseif ($famille->getAdresse()) {
                     $adressesFamillesHorsRennes[$numFam] = trim(
@@ -455,10 +462,11 @@ class HoraireinterService
                     'numFam'         => $numFam,
                     'ville_Famille'  => $famille?->getVille() ?? '',
                     'distanceAller'  => $distancesParFamille[$numFam] ?? 0.0,
+                    'exonereKm'      => isset($exoneresKm[$numFam]),
                     'prestations'    => [],
                     'totalSecondes'  => 0,
-                    'totalKm'        => 0.0,   // trajet intervenant→famille (hors Rennes)
-                    'totalKmEnfants' => 0.0,   // km avec enfants saisis (ENFA uniquement)
+                    'totalKm'        => 0.0,
+                    'totalKmEnfants' => 0.0,
                     'nbPrestations'  => 0,
                 ];
             }
@@ -477,7 +485,10 @@ class HoraireinterService
 
             $famillesMap[$nom]['totalSecondes']  += $dureeSec;
             $famillesMap[$nom]['nbPrestations']++;
-            $famillesMap[$nom]['totalKm']        += $famillesMap[$nom]['distanceAller'];
+            // Ne pas cumuler le km si famille exonérée
+            if (!$famillesMap[$nom]['exonereKm']) {
+                $famillesMap[$nom]['totalKm'] += $famillesMap[$nom]['distanceAller'];
+            }
             $famillesMap[$nom]['totalKmEnfants'] += $type === 'ENFA'
                 ? (float)($p->getKmAvecEnfant() ?? 0)
                 : 0.0;
@@ -528,10 +539,13 @@ class HoraireinterService
             'ville de résidence'=> $intervenant?->getVille() ?? '',
         ];
 
+        $familles = array_values($famillesMap);
+        usort($familles, fn($a, $b) => strcmp($a['nomFam'], $b['nomFam']));
+
         return [
             'type'        => $type,
             'periode'     => ['mois' => ucfirst($moisNoms[$month - 1]), 'anner' => (string)$year, 'fin' => $endDate->format('Y-m-d')],
-            'familles'    => array_values($famillesMap),
+            'familles'    => $familles,
             'jours'       => $jours,
             'totaux'      => ['kmMois' => $totalKm, 'kmEnfantsMois' => $totalKmEnfants],
             'signer'      => $signerData,
@@ -853,6 +867,7 @@ class HoraireinterService
             $ch  = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 4,
                 CURLOPT_TIMEOUT        => 6,
                 CURLOPT_HTTPHEADER     => ['Accept-Language: fr', 'User-Agent: ChaudoudouxApp/1.0'],
             ]);
@@ -862,16 +877,21 @@ class HoraireinterService
 
         do {
             $status = curl_multi_exec($mh, $running);
-            if ($running) curl_multi_select($mh);
+            if ($running) curl_multi_select($mh, 1.0);
         } while ($running > 0 && $status === CURLM_OK);
 
         $results = [];
         foreach ($handles as $addr => $ch) {
-            $body = curl_multi_getcontent($ch);
+            $errno = curl_errno($ch);
+            $body  = curl_multi_getcontent($ch);
             curl_multi_remove_handle($mh, $ch);
             curl_close($ch);
-            $data = $body ? json_decode($body, true) : null;
-            $results[$addr] = (!empty($data[0]))
+            if ($errno !== CURLE_OK || !$body) {
+                $results[$addr] = null;
+                continue;
+            }
+            $data = json_decode($body, true);
+            $results[$addr] = (json_last_error() === JSON_ERROR_NONE && !empty($data[0]))
                 ? [(float)$data[0]['lat'], (float)$data[0]['lon']]
                 : null;
         }
@@ -905,6 +925,7 @@ class HoraireinterService
             $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 4,
                 CURLOPT_TIMEOUT        => 8,
             ]);
             curl_multi_add_handle($mh, $ch);
@@ -913,16 +934,23 @@ class HoraireinterService
 
         do {
             $status = curl_multi_exec($mh, $running);
-            if ($running) curl_multi_select($mh);
+            if ($running) curl_multi_select($mh, 1.0);
         } while ($running > 0 && $status === CURLM_OK);
 
         $results = [];
         foreach ($handles as $key => $ch) {
-            $body = curl_multi_getcontent($ch);
+            $errno = curl_errno($ch);
+            $body  = curl_multi_getcontent($ch);
             curl_multi_remove_handle($mh, $ch);
             curl_close($ch);
-            $data  = $body ? json_decode($body, true) : null;
-            $distM = $data['routes'][0]['legs'][0]['distance'] ?? null;
+            if ($errno !== CURLE_OK || !$body) {
+                $results[$key] = null;
+                continue;
+            }
+            $data  = json_decode($body, true);
+            $distM = (json_last_error() === JSON_ERROR_NONE)
+                ? ($data['routes'][0]['legs'][0]['distance'] ?? null)
+                : null;
             $results[$key] = $distM !== null ? round($distM / 1000, 1) : null;
         }
         curl_multi_close($mh);

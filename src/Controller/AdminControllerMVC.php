@@ -7,6 +7,7 @@ use App\Entity\Horaire\VacancesConfig;
 use App\Entity\Principal\Proposer;
 use App\Repository\AppConfigRepository;
 use App\Repository\FamilleRepository;
+use App\Repository\TarifFamilleRepository;
 use App\Repository\HoraireinterRepository;
 use App\Repository\IntervenantRepository;
 use App\Repository\ParentFamilleRepository;
@@ -43,6 +44,7 @@ final class AdminControllerMVC extends AbstractController
         private FamilleRepository           $familleRepo,
         private ParentFamilleRepository     $parentRepo,
         private IntervenantRepository       $intervenantRepo,
+        private TarifFamilleRepository      $tarifFamilleRepo,
         private EntityManagerInterface      $em,
     ) {}
 
@@ -89,9 +91,16 @@ final class AdminControllerMVC extends AbstractController
 
         $familles = $this->familleService->getToutesLesFamilles();
 
+        $tarifsActifs = $this->tarifFamilleRepo->findTousActifs();
+        $kmExonerations = [];
+        foreach ($tarifsActifs as $t) {
+            $kmExonerations[$t->getNumFam()][$t->getTypePresta()] = $t->isExonereKm();
+        }
+
         return $this->render('admin/familles/list.html.twig', [
-            'auth' => $this->authService->check(),
-            'users' => $familles,
+            'auth'           => $this->authService->check(),
+            'users'          => $familles,
+            'kmExonerations' => $kmExonerations,
         ]);
     }
 
@@ -157,6 +166,11 @@ final class AdminControllerMVC extends AbstractController
         $famille = $this->familleService->getFamilleParNumero($numFam);
         if (!$famille) {
             throw $this->createNotFoundException('Famille introuvable');
+        }
+
+        if (!$this->isCsrfTokenValid('ajouter_planning', $request->request->get('_csrf_token'))) {
+            $this->addFlash('error', 'Token de sécurité invalide.');
+            return $this->redirectToRoute('admin_famille_detail_mvc', ['numFam' => $numFam]);
         }
 
         $numInter       = (int) $request->request->get('numInter');
@@ -682,6 +696,11 @@ final class AdminControllerMVC extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
+        if (!$this->isCsrfTokenValid('vacances_creer', $request->request->get('_csrf_token'))) {
+            $this->addFlash('error', 'Token de sécurité invalide.');
+            return $this->redirectToRoute('admin_vacances_mvc');
+        }
+
         $titre        = trim($request->request->get('titre', ''));
         $periode      = trim($request->request->get('periodeTexte', ''));
         $message      = trim($request->request->get('message', ''));
@@ -711,10 +730,15 @@ final class AdminControllerMVC extends AbstractController
     }
 
     #[Route('/admin-mvc/vacances/{id}/toggle', name: 'admin_vacances_toggle_mvc', methods: ['POST'])]
-    public function toggleVacances(int $id): Response
+    public function toggleVacances(int $id, Request $request): Response
     {
         if (!$this->authService->check() || !$this->authService->isAdmin()) {
             return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->isCsrfTokenValid('vacances_toggle_' . $id, $request->request->get('_csrf_token'))) {
+            $this->addFlash('error', 'Token de sécurité invalide.');
+            return $this->redirectToRoute('admin_vacances_mvc');
         }
 
         $config = $this->vacancesRepo->find($id);
@@ -740,10 +764,15 @@ final class AdminControllerMVC extends AbstractController
     }
 
     #[Route('/admin-mvc/vacances/{id}/supprimer', name: 'admin_vacances_supprimer_mvc', methods: ['POST'])]
-    public function supprimerVacances(int $id): Response
+    public function supprimerVacances(int $id, Request $request): Response
     {
         if (!$this->authService->check() || !$this->authService->isAdmin()) {
             return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->isCsrfTokenValid('vacances_supprimer_' . $id, $request->request->get('_csrf_token'))) {
+            $this->addFlash('error', 'Token de sécurité invalide.');
+            return $this->redirectToRoute('admin_vacances_mvc');
         }
 
         $config = $this->vacancesRepo->find($id);
@@ -768,6 +797,10 @@ final class AdminControllerMVC extends AbstractController
         $config = $this->appConfigRepo->getConfig();
 
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('admin_config', $request->request->get('_csrf_token'))) {
+                $this->addFlash('error', 'Token de sécurité invalide.');
+                return $this->redirectToRoute('admin_config_mvc');
+            }
             $config->setNbrJourSaisie((int)$request->request->get('nbrJourSaisie', 10));
             $config->setNbrPalierTarifGE((int)$request->request->get('nbrPalierTarifGE', 4));
             $config->setNbrPalierTarifM((int)$request->request->get('nbrPalierTarifM', 0));

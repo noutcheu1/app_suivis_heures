@@ -42,6 +42,7 @@
   <div class="card-body">
     <form method="POST" action="{{ path('admin_vacances_creer_mvc') }}"
           style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:end;flex-wrap:wrap;">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token('vacances_creer') }}">
       <div>
         <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:3px;">
           Titre <span style="color:#c00;">*</span>
@@ -142,6 +143,7 @@
         </td>
         <td style="text-align:right;white-space:nowrap;">
           <form method="POST" action="{{ path('admin_vacances_toggle_mvc', {id: cfg.id}) }}" style="display:inline;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('vacances_toggle_' ~ cfg.id) }}">
             <button type="submit" class="btn btn-sm {{ cfg.actif ? 'btn-warning' : 'btn-success' }}"
                     title="{{ cfg.actif ? 'Désactiver' : 'Activer sur tous les relevés' }}">
               <i class="fas {{ cfg.actif ? 'fa-pause' : 'fa-play' }}"></i>
@@ -150,6 +152,7 @@
           </form>
           <form method="POST" action="{{ path('admin_vacances_supprimer_mvc', {id: cfg.id}) }}" style="display:inline;"
                 onsubmit="return confirm('Supprimer ce formulaire ?');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('vacances_supprimer_' ~ cfg.id) }}">
             <button type="submit" class="btn btn-danger btn-sm" title="Supprimer">
               <i class="fas fa-trash"></i>
             </button>

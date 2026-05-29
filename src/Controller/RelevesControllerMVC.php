@@ -200,13 +200,13 @@ final class RelevesControllerMVC extends AbstractController
         }
 
         $mois = $request->query->get('mois', date('m/Y'));
-        
+        $familles = $this->famillesservice->getFamilles($numFam);
         // TODO: Implémenter la génération PDF pour les relevés familles
-        $pdfContent = "PDF Relevé Famille {$numFam} - {$mois}";
+        $pdfContent = "PDF Relevé Famille {$familles} - {$numFam} - {$mois}";
         
         $response = new Response($pdfContent);
         $response->headers->set('Content-Type', 'application/pdf');
-        $response->headers->set('Content-Disposition', "attachment; filename=\"releve_famille_{$numFam}_{$mois}.pdf\"");
+        $response->headers->set('Content-Disposition', "attachment; filename=\"releve_famille_{$familles}_{$numFam}_{$mois}.pdf\"");
         
         return $response;
     }

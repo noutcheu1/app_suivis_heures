@@ -159,7 +159,7 @@ final class LoginControllerMVC extends AbstractController
     {
         if ($type === 'FAM') {
             if (!$this->familleRepository->findByNumero($id)) {
-                return 'Aucune famille trouvée avec ce code client.';
+                return 'Aucune famille trouvée .';
             }
             return null;
         }

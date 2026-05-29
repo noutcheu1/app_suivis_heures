@@ -64,6 +64,7 @@
     </h2>
 
     <form method="POST" action="{{ path('admin_tarifs_creer_mvc') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('tarifs_creer') }}">
 
         {# Mois de prise en compte #}
         <div class="mb-4">

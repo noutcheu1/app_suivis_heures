@@ -38,6 +38,75 @@ class TarifFamilleRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    private function normaliserType(string $type): string
+    {
+        return match(strtoupper($type)) {
+            'ENFA', 'GE' => 'GE',
+            'MENA', 'M'  => 'M',
+            default      => $type,
+        };
+    }
+
+    /** Vrai si au moins un tarif actif (GE ou M) de la famille a exonereKm = true. */
+    public function isExonereKm(string $numFam, string $typePresta, ?string $moisAnnee = null): bool
+    {
+        $tarif = $this->findActif($numFam, $this->normaliserType($typePresta), $moisAnnee);
+        return $tarif?->isExonereKm() ?? false;
+    }
+
+    public function isExonereKmFamille(string $numFam): bool
+    {
+        return $this->isExonereKm($numFam, 'GE') || $this->isExonereKm($numFam, 'M');
+    }
+
+    /**
+     * Toggle km exemption pour UN type (GE ou M).
+     * Crée un enregistrement placeholder si aucun tarif n'existe pour ce type.
+     */
+    public function toggleExonereKmType(string $numFam, string $typePresta): bool
+    {
+        $em   = $this->getEntityManager();
+        $type = $this->normaliserType($typePresta);
+        $tarif = $this->findActif($numFam, $type);
+
+        if (!$tarif) {
+            $tarif = new TarifFamille();
+            $tarif->setNumFam($numFam);
+            $tarif->setTypePresta($type);
+            $tarif->setTauxHoraire('0.00');
+            $tarif->setDateDebut(date('Y-m'));
+            $em->persist($tarif);
+        }
+
+        $new = !$tarif->isExonereKm();
+        $tarif->setExonereKm($new);
+        $em->flush();
+        return $new;
+    }
+
+    /** @deprecated Utiliser toggleExonereKmType() pour un contrôle par service */
+    public function toggleExonereKmFamille(string $numFam): bool
+    {
+        $em  = $this->getEntityManager();
+        $new = !$this->isExonereKmFamille($numFam);
+
+        foreach (['GE', 'M'] as $type) {
+            $tarif = $this->findActif($numFam, $type);
+            if (!$tarif) {
+                $tarif = new TarifFamille();
+                $tarif->setNumFam($numFam);
+                $tarif->setTypePresta($type);
+                $tarif->setTauxHoraire('0.00');
+                $tarif->setDateDebut(date('Y-m'));
+                $em->persist($tarif);
+            }
+            $tarif->setExonereKm($new);
+        }
+
+        $em->flush();
+        return $new;
+    }
+
     /**
      * Toutes les versions tarifaires d'une famille, ordre chronologique décroissant.
      */

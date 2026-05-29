@@ -106,10 +106,23 @@ class FamilleRepository extends ServiceEntityRepository
     /**
      * Retourne une famille par son numéro, non archivée et non factice.
      */
+    // public function findByNumero(string $numero): ?Famille
+    // {
+    //     $qb = $this->createQueryBuilder('f')
+    //         ->andWhere('f.numeroFamille = :numero')
+    //         ->setParameter('numero', $numero);
+
+    //     $this->addBaseConditions($qb);
+
+    //     return $qb->getQuery()->getOneOrNullResult();
+    // }
+
     public function findByNumero(string $numero): ?Famille
     {
         $qb = $this->createQueryBuilder('f')
-            ->andWhere('f.numeroFamille = :numero')
+            ->orWhere('f.numeroFamille = :numero')
+            ->orWhere('f.pgeFamille = :numero')
+            ->orWhere('f.pmFamille = :numero')
             ->setParameter('numero', $numero);
 
         $this->addBaseConditions($qb);

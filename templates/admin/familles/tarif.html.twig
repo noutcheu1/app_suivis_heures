@@ -67,6 +67,7 @@
         Définir un nouveau taux horaire
     </h2>
     <form method="POST" action="{{ path('famille_tarif_creer_mvc', {numFam: famille.numeroFamille}) }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('tarif_famille_creer') }}">
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;align-items:end;">
 
             <div>

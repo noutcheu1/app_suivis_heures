@@ -44,6 +44,11 @@ final class TarifControllerMVC extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
+        if (!$this->isCsrfTokenValid('tarifs_creer', $request->request->get('_csrf_token'))) {
+            $this->addFlash('error', 'Token de sécurité invalide.');
+            return $this->redirectToRoute('admin_tarifs_mvc');
+        }
+
         try {
             $this->tarifService->creerNouveauTarif($request->request->all());
             $this->addFlash('success', 'Nouveau tarif enregistré. Il s\'applique à partir du mois indiqué.');

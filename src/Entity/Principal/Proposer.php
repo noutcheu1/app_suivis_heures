@@ -41,10 +41,10 @@ class Proposer
     #[ORM\Column(name: 'hFin_Proposer', type: Types::TIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $heureFin = null;
 
-    #[ORM\Column(name: 'DateDeb_Proposer', type: Types::DATE_MUTABLE)]
+    #[ORM\Column(name: 'DateDeb_Proposer', type: Types::DATETIME_MUTABLE)]
     private \DateTimeInterface $dateDeb;
 
-    #[ORM\Column(name: 'dateFin_Proposer', type: Types::DATE_MUTABLE, nullable: true)]
+    #[ORM\Column(name: 'dateFin_Proposer', type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $dateFin = null;
 
     #[ORM\Column(name: 'Statut_Proposer', length: 20, nullable: true, options: ['default' => 'En attente'])]

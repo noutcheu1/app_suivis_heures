@@ -98,10 +98,10 @@ class Intervenant
     #[ORM\Column(name: 'enfantHand_Candidats', nullable: true)]
     private ?bool $enfantHandicape = null;
 
-    #[ORM\Column(name: 'dateEntree_Intervenants', type: Types::DATE_MUTABLE, nullable: true)]
+    #[ORM\Column(name: 'dateEntree_Intervenants', type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $dateEntree = null;
 
-    #[ORM\Column(name: 'dateSortie_Intervenants', type: Types::DATE_MUTABLE, nullable: true)]
+    #[ORM\Column(name: 'dateSortie_Intervenants', type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $dateSortie = null;
 
     #[ORM\Column(name: 'archive_Intervenants', options: ['default' => false])]

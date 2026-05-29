@@ -121,11 +121,15 @@ final class IntervenantsControllerMVC extends AbstractController
 
         $prestations = $this->horaireService->getPrestationsParIntervenant($id);
 
+        $nbrJours   = $this->horaireService->getNbrJourSaisie();
+        $dateLimite = (new \DateTime('today'))->modify('-' . $nbrJours . ' days');
+
         return $this->render('intervenants/hours/list.html.twig', [
             'auth'        => $this->authService->check(),
             'user'        => $user,
             'prestations' => $prestations,
             'isAdmin'     => $this->authService->isAdmin(),
+            'dateLimite'  => $dateLimite,
         ]);
     }
 

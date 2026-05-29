@@ -129,6 +129,7 @@
     </div>
     <div class="card-body">
         <form method="POST" action="{{ path('admin_ajouter_planning_mvc', {numFam: famille.numeroFamille}) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('ajouter_planning') }}">
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;align-items:end;">
 
                 <div>

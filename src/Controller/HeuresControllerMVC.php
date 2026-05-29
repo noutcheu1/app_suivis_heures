@@ -63,11 +63,23 @@ final class HeuresControllerMVC extends AbstractController
             }
         }
 
+        $dateStr = $data['date'] ?? $data['datePresta'] ?? 'now';
+        $datePresta = new \DateTime($dateStr);
+        if (!$this->authService->isAdmin() && !$this->horaireService->peutSaisirHeures($datePresta)) {
+            return $this->json([
+                'success' => false,
+                'error'   => sprintf(
+                    'Cette date dépasse la limite de %d jours configurée par l\'administrateur.',
+                    $this->horaireService->getNbrJourSaisie()
+                ),
+            ], 403);
+        }
+
         $donnees = [
             'numFam'           => $isFamilleOccasionnelle ? null : $numFam,
             'nomFam'           => $data['nomRemplacement'] ?? $data['nomFam'] ?? null,
             'numInter'         => $numInter,
-            'datePresta'       => $data['date'] ?? $data['datePresta'] ?? null,
+            'datePresta'       => $dateStr,
             'heureDebutPresta' => ($data['heureDebut'] ?? '') . ':' . ($data['minuteDebut'] ?? ''),
             'heureFinPresta'   => ($data['heureFin'] ?? '') . ':' . ($data['minuteFin'] ?? ''),
             'typePresta'       => $data['type'] ?? $data['typePresta'] ?? null,
@@ -129,10 +141,13 @@ final class HeuresControllerMVC extends AbstractController
     }
 
     #[Route('/heures-mvc/supprimer/{id}', name: 'heures_supprimer_mvc', methods: ['POST'])]
-    public function supprimerHeure(int $id): JsonResponse
+    public function supprimerHeure(int $id, Request $request): JsonResponse
     {
         if (!$this->authService->check()) {
             return $this->json(['success' => false, 'error' => 'Non authentifié'], 401);
+        }
+        if (!$this->isCsrfTokenValid('ajax', $request->headers->get('X-CSRF-Token', ''))) {
+            return $this->json(['success' => false, 'error' => 'Token invalide'], 403);
         }
 
         $isAdmin = $this->authService->isAdmin();
@@ -155,10 +170,13 @@ final class HeuresControllerMVC extends AbstractController
     }
 
     #[Route('/heures-mvc/restaurer/{id}', name: 'heures_restaurer_mvc', methods: ['POST'])]
-    public function restaurerHeure(int $id): JsonResponse
+    public function restaurerHeure(int $id, Request $request): JsonResponse
     {
         if (!$this->authService->check()) {
             return $this->json(['success' => false, 'error' => 'Non authentifié'], 401);
+        }
+        if (!$this->isCsrfTokenValid('ajax', $request->headers->get('X-CSRF-Token', ''))) {
+            return $this->json(['success' => false, 'error' => 'Token invalide'], 403);
         }
 
         $ok = $this->horaireService->restaurerPrestation($id);

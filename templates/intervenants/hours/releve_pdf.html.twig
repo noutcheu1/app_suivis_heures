@@ -108,9 +108,7 @@
                 <td style="font-size:10px;">
                     {%- if familles[i] is defined and familles[i].prestations[jour.date] is defined -%}
                         {{ familles[i].prestations[jour.date]|join('<br>')|raw }}
-                        {%- if familles[i].distanceAller > 0 -%}
-                            <br><span style="color:#555;">{{ familles[i].distanceAller|number_format(1, ',', '') }} km</span>
-                        {%- endif -%}
+                       
                     {%- endif -%}
                 </td>
             {% endfor %}
@@ -126,16 +124,25 @@
         </tr>
         <tr>
             <td class="no-borders"></td>
-            <th colspan="2">Km trajet (hors Rennes)</th>
+            <th colspan="2"></th>
             {% for i in 0..4 %}
                 <td style="font-size:10px;">
                     
-                    {%- if isAdmin and familles[i] is defined -%}
-                        {{ familles[i].nbPrestations }}&nbsp x 
-                        {%- if familles[i].distanceAller > 0 -%}
-                            {{ familles[i].distanceAller <= 15 ? familles[i].distanceAller|number_format(1, ',', ' ') : '15' }}
-                        {%- else -%}&nbsp 0{%- endif -%}
+                   {%- if isAdmin and familles[i] is defined -%}
+                    {% set distance = familles[i].distanceAller > 15 ? 15 : familles[i].distanceAller %}
+                    
+                    {%- if familles[i].distanceAller > 0 -%}
+                        {%- if familles[i].exonereKm ?? false -%}
+                            <span>
+                                {{ familles[i].nbPrestations }} x {{ distance|number_format(0, ',', ' ') }} km
+                            </span>
+                        {%- else -%}
+                            {{ familles[i].nbPrestations }} x {{ distance|number_format(0, ',', ' ') }} km
+                        {%- endif -%}
+                    {%- else -%}
+                        {{ familles[i].nbPrestations }} x 0 km
                     {%- endif -%}
+                {%- endif -%}
                 </td>
             {% endfor %}
         </tr>

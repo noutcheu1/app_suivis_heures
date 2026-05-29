@@ -54,9 +54,8 @@
             </tr>
         </thead>
         <tbody>
-        {% set todayYM = 'now'|date('Y-m') %}
         {% for presta in prestations %}
-        {% set verrouille = not isAdmin and (presta.datePresta|date('Y-m') < todayYM) %}
+        {% set verrouille = not isAdmin and presta.datePresta < dateLimite %}
         <tr{% if verrouille %} style="opacity:.8;"{% endif %}>
             <td>
                 {% if presta.numFam is not null %}
@@ -208,7 +207,8 @@ document.querySelectorAll('.btn-action-presta').forEach(btn => {
             ? `/heures-mvc/supprimer/${id}`
             : `/heures-mvc/restaurer/${id}`;
         try {
-            const res    = await fetch(route, { method: 'POST', credentials: 'same-origin' });
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+            const res    = await fetch(route, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': csrfToken } });
             const result = await res.json();
             if (result.success) {
                 window.location.reload();

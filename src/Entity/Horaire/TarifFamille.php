@@ -35,6 +35,9 @@ class TarifFamille
     #[ORM\Column(name: 'dateDebut', length: 7)]
     private ?string $dateDebut = null;
 
+    #[ORM\Column(name: 'exonere_km', nullable: true, options: ['default' => false])]
+    private ?bool $exonereKm = false;
+
     public function getId(): ?int { return $this->id; }
 
     public function getNumFam(): ?string { return $this->numFam; }
@@ -48,6 +51,9 @@ class TarifFamille
 
     public function getDateDebut(): ?string { return $this->dateDebut; }
     public function setDateDebut(string $dateDebut): static { $this->dateDebut = $dateDebut; return $this; }
+
+    public function isExonereKm(): bool { return $this->exonereKm ?? false; }
+    public function setExonereKm(bool $exonereKm): static { $this->exonereKm = $exonereKm; return $this; }
 
     public function getLabelPresta(): string
     {
