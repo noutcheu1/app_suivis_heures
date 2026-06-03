@@ -257,9 +257,9 @@ final class HeuresControllerMVC extends AbstractController
                 'id'               => $horaire->getId(),
                 'numFam'           => $horaire->getNumFam(),
                 'nomFam'           => $horaire->getNomFam(),
-                'datePresta'       => $horaire->getDatePresta()->format('Y-m-d'),
-                'heureDebutPresta' => $horaire->getHeureDebutPresta()->format('H:i'),
-                'heureFinPresta'   => $horaire->getHeureFinPresta()->format('H:i'),
+                'datePresta'       => $horaire->getDatePresta()?->format('Y-m-d'),
+                'heureDebutPresta' => $horaire->getHeureDebutPresta()?->format('H:i'),
+                'heureFinPresta'   => $horaire->getHeureFinPresta()?->format('H:i'),
                 'typePresta'       => $horaire->getTypePresta(),
                 'kmAvecEnfant'     => $horaire->getKmAvecEnfant(),
                 'verrouille'       => !$this->authService->isAdmin() && $this->horaireService->isVerrouille($horaire),
@@ -284,14 +284,14 @@ final class HeuresControllerMVC extends AbstractController
             $donnees[] = [
                 'id' => $prestation->getId(),
                 'nomFam' => $prestation->getNomFam(),
-                'datePresta' => $prestation->getDatePresta()->format('Y-m-d'),
-                'heureDebutPresta' => $prestation->getHeureDebutPresta()->format('H:i'),
-                'heureFinPresta' => $prestation->getHeureFinPresta()->format('H:i'),
+                'datePresta' => $prestation->getDatePresta()?->format('Y-m-d'),
+                'heureDebutPresta' => $prestation->getHeureDebutPresta()?->format('H:i'),
+                'heureFinPresta' => $prestation->getHeureFinPresta()?->format('H:i'),
                 'typePresta' => $prestation->getTypePresta(),
                 'kmAvecEnfant' => $prestation->getKmAvecEnfant(),
                 'declarerLeFam' => $prestation->getDeclarerLeFam()?->format('d/m/Y H:i'),
                 'desactiver' => $prestation->isDesactiver(),
-                'ajouterLe' => $prestation->getAjouterLe()->format('d/m/Y H:i'),
+                'ajouterLe' => $prestation->getAjouterLe()?->format('d/m/Y H:i'),
             ];
         }
 

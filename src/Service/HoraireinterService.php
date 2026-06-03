@@ -67,6 +67,10 @@ class HoraireinterService
             throw new \LogicException('Vous avez déjà une prestation enregistrée pour cette famille ce jour-là.');
         }
 
+        // Durée nulle / max 10h / chevauchement
+        $heureFin = new \DateTime($donnees['heureFinPresta']);
+        $this->validerCreneau($numInter, $datePresta, $heureDebut, $heureFin);
+
         $horaire = new Horaireinter();
 
         $horaire->setNumFam($numFam);
@@ -318,6 +322,20 @@ class HoraireinterService
             if ($numFam && $numFam !== '0' && $this->repository->existsDoublonFamilleDate($numInter, $numFam, $datePresta, $typePresta, $id)) {
                 throw new \LogicException('Vous avez déjà une prestation enregistrée pour cette famille ce jour-là.');
             }
+
+            // Durée nulle / max 10h / chevauchement — uniquement si les heures changent
+            // réellement (modifier le km ou la famille ne doit pas relancer ces contrôles).
+            if (isset($donnees['heureFinPresta'])) {
+                $heureFin   = new \DateTime($donnees['heureFinPresta']);
+                $ancienDeb  = $horaire->getHeureDebutPresta()?->format('H:i');
+                $ancienFin  = $horaire->getHeureFinPresta()?->format('H:i');
+                $heuresOntChange = $ancienDeb !== $heureDebut->format('H:i')
+                    || $ancienFin !== $heureFin->format('H:i');
+
+                if ($heuresOntChange) {
+                    $this->validerCreneau($numInter, $datePresta, $heureDebut, $heureFin, $id);
+                }
+            }
         }
 
         if (isset($donnees['datePresta'])) {
@@ -390,6 +408,37 @@ class HoraireinterService
     }
 
 
+
+    /**
+     * Valide un créneau : durée non nulle, max 10h, pas de chevauchement
+     * avec une autre prestation du même intervenant le même jour.
+     *
+     * @throws \LogicException si une règle n'est pas respectée
+     */
+    private function validerCreneau(
+        int $numInter,
+        \DateTimeInterface $datePresta,
+        \DateTimeInterface $heureDebut,
+        \DateTimeInterface $heureFin,
+        ?int $excludeId = null
+    ): void {
+        $sec = $heureFin->getTimestamp() - $heureDebut->getTimestamp();
+        if ($sec < 0) {
+            $sec += 24 * 3600; // passage minuit
+        }
+
+        if ($sec === 0) {
+            throw new \LogicException('La durée de la prestation ne peut pas être nulle (heure de début = heure de fin).');
+        }
+
+        if ($sec > 10 * 3600) {
+            throw new \LogicException('Une prestation ne peut pas dépasser 10 heures dans une journée.');
+        }
+
+        if ($this->repository->existsChevauchement($numInter, $datePresta, $heureDebut, $heureFin, $excludeId)) {
+            throw new \LogicException('Ce créneau chevauche une autre prestation déjà enregistrée ce jour-là.');
+        }
+    }
 
     /**
      * Calcule les heures entre deux timestamps

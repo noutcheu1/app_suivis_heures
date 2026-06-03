@@ -482,6 +482,42 @@ class HoraireinterRepository extends ServiceEntityRepository
     }
 
     /**
+     * Vérifie si une nouvelle prestation [heureDebut, heureFin] chevauche une prestation
+     * existante du même intervenant le même jour (toutes familles confondues).
+     *
+     * Règle de chevauchement : existDebut < newFin ET existFin > newDebut.
+     * (deux créneaux se chevauchent s'ils ne sont pas strictement l'un après l'autre)
+     */
+    public function existsChevauchement(
+        int $numInter,
+        \DateTimeInterface $datePresta,
+        \DateTimeInterface $heureDebut,
+        \DateTimeInterface $heureFin,
+        ?int $excludeId = null
+    ): bool {
+        $qb = $this->createQueryBuilder('h')
+            ->select('COUNT(h.id)')
+            ->where('h.numInter = :numInter')
+            ->andWhere('h.datePresta = :datePresta')
+            ->andWhere('h.desactiver = false')
+            ->andWhere('h.heureDebutPresta IS NOT NULL')
+            ->andWhere('h.heureFinPresta IS NOT NULL')
+            ->andWhere('h.heureDebutPresta < :heureFin')
+            ->andWhere('h.heureFinPresta > :heureDebut')
+            ->setParameter('numInter', $numInter)
+            ->setParameter('datePresta', $datePresta)
+            ->setParameter('heureDebut', $heureDebut)
+            ->setParameter('heureFin', $heureFin);
+
+        if ($excludeId !== null) {
+            $qb->andWhere('h.id != :excludeId')
+               ->setParameter('excludeId', $excludeId);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult() > 0;
+    }
+
+    /**
      * Vérifie si l'intervenant a déjà une prestation pour la même famille le même jour (même type).
      */
     public function existsDoublonFamilleDate(int $numInter, string $numFam, \DateTimeInterface $datePresta, string $type, ?int $excludeId = null): bool

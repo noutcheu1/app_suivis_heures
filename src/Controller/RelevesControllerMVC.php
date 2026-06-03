@@ -128,7 +128,7 @@ final class RelevesControllerMVC extends AbstractController
 
         // Bloquer le téléchargement si toutes les familles sont mandataires (aucune famille prestataire valide)
         if (empty($releveData['familles'])) {
-            throw $this->createNotFoundException("Aucun relevé disponible pour cette période : les familles associées ne sont pas prestataires.");
+            $releveData['familles'] = [];
         }
 
         // Marquer comme téléchargé uniquement s'il y a des données valides
@@ -306,7 +306,7 @@ final class RelevesControllerMVC extends AbstractController
         // Bloquer l'accès si aucune famille prestataire valide sur cette période
         $releveData = $this->horaireService->getReleveData($intervenantId, $type, $moisOffset, $user);
         if (empty($releveData['familles'])) {
-            throw $this->createNotFoundException("Aucun relevé disponible : les familles associées ne sont pas prestataires.");
+            $releveData['familles'] = [];
         }
 
         // Marquer comme consulté uniquement s'il y a des données valides

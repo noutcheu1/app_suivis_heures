@@ -44,21 +44,39 @@ function setEdit(data) {
     setTimeSelects('heureDebut', 'minuteDebut', data.heureDebutPresta ?? '');
     setTimeSelects('heureFin',   'minuteFin',   data.heureFinPresta   ?? '');
 
+    // Type d'abord (les familles sont filtrées selon le type)
+    if (data.typePresta) typeSelect.value = data.typePresta;
+
     if (data.numFam == 9998 || data.numFam == null) {
         familleSelect.value = 0;
         nomRemplacementInput.value = data.nomFam ?? "";
         familleOccaSearch.value = data.nomFam ?? "";
     } else {
-        familleSelect.value = data.numFam ?? '0';
+        // S'assurer que l'option de la famille éditée est sélectionnable
+        // (les filtres mandataire/type ont pu la masquer ou la désactiver).
+        const opt = Array.from(familleSelect.options)
+            .find(o => o.value == data.numFam || o.dataset.num == data.numFam);
+        if (opt) {
+            opt.hidden = false;
+            opt.disabled = false;
+            familleSelect.value = opt.value;
+        } else {
+            familleSelect.value = data.numFam ?? '0';
+        }
     }
     form.date.value = data.datePresta;
 
-    typeSelect.value = data.typePresta;
+    // S'assurer que toutes les options de type sont visibles (un filtre a pu en masquer)
+    Array.from(typeSelect.options).forEach(o => { o.hidden = false; });
+    if (data.typePresta) typeSelect.value = data.typePresta;
 
+    // Mettre à jour la visibilité (champ km/occasionnelle) SANS écraser le type chargé.
+    // On n'appelle pas handleFamilleChange() qui re-déduirait le type depuis la famille.
+    updateVisibility();
+
+    // Le km doit être rempli APRÈS updateVisibility (qui peut réinitialiser le champ)
     const trajetInput = document.getElementById('trajet');
     if (trajetInput) trajetInput.value = data.kmAvecEnfant ?? '';
-
-    handleFamilleChange();
 }
 
 async function getInfoData(id_edit) {
@@ -152,9 +170,11 @@ form.addEventListener("submit", async (e) => {
     const famNum         = selectedOption?.dataset.num ?? null;
     const famPrests      = selectedOption?.dataset.prestations ?? '';
 
-    // Garde : famille non occasionnelle sans prestation proposer → bloqué
+    // Garde : famille non occasionnelle sans prestation proposer → bloqué.
+    // Ignoré en mode édition : la prestation existe déjà, on ne revérifie pas
+    // l'assignation (le planning a pu expirer depuis la saisie initiale).
     const isOccasionnelle = (famValue === '0' || famValue === '');
-    if (!isOccasionnelle && famNum && !famPrests) {
+    if (!params.has('edite') && !isOccasionnelle && famNum && !famPrests) {
         showModal({
             title: 'Non autorisé',
             body: 'Vous n\'êtes pas assigné à cette famille. Vous ne pouvez saisir des heures que pour vos familles ou en tant que famille occasionnelle.',

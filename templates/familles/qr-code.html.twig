@@ -100,9 +100,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
 <script>
 const NUM_FAM = {{ famille.numeroFamille|json_encode|raw }};
+// URL absolue de déclaration : scannée avec l'appareil photo natif du téléphone,
+// elle ouvre le formulaire de saisie pré-rempli pour cette famille.
+const QR_URL = {{ url('declarer_qr_mvc', {numFam: famille.numeroFamille})|json_encode|raw }};
 
 const qr = new QRCode(document.getElementById('qrcode'), {
-    text: NUM_FAM,
+    text: QR_URL,
     width: 220,
     height: 220,
     colorDark: '#1e1b4b',

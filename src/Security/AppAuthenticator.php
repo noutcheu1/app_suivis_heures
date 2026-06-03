@@ -75,6 +75,16 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
             return new RedirectResponse($this->router->generate('admin_dashboard_mvc'));
         }
         if (in_array('ROLE_INTERVENANT', $roles)) {
+            // Retour après scan d'un QR famille (l'utilisateur n'était pas connecté)
+            $qrFam = $request->getSession()->get('_qr_target_fam');
+            if ($qrFam) {
+                $request->getSession()->remove('_qr_target_fam');
+                $this->logger->debug('Redirection vers la déclaration QR', ['numFam' => $qrFam]);
+                return new RedirectResponse(
+                    $this->router->generate('declarer_qr_mvc', ['numFam' => $qrFam])
+                );
+            }
+
             $this->logger->debug('Redirection vers le tableau de bord intervenant', ['username' => $username]);
             return new RedirectResponse(
                 $this->router->generate('intervenant_panel_mvc', [
