@@ -2,8 +2,9 @@
 
 namespace App\Controller;
 
-use App\Security\Auth;
-use App\PdoApp;
+use App\Service\AuthService;
+use App\Service\IntervenantService;
+use App\Service\UserSuiviService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -11,91 +12,72 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class SettingsController extends AbstractController
 {
-    #[Route('/api/changePassword/{id}', name: 'change_password_settings', methods: ['POST'])]
-    public function change_password_settings(
-        int $id,
-        PdoApp $pdo,
-        Request $request
-    ): Response {
-        $auth = new Auth($request->getSession());
+    public function __construct(
+        private AuthService        $authService,
+        private IntervenantService $intervenantService,
+        private UserSuiviService   $UserSuiviService
+    ) {}
 
-        if (!$auth->isAdmin() && $id != $auth->intervenant_id()) {
-            return $this->json([
-                'success' => false,
-                'message' => "Accès interdit "
-            ], 403);
+    #[Route('/api/changePassword/{id}', name: 'change_password_settings', methods: ['POST'])]
+    public function change_password_settings(int $id, Request $request): Response
+    {
+        if (!$this->authService->isAdmin() && $id !== $this->authService->intervenant_id()) {
+            return $this->json(['success' => false, 'message' => 'Accès interdit'], 403);
         }
 
-        if (!$this->isCsrfTokenValid(
-            'change_password',
-            $request->headers->get('X-CSRF-TOKEN')
-        )) {
-            return $this->json([
-                'success' => false,
-                'message' => 'Token CSRF invalide'
-            ], 403);
+        if (!$this->isCsrfTokenValid('change_password', $request->headers->get('X-CSRF-TOKEN'))) {
+            return $this->json(['success' => false, 'message' => 'Token CSRF invalide'], 403);
         }
 
         $data = json_decode($request->getContent(), true);
 
-        if (
-            empty($data['currentPassword']) ||
-            empty($data['newPassword'])
-        ) {
-            return $this->json([
-                'success' => false,
-                'message' => 'Données manquantes'
-            ], 400);
+        if (empty($data['currentPassword']) || empty($data['newPassword'])) {
+            return $this->json(['success' => false, 'message' => 'Données manquantes'], 400);
         }
 
-        $oldPass = $data['currentPassword'];
-        $newPass = $data['newPassword'];
-
-        $intervenant = $pdo->getIntervenantNumInter($id);
-        $user = $pdo->getUser($intervenant['numSS_Candidats'] ?? null);
-
-        if (!$user || !password_verify($oldPass, $user['mdp'])) {
-            return $this->json([
-                'success' => false,
-                'message' => 'Mot de passe actuel incorrect'
-            ], 401);
+        $intervenant = $this->intervenantService->getIntervenantParId($id);
+        if (!$intervenant) {
+            return $this->json(['success' => false, 'message' => 'Intervenant introuvable'], 404);
         }
 
-        $hashedPassword = password_hash($newPass, PASSWORD_DEFAULT);
-
-        $success = $pdo->putNewMdp($intervenant['numSS_Candidats'], $hashedPassword);
-        
-        if (!$success) {
-            return $this->json([
-                'success' => false,
-                'message' => 'Une erreur c\'est produite veullier réessayer plus tard'
-            ], 401);
+        // Priorité à numSalarie (identifiant de login), fallback sur numSs
+        $username = $intervenant->getNumSalarie() ?? $intervenant->getNumSs();
+        if (!$username) {
+            return $this->json(['success' => false, 'message' => 'Identifiant de connexion introuvable'], 404);
         }
 
-        return $this->json([
-            'success' => false,
-            'message' => 'Mot de passe modifié avec succès'
-        ], 200);
+        if (!$this->UserSuiviService->authentifier($username, $data['currentPassword'])) {
+            return $this->json(['success' => false, 'message' => 'Mot de passe actuel incorrect'], 401);
+        }
+
+        if (!$this->UserSuiviService->mettreAJourMotDePasse($username, $data['newPassword'])) {
+            return $this->json(['success' => false, 'message' => 'Erreur lors de la mise à jour'], 500);
+        }
+
+        return $this->json(['success' => true, 'message' => 'Mot de passe modifié avec succès']);
     }
 
-    #[Route('/intervenants/{id}/settings', name: 'intervenant_settings')]
-    public function intervenant_settings(int $id, PdoApp $pdo, Request $request): Response
+    #[Route('/intervenant/settings', name: 'intervenant_settings')]
+    public function intervenant_settings(Request $request): Response
     {
-        $auth = new Auth($request->getSession());
+        $id = $this->authService->intervenant_id();
 
-        if (!$auth->isAdmin() && $id != $auth->intervenant_id()) {
-            return $this->redirectToRoute('intervenant_settings', [
-                'id' => $auth->intervenant_id()
-            ]);
+        if (!$id && !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
         }
 
-        $user = $pdo->getInfosIntervenant($id);
+        // Admin peut voir les settings d'un intervenant via ?id=X
+        if ($this->authService->isAdmin()) {
+            $id = $request->query->getInt('id', 0) ?: $id;
+        }
 
-        return $this->render('settings/index.html.twig', [
-            'auth' => $auth,
-            'user' => $user,
-            'id' => $id,
-            'type' => "intervenant"
+        $intervenant = $id ? $this->intervenantService->getIntervenantParId($id) : null;
+
+        return $this->render('dashboard/settings.html.twig', [
+            'auth' => $this->authService->check(),
+            'user' => $intervenant,
+            'id'   => $id,
+            'type' => 'intervenant',
         ]);
     }
 }

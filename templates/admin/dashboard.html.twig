@@ -1,0 +1,146 @@
+{% extends 'base.html.twig' %}
+{% block title %}Tableau de bord Admin{% endblock %}
+{% block page_title %}Tableau de bord{% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <h1>Bonjour 👋</h1>
+    <p>Vue d'ensemble de l'activité — La Maison des Chaudoudoux</p>
+</div>
+
+{# KPIs #}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;margin-bottom:28px;">
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background:#eef2ff;">
+            <i class="fas fa-id-card" style="color:#4f46e5;font-size:17px;"></i>
+        </div>
+        <div class="kpi-label">Intervenants actifs</div>
+        <div class="kpi-value">{{ stats.total_intervenants ?? '—' }}</div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background:#f0fdf4;">
+            <i class="fas fa-users" style="color:#10b981;font-size:17px;"></i>
+        </div>
+        <div class="kpi-label">Familles actives</div>
+        <div class="kpi-value">{{ stats.total_familles ?? '—' }}</div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background:#fff7ed;">
+            <i class="fas fa-clock" style="color:#f59e0b;font-size:17px;"></i>
+        </div>
+        <div class="kpi-label">Heures ce mois</div>
+        <div class="kpi-value">{{ stats.heures_ce_mois ?? '—' }}</div>
+    </div>
+
+</div>
+
+{# Quick Actions #}
+<h2 style="font-size:15px;font-weight:700;margin:0 0 14px;color:var(--text);">Actions rapides</h2>
+
+<div class="action-grid" style="margin-bottom:28px;">
+
+    <a class="action-card" href="{{ path('admin_intervenants_mvc') }}">
+        <div class="action-card-icon" style="background:#eef2ff;">
+            <i class="fas fa-id-card" style="color:#4f46e5;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Intervenants</p>
+            <p class="action-card-desc">Gérer la liste</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('admin_familles_mvc') }}">
+        <div class="action-card-icon" style="background:#f0fdf4;">
+            <i class="fas fa-users" style="color:#10b981;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Familles</p>
+            <p class="action-card-desc">Gérer la liste</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('admin_signalements_mvc') }}">
+        <div class="action-card-icon" style="background:#fef2f2;">
+            <i class="fas fa-flag" style="color:#ef4444;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Écarts d'heures</p>
+            <p class="action-card-desc">Litiges familles</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('admin_prepare_paie_mvc') }}">
+        <div class="action-card-icon" style="background:#fff7ed;">
+            <i class="fas fa-coins" style="color:#f59e0b;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Préparation paie</p>
+            <p class="action-card-desc">Export mensuel</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('admin_recapitulatif_mvc') }}">
+        <div class="action-card-icon" style="background:#f0f9ff;">
+            <i class="fas fa-table-list" style="color:#0ea5e9;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Récapitulatif</p>
+            <p class="action-card-desc">Toutes les interventions</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('admin_fiches_vierges_mvc') }}">
+        <div class="action-card-icon" style="background:#f5f3ff;">
+            <i class="fas fa-file-lines" style="color:#7c3aed;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Fiches vierges</p>
+            <p class="action-card-desc">Relevés à imprimer</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('admin_exceptions_facturation_mvc') }}">
+        <div class="action-card-icon" style="background:#fdf4ff;">
+            <i class="fas fa-sliders" style="color:#a21caf;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Exceptions tarifs</p>
+            <p class="action-card-desc">Tarification spéciale</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('admin_vacances_mvc') }}">
+        <div class="action-card-icon" style="background:#fef9c3;">
+            <i class="fas fa-umbrella-beach" style="color:#ca8a04;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Formulaires vacances</p>
+            <p class="action-card-desc">Ajouter sur les relevés</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('admin_tarifs_mvc') }}">
+        <div class="action-card-icon" style="background:#fff7ed;">
+            <i class="fas fa-tags" style="color:#ea580c;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Tarifs</p>
+            <p class="action-card-desc">Grilles tarifaires</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('admin_config_mvc') }}">
+        <div class="action-card-icon" style="background:#f0f9ff;">
+            <i class="fas fa-gear" style="color:#0284c7;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Configuration</p>
+            <p class="action-card-desc">Paramètres généraux</p>
+        </div>
+    </a>
+
+</div>
+{% endblock %}

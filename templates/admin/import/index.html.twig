@@ -1,0 +1,179 @@
+{% extends 'base.html.twig' %}
+{% block title %}Import Access{% endblock %}
+{% block page_title %}Import depuis Microsoft Access{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .tab-nav { display:flex; gap:8px; margin-bottom:20px; }
+    .tab-btn { padding:8px 20px; border:1px solid #ccc; background:#f5f5f5;
+               cursor:pointer; border-radius:4px 4px 0 0; font-size:14px; }
+    .tab-btn.active { background:#fff; border-bottom-color:#fff; font-weight:bold; }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+    .import-box { background:#fff; border:1px solid #ddd; border-radius:6px;
+                  padding:24px; max-width:600px; }
+    .import-box label { display:block; margin-bottom:5px; font-weight:600; font-size:13px; }
+    .import-box input[type=text],
+    .import-box input[type=file] {
+        width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;
+        margin-bottom:14px; box-sizing:border-box; font-size:13px; }
+    .field-hint { font-size:11px; color:#888; margin:-10px 0 12px; }
+    .btn-primary { padding:10px 24px; background:#1a73e8; color:#fff;
+                   border:none; border-radius:4px; cursor:pointer; font-size:14px; }
+    .result-box { margin-top:24px; padding:16px; border-radius:6px; max-width:600px; }
+    .result-box.success { background:#e8f5e9; border:1px solid #a5d6a7; }
+    .result-box.warning { background:#fff8e1; border:1px solid #ffe082; }
+    .result-box.danger  { background:#ffebee; border:1px solid #ef9a9a; }
+    .result-box h3 { margin:0 0 10px; }
+    .result-box ul { margin:8px 0 0; padding-left:18px; font-size:12px; }
+    .stat-row { display:flex; gap:24px; margin-bottom:8px; }
+    .stat { text-align:center; }
+    .stat strong { display:block; font-size:22px; }
+    .stat span   { font-size:12px; color:#666; }
+    .info-block { background:#e3f2fd; border:1px solid #90caf9; border-radius:6px;
+                  padding:14px 18px; margin-bottom:20px; font-size:13px; line-height:1.6; }
+    .info-block code { background:#c8e6fa; padding:1px 4px; border-radius:3px; }
+    .badge-new { background:#2e7d32; color:#fff; font-size:11px;
+                 padding:1px 6px; border-radius:10px; margin-left:6px; }
+</style>
+{% endblock %}
+
+{% block body %}
+
+<div class="info-block">
+    <strong>Comment exporter depuis Access :</strong><br>
+    <b>CSV</b> : Table → <em>Données externes → Exporter → Fichier texte</em> → cocher "En-têtes de colonne" → séparateur <code>;</code><br>
+    <b>SQL</b> : Utiliser <em>mdb-tools</em> (Linux) ou <em>Access to MySQL</em> (Windows) pour exporter un dump <code>.sql</code><br>
+    ℹ️ La table est créée automatiquement si elle n'existe pas. Les nouvelles colonnes sont ajoutées si la table existe déjà.
+</div>
+
+{# ── Onglets ── #}
+<div class="tab-nav">
+    <button class="tab-btn {% if activeTab == 'csv' %}active{% endif %}"
+            onclick="showTab('csv', this)">📄 Import CSV</button>
+    <button class="tab-btn {% if activeTab == 'sql' %}active{% endif %}"
+            onclick="showTab('sql', this)">🗄️ Import SQL</button>
+</div>
+
+{# ── Onglet CSV ── #}
+<div id="tab-csv" class="tab-panel {% if activeTab == 'csv' %}active{% endif %}">
+    <div class="import-box">
+        <form method="post" action="{{ path('admin_import_csv_mvc') }}" enctype="multipart/form-data">
+
+            <label for="table">Nom de la table</label>
+            <input type="text" name="table" id="table"
+                   placeholder="ex: famille, candidats, ma_nouvelle_table…"
+                   pattern="[a-zA-Z0-9_]+" required>
+            <p class="field-hint">Exactement comme dans Access. Sera créée si elle n'existe pas encore.</p>
+
+            <label for="pk_column">Colonne clé primaire <em style="font-weight:400">(optionnel)</em></label>
+            <input type="text" name="pk_column" id="pk_column"
+                   placeholder="ex: numero_Famille, numcandidat_candidats…">
+            <p class="field-hint">
+                Si renseignée : <code>INSERT … ON DUPLICATE KEY UPDATE</code> (mise à jour si déjà présent).<br>
+                Si vide : <code>INSERT IGNORE</code> (lignes en double ignorées).
+            </p>
+
+            <label for="csv_file">Fichier CSV exporté depuis Access</label>
+            <input type="file" name="csv_file" id="csv_file" accept=".csv,.txt" required
+                   onchange="detectTableName(this)">
+            <p class="field-hint">Séparateur <code>;</code> ou <code>,</code> détecté automatiquement. La 1ʳᵉ ligne = noms de colonnes.</p>
+
+            <button type="submit" class="btn-primary">⬆ Importer CSV</button>
+        </form>
+    </div>
+</div>
+
+{# ── Onglet SQL ── #}
+<div id="tab-sql" class="tab-panel {% if activeTab == 'sql' %}active{% endif %}">
+    <div class="import-box">
+        <form method="post" action="{{ path('admin_import_sql_mvc') }}" enctype="multipart/form-data">
+
+            <label for="sql_file">Fichier dump SQL (.sql)</label>
+            <input type="file" name="sql_file" id="sql_file" accept=".sql,.txt" required>
+            <p class="field-hint">
+                Les instructions <code>CREATE TABLE</code>, <code>INSERT</code>, <code>UPDATE</code>, <code>REPLACE</code>
+                sont exécutées directement sur <code>bdchaudoudoux</code>.
+            </p>
+
+            <button type="submit" class="btn-primary">⬆ Importer SQL</button>
+        </form>
+    </div>
+</div>
+
+{# ── Résultat ── #}
+{% if result is not null %}
+
+    {% if result.error is defined %}
+        <div class="result-box danger">
+            <h3>❌ Erreur</h3>
+            <p>{{ result.error }}</p>
+        </div>
+
+    {% elseif result.statements is defined %}
+        <div class="result-box {{ result.errors|length > 0 ? 'warning' : 'success' }}">
+            <h3>{{ result.errors|length == 0 ? '✅ Import SQL terminé' : '⚠️ Import SQL avec erreurs' }}</h3>
+            <div class="stat-row">
+                <div class="stat"><strong>{{ result.statements }}</strong><span>statements exécutés</span></div>
+                <div class="stat"><strong>{{ result.skipped }}</strong><span>DROP ignorés</span></div>
+                <div class="stat"><strong>{{ result.errors|length }}</strong><span>erreurs</span></div>
+            </div>
+            {% if result.errors|length > 0 %}
+                <ul>{% for e in result.errors|slice(0,20) %}<li>{{ e }}</li>{% endfor %}
+                {% if result.errors|length > 20 %}<li>…et {{ result.errors|length - 20 }} autres.</li>{% endif %}</ul>
+            {% endif %}
+        </div>
+
+    {% else %}
+        {# Résultat CSV #}
+        {% set hasErrors = result.errors|length > 0 %}
+        <div class="result-box {{ hasErrors ? 'warning' : 'success' }}">
+            <h3>
+                {{ hasErrors ? '⚠️' : '✅' }}
+                Table <code>{{ result.table }}</code>
+                {% if result.created %}<span class="badge-new">CRÉÉE</span>{% endif %}
+            </h3>
+
+            {% if result.columnsAdded|length > 0 %}
+                <p style="font-size:12px;margin:0 0 8px;">
+                    Colonnes ajoutées : <code>{{ result.columnsAdded|join('</code>, <code>')|raw }}</code>
+                </p>
+            {% endif %}
+
+            <div class="stat-row">
+                <div class="stat"><strong>{{ result.inserted }}</strong><span>insérés</span></div>
+                <div class="stat"><strong>{{ result.updated }}</strong><span>mis à jour</span></div>
+                <div class="stat"><strong>{{ result.skipped }}</strong><span>ignorés</span></div>
+            </div>
+
+            {% if result.errors|length > 0 %}
+                <ul>{% for e in result.errors|slice(0,20) %}<li>{{ e }}</li>{% endfor %}
+                {% if result.errors|length > 20 %}<li>…et {{ result.errors|length - 20 }} autres.</li>{% endif %}</ul>
+            {% endif %}
+        </div>
+    {% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+function showTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+}
+
+// Pré-remplit le champ "table" avec le nom du fichier CSV (sans extension)
+function detectTableName(input) {
+    const name = input.files[0]?.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_]/g, '_');
+    if (name) {
+        const field = document.getElementById('table');
+        if (!field.value) field.value = name;
+    }
+}
+</script>
+{% endblock %}

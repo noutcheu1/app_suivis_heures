@@ -1,0 +1,101 @@
+{% extends 'base.html.twig' %}
+{% block title %}Mes écarts — {{ famille.nomFamille }}{% endblock %}
+{% block page_title %}Mes écarts{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Mes écarts</h1>
+            <p>Prestations avec divergences ou remarques</p>
+        </div>
+        <a href="{{ path('famille_panel_mvc') }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+{% if signalements is empty %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state" style="padding:50px 20px;">
+            <div class="empty-state-icon"><i class="fas fa-check-circle" style="color:var(--success);"></i></div>
+            <h3>Aucun signalement</h3>
+            <p>Vos heures correspondent à celles de vos intervenants. Tout est en ordre !</p>
+            <a href="{{ path('famille_detail_mvc', {numFam: famille.numeroFamille}) }}"
+               class="btn btn-primary" style="margin-top:14px;">
+                <i class="fas fa-calendar-check"></i> Voir mes prestations
+            </a>
+        </div>
+    </div>
+</div>
+{% else %}
+
+<div style="margin-bottom:16px;">
+    <span class="badge badge-danger" style="font-size:13px;padding:6px 12px;">
+        <i class="fas fa-flag"></i> {{ signalements|length }} signalement{% if signalements|length > 1 %}s{% endif %}
+    </span>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px;">
+{% for p in signalements %}
+<div class="card">
+    <div class="card-body" style="padding:18px 20px;">
+        <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+
+            {# Date badge #}
+            <div style="text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:54px;flex-shrink:0;">
+                <div style="font-size:20px;font-weight:800;line-height:1;color:var(--primary);">{{ p.datePresta|date('d') }}</div>
+                <div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px;margin-top:3px;">{{ p.datePresta|date('M') }}</div>
+            </div>
+
+            {# Info principale #}
+            <div style="flex:1;min-width:180px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+                    <span class="badge {{ p.typePresta == 'MENA' ? 'badge-muted' : 'badge-info' }}">
+                        {% if p.typePresta == 'MENA' %}
+                            <i class="fas fa-broom"></i> Ménage
+                        {% else %}
+                            <i class="fas fa-child"></i> Garde d'enfants
+                        {% endif %}
+                    </span>
+                    <span style="font-size:12px;color:var(--text-muted);">
+                        · Intervenant {{ p.numInter }}
+                    </span>
+                </div>
+
+                {# Écart heures #}
+                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-top:6px;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+                        <i class="fas fa-exclamation-triangle" style="color:#ef4444;font-size:11px;"></i>
+                        <span style="font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:.5px;">Écart constaté</span>
+                    </div>
+                    {% if p.heureDebutFam and p.heureFinFam %}
+                    <p style="font-size:13px;color:var(--text);margin:0;">
+                        Vos heures saisies : {{ p.heureDebutFam|date('H:i') }} → {{ p.heureFinFam|date('H:i') }}
+                    </p>
+                    {% endif %}
+                </div>
+
+            </div>
+
+            {# Statut #}
+            <div style="flex-shrink:0;text-align:right;">
+                {% if p.declarerLeFam %}
+                    <span class="badge badge-success"><i class="fas fa-check"></i> Déclaré (avec écart)</span>
+                {% else %}
+                    <span class="badge badge-danger"><i class="fas fa-exclamation-circle"></i> En attente admin</span>
+                {% endif %}
+                <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">{{ p.datePresta|date('d/m/Y') }}</div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,170 @@
+{% extends 'base.html.twig' %}
+{% block title %}Formulaires de vacances{% endblock %}
+{% block page_title %}Formulaires de vacances{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <div>
+      <h1>Formulaires de vacances</h1>
+      <p>Ajoutez un formulaire de vacances sur tous les relevés famille — activez ou désactivez à tout moment.</p>
+    </div>
+    {% if actif %}
+    <span style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:bold;">
+      <i class="fas fa-check-circle"></i> Actif : {{ actif.titre }}
+    </span>
+    {% else %}
+    <span style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;padding:6px 14px;font-size:12px;">
+      <i class="fas fa-pause-circle"></i> Aucun formulaire actif
+    </span>
+    {% endif %}
+  </div>
+</div>
+
+{% for msg in app.flashes('success') %}
+<div class="flash-ok" style="background:#d1fae5;border:1px solid #a7f3d0;color:#065f46;border-radius:4px;padding:8px 14px;margin-bottom:10px;">
+  <i class="fas fa-check"></i> {{ msg }}
+</div>
+{% endfor %}
+{% for msg in app.flashes('error') %}
+<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:4px;padding:8px 14px;margin-bottom:10px;">
+  <i class="fas fa-exclamation-triangle"></i> {{ msg }}
+</div>
+{% endfor %}
+
+{# ── Formulaire de création ─────────────────────────────────────────── #}
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-header">
+    <i class="fas fa-plus-circle" style="color:var(--primary);"></i>
+    <span class="card-title">Nouveau formulaire de vacances</span>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ path('admin_vacances_creer_mvc') }}"
+          style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:end;flex-wrap:wrap;">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token('vacances_creer') }}">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:3px;">
+          Titre <span style="color:#c00;">*</span>
+        </label>
+        <input type="text" name="titre" placeholder="VACANCES D'ÉTÉ" required
+               style="width:100%;padding:5px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:3px;">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:3px;">
+          Mois à afficher
+        </label>
+        <input type="text" name="moisPeriodes" placeholder="JUILLET,AOUT"
+               style="width:100%;padding:5px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:3px;"
+               title="Séparés par virgule : JUILLET,AOUT">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:3px;">
+          Apparaît à partir du
+        </label>
+        <input type="date" name="dateApparitionDebut"
+               style="width:100%;padding:5px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:3px;">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:3px;">
+          Disparaît après le
+        </label>
+        <input type="date" name="dateApparitionFin"
+               style="width:100%;padding:5px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:3px;">
+      </div>
+      <div style="grid-column:1/-1;display:grid;grid-template-columns:2fr auto;gap:10px;align-items:end;">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:3px;">
+            Message / consigne (optionnel)
+          </label>
+          <input type="text" name="message" placeholder="Merci de retourner ce document avant le..."
+                 style="width:100%;padding:5px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:3px;">
+        </div>
+        <div>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Créer
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Liste des formulaires ──────────────────────────────────────────── #}
+<div class="card">
+  <div class="card-header">
+    <i class="fas fa-list" style="color:var(--primary);"></i>
+    <span class="card-title">Formulaires enregistrés</span>
+    {% if configs is not empty %}
+    <span class="badge badge-muted" style="margin-left:auto;">{{ configs|length }}</span>
+    {% endif %}
+  </div>
+  <div class="card-body" style="padding:0;overflow-x:auto;">
+
+    {% if configs is empty %}
+    <div class="empty-state">
+      <div class="empty-state-icon"><i class="fas fa-umbrella-beach"></i></div>
+      <h3>Aucun formulaire créé</h3>
+      <p>Créez un formulaire ci-dessus pour l'ajouter aux relevés famille.</p>
+    </div>
+    {% else %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Titre</th>
+          <th>Mois</th>
+          <th>Fenêtre d'apparition</th>
+          <th>Message</th>
+          <th>Créé le</th>
+          <th>Statut</th>
+          <th style="text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for cfg in configs %}
+      <tr style="{{ cfg.actif ? 'background:#f0fdf4;' : '' }}">
+        <td style="font-weight:600;">{{ cfg.titre }}</td>
+        <td style="font-size:11px;">{{ cfg.moisPeriodes ?: '—' }}</td>
+        <td style="font-size:11px;white-space:nowrap;">
+          {% if cfg.dateApparitionDebut %}Du {{ cfg.dateApparitionDebut|date('d/m/Y') }}{% endif %}
+          {% if cfg.dateApparitionFin %} au {{ cfg.dateApparitionFin|date('d/m/Y') }}{% endif %}
+          {% if not cfg.dateApparitionDebut and not cfg.dateApparitionFin %}Toujours{% endif %}
+        </td>
+        <td style="font-size:11px;color:#6b7280;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          {{ cfg.message ?: '—' }}
+        </td>
+        <td style="white-space:nowrap;font-size:11px;">{{ cfg.createdAt|date('d/m/Y H:i') }}</td>
+        <td>
+          {% if cfg.actif %}
+            <span class="badge badge-success"><i class="fas fa-check"></i> Actif</span>
+          {% else %}
+            <span class="badge badge-muted">Inactif</span>
+          {% endif %}
+        </td>
+        <td style="text-align:right;white-space:nowrap;">
+          <form method="POST" action="{{ path('admin_vacances_toggle_mvc', {id: cfg.id}) }}" style="display:inline;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('vacances_toggle_' ~ cfg.id) }}">
+            <button type="submit" class="btn btn-sm {{ cfg.actif ? 'btn-warning' : 'btn-success' }}"
+                    title="{{ cfg.actif ? 'Désactiver' : 'Activer sur tous les relevés' }}">
+              <i class="fas {{ cfg.actif ? 'fa-pause' : 'fa-play' }}"></i>
+              {{ cfg.actif ? 'Désactiver' : 'Activer' }}
+            </button>
+          </form>
+          <form method="POST" action="{{ path('admin_vacances_supprimer_mvc', {id: cfg.id}) }}" style="display:inline;"
+                onsubmit="return confirm('Supprimer ce formulaire ?');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('vacances_supprimer_' ~ cfg.id) }}">
+            <button type="submit" class="btn btn-danger btn-sm" title="Supprimer">
+              <i class="fas fa-trash"></i>
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+  </div>
+</div>
+
+{% endblock %}

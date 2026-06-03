@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toutes les factures — {{ moisAnnee }}</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #1a1a1a; background: #f3f4f6; }
+
+.toolbar {
+    padding: 12px 16mm;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    flex-wrap: wrap;
+}
+.btn-pdf {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #1e40af; color: #fff; border: none; border-radius: 6px;
+    padding: 9px 18px; font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.btn-pdf:hover { background: #1d3a9a; }
+.btn-pdf:disabled { background: #9ca3af; cursor: not-allowed; }
+.btn-back { font-size:13px; color:#6b7280; text-decoration:none; }
+
+.famille-page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 16px auto;
+    padding: 14mm 16mm 12mm;
+    background: #fff;
+    box-shadow: 0 2px 16px rgba(0,0,0,.08);
+    break-after: page;
+    page-break-after: always;
+}
+.famille-page:last-of-type { page-break-after: auto; break-after: auto; }
+
+.doc-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1e40af; padding-bottom:10px; margin-bottom:14px; }
+.doc-title { font-size:18px; font-weight:700; color:#1e40af; }
+.doc-subtitle { font-size:10px; color:#6b7280; margin-top:2px; }
+.doc-meta { text-align:right; font-size:10px; color:#374151; }
+
+.famille-block { background:#f0f4ff; border-left:4px solid #1e40af; padding:8px 12px; margin-bottom:14px; border-radius:0 4px 4px 0; }
+.famille-nom { font-size:13px; font-weight:700; }
+.famille-info { font-size:10px; color:#6b7280; margin-top:2px; }
+
+.kpis { display:flex; gap:8px; margin-bottom:12px; }
+.kpi { flex:1; border:1px solid #e5e7eb; border-radius:6px; padding:6px 8px; text-align:center; }
+.kpi-label { font-size:8.5px; text-transform:uppercase; letter-spacing:.5px; color:#6b7280; margin-bottom:3px; }
+.kpi-value { font-size:14px; font-weight:700; color:#1e40af; }
+.kpi-value.total { color:#059669; font-size:17px; }
+
+.section { margin-bottom:12px; }
+.section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#1e40af; border-bottom:1px solid #dbeafe; padding-bottom:3px; margin-bottom:6px; }
+
+table { width:100%; border-collapse:collapse; font-size:10px; }
+thead th { background:#f3f4f6; padding:4px 6px; text-align:left; font-size:9px; text-transform:uppercase; letter-spacing:.3px; color:#6b7280; border-bottom:1px solid #e5e7eb; }
+thead th.r, td.r { text-align:right; }
+tbody tr:nth-child(even) td { background:#fafafa; }
+tbody td { padding:3px 6px; border-bottom:1px solid #f3f4f6; }
+
+.recap-table td { padding:3px 0; font-size:11px; }
+.recap-table td:last-child { text-align:right; font-weight:600; }
+.recap-total td { border-top:2px solid #1a1a1a; padding-top:6px; font-size:13px; font-weight:800; }
+.recap-total td:last-child { color:#059669; }
+
+.divider { border:none; border-top:1px dashed #d1d5db; margin:12px 0; }
+
+.signature-row { display:flex; gap:16px; margin-top:10px; }
+.sig-box { flex:1; border:1px solid #d1d5db; border-radius:4px; padding:6px 8px; min-height:50px; }
+.sig-label { font-size:8.5px; color:#6b7280; text-transform:uppercase; letter-spacing:.4px; margin-bottom:3px; }
+
+.doc-footer { margin-top:12px; padding-top:8px; border-top:1px solid #e5e7eb; font-size:8.5px; color:#9ca3af; text-align:center; }
+
+/* Tables hidden on screen — PDF source only */
+.pdf-only { display:none; }
+
+@media print {
+    html, body { margin:0; padding:0; background:#fff; }
+    .toolbar { display:none !important; }
+    .famille-page { margin:0; box-shadow:none; padding:12mm 14mm 10mm; }
+    table { page-break-inside:auto; }
+    tr { page-break-inside:avoid; }
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+    <button class="btn-pdf" id="btn-all-pdf" onclick="genererToutesFacuresPDF()">
+        &#128196; Générer PDF global ({{ factures|length }} famille{% if factures|length > 1 %}s{% endif %})
+    </button>
+    <a href="{{ path('admin_factures_mvc', {mois: moisAnnee}) }}" class="btn-back">← Retour à la liste</a>
+    <span id="pdf-status" style="font-size:12px;color:#6b7280;"></span>
+</div>
+
+{% set moisLabel = moisAnnee|date('F Y', null, 'fr')|capitalize %}
+{% set dateEdition = "now"|date('d/m/Y') %}
+
+{% for item in factures %}
+{% set f = item.famille %}
+{% set fa = item.facture %}
+{% set fid = f.numeroFamille|replace({'/': '-', ' ': '_'}) %}
+
+<div class="famille-page" id="fp-{{ fid }}" data-num="{{ f.numeroFamille }}">
+
+    {# ── En-tête ────────────────────────────────────── #}
+    <div class="doc-header">
+        <div>
+            <div class="doc-title">Facture mensuelle</div>
+            <div class="doc-subtitle">Association Chaudoudoux — Service à domicile</div>
+        </div>
+        <div class="doc-meta">
+            <div>Période : <strong>{{ moisLabel }}</strong></div>
+            <div>Édité le {{ dateEdition }}</div>
+            <div style="font-family:monospace;font-size:9px;color:#9ca3af;">Réf : {{ f.numeroFamille }}-{{ moisAnnee }}</div>
+        </div>
+    </div>
+
+    {# ── Famille ────────────────────────────────────── #}
+    <div class="famille-block">
+        <div class="famille-nom">{{ f.nomFamille }}</div>
+        <div class="famille-info">
+            {% if f.adresse %}{{ f.adresse }}{% if f.codePostal or f.ville %}, {% endif %}{% endif %}
+            {% if f.codePostal %}{{ f.codePostal }} {% endif %}
+            {% if f.ville %}{{ f.ville }}{% endif %}
+            {% if f.telDom %} — Tél : {{ f.telDom }}{% endif %}
+        </div>
+    </div>
+
+    {# ── KPIs ───────────────────────────────────────── #}
+    <div class="kpis">
+        {% if fa.heuresGE > 0 %}
+        <div class="kpi"><div class="kpi-label">Garde d'enfants</div><div class="kpi-value">{{ fa.heuresGE }} h</div></div>
+        {% endif %}
+        {% if fa.heuresMENA > 0 %}
+        <div class="kpi"><div class="kpi-label">Ménage</div><div class="kpi-value">{{ fa.heuresMENA }} h</div></div>
+        {% endif %}
+        <div class="kpi"><div class="kpi-label">Interventions</div><div class="kpi-value">{{ fa.nbInterventions }}</div></div>
+        <div class="kpi"><div class="kpi-label">Montant total dû</div><div class="kpi-value total">{{ fa.montantTotal|number_format(2, ',', ' ') }} €</div></div>
+    </div>
+
+    {# ── Prestations GE ─────────────────────────────── #}
+    {% if fa.prestationsGE is not empty %}
+    <div class="section">
+        <div class="section-title">Garde d'enfants — {{ fa.heuresGE }} h × {{ fa.tauxGE|number_format(2, ',') }} €/h = {{ fa.montantGE|number_format(2, ',') }} €</div>
+        <table id="pdf-ge-{{ fid }}">
+            <thead><tr>
+                <th>Date</th><th>Début</th><th>Fin</th>
+                <th class="r">Durée</th><th class="r">Km</th><th>Déclaré famille</th>
+            </tr></thead>
+            <tbody>
+            {% for p in fa.prestationsGE %}
+            {% if p.heureDebutPresta and p.heureFinPresta %}
+                {% set sec = p.heureFinPresta.timestamp - p.heureDebutPresta.timestamp %}
+                {% if sec < 0 %}{% set sec = sec + 86400 %}{% endif %}
+            {% else %}{% set sec = 0 %}{% endif %}
+            <tr>
+                <td>{{ p.datePresta|date('d/m/Y') }}</td>
+                <td>{{ p.heureDebutPresta ? p.heureDebutPresta|date('H:i') : '—' }}</td>
+                <td>{{ p.heureFinPresta ? p.heureFinPresta|date('H:i') : '—' }}</td>
+                <td class="r">{% if sec > 0 %}{{ (sec // 3600) }}h{{ '%02d'|format((sec % 3600) // 60) }}{% else %}—{% endif %}</td>
+                <td class="r">{{ p.kmAvecEnfant ? p.kmAvecEnfant ~ ' km' : '-' }}</td>
+                <td class="r">{{ p.declarerLeFam ? 'Oui' : 'Non' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {# ── Prestations Ménage ─────────────────────────── #}
+    {% if fa.prestationsMENA is not empty %}
+    <div class="section">
+        <div class="section-title">Ménage — {{ fa.heuresMENA }} h × {{ fa.tauxMENA|number_format(2, ',') }} €/h = {{ fa.montantMENA|number_format(2, ',') }} €</div>
+        <table id="pdf-mena-{{ fid }}">
+            <thead><tr>
+                <th>Date</th><th>Début</th><th>Fin</th>
+                <th class="r">Durée</th><th>Déclaré famille</th>
+            </tr></thead>
+            <tbody>
+            {% for p in fa.prestationsMENA %}
+            {% if p.heureDebutPresta and p.heureFinPresta %}
+                {% set sec = p.heureFinPresta.timestamp - p.heureDebutPresta.timestamp %}
+                {% if sec < 0 %}{% set sec = sec + 86400 %}{% endif %}
+            {% else %}{% set sec = 0 %}{% endif %}
+            <tr>
+                <td>{{ p.datePresta|date('d/m/Y') }}</td>
+                <td>{{ p.heureDebutPresta ? p.heureDebutPresta|date('H:i') : '—' }}</td>
+                <td>{{ p.heureFinPresta ? p.heureFinPresta|date('H:i') : '—' }}</td>
+                <td class="r">{% if sec > 0 %}{{ (sec // 3600) }}h{{ '%02d'|format((sec % 3600) // 60) }}{% else %}—{% endif %}</td>
+                <td class="r">{{ p.declarerLeFam ? 'Oui' : 'Non' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {# ── Récapitulatif ──────────────────────────────── #}
+    <div class="section">
+        <div class="section-title">Récapitulatif financier</div>
+        <table class="recap-table" id="pdf-recap-{{ fid }}">
+            <tbody>
+            {% if fa.montantGE > 0 %}
+            <tr><td>Garde d'enfants ({{ fa.heuresGE }} h × {{ fa.tauxGE|number_format(2, ',') }} €/h{% if fa.tauxGESource == 'famille' %} — taux famille{% endif %})</td><td>{{ fa.montantGE|number_format(2, ',', ' ') }} €</td></tr>
+            {% endif %}
+            {% if fa.montantMENA > 0 %}
+            <tr><td>Ménage ({{ fa.heuresMENA }} h × {{ fa.tauxMENA|number_format(2, ',') }} €/h)</td><td>{{ fa.montantMENA|number_format(2, ',', ' ') }} €</td></tr>
+            {% endif %}
+            {% if fa.fraisGestion > 0 %}
+            <tr><td>Frais de gestion ({{ fa.nbInterventions }} interventions)</td><td>{{ fa.fraisGestion|number_format(2, ',', ' ') }} €</td></tr>
+            {% endif %}
+            {% if fa.montantKm > 0 %}
+            <tr><td>Frais kilométriques ({{ fa.kmTotal }} km)</td><td>{{ fa.montantKm|number_format(2, ',', ' ') }} €</td></tr>
+            {% endif %}
+            {% if fa.abonnement > 0 %}
+            <tr><td>Abonnement mensuel</td><td>{{ fa.abonnement|number_format(2, ',', ' ') }} €</td></tr>
+            {% endif %}
+            {% if fa.montantSupl != 0 %}
+            <tr><td>{{ fa.libeleSupl ?: 'Supplément / exception' }}</td><td>{{ fa.montantSupl|number_format(2, ',', ' ') }} €</td></tr>
+            {% endif %}
+            </tbody>
+            <tfoot>
+            <tr class="recap-total"><td><strong>Total dû</strong></td><td><strong>{{ fa.montantTotal|number_format(2, ',', ' ') }} €</strong></td></tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <hr class="divider">
+
+    {# ── Questionnaire (table cachée pour PDF) ──────── #}
+    {% set releve = fa.releveGE ?? fa.releveMENA %}
+    <table class="pdf-only" id="pdf-satis-{{ fid }}">
+        <thead><tr><th>Critère</th><th>Note</th></tr></thead>
+        <tbody>
+        {% for critere in [
+            {label: 'Ponctualité',         val: releve ? releve.avisPonctualite : null},
+            {label: 'Régularité relation',  val: releve ? releve.avisReguRela : null},
+            {label: 'Respect des horaires', val: releve ? releve.avisRespectHo : null},
+            {label: 'Qualité du travail',   val: releve ? releve.avisQualiteTr : null}
+        ] %}
+        <tr>
+            <td>{{ critere.label }}</td>
+            <td>{% if critere.val %}{% for i in 1..5 %}{{ i <= critere.val ? '★' : '☆' }}{% endfor %} ({{ critere.val }}/5){% else %}Non renseigné{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {# ── Signatures (écran) ─────────────────────────── #}
+    <div class="signature-row">
+        <div class="sig-box"><div class="sig-label">Signature de la famille</div></div>
+        <div class="sig-box"><div class="sig-label">Signature de l'intervenant(e)</div></div>
+        <div class="sig-box"><div class="sig-label">Cachet / visa association</div></div>
+    </div>
+
+    <div class="doc-footer">
+        Association Chaudoudoux — Document généré automatiquement — {{ dateEdition }}
+    </div>
+
+</div>
+{% endfor %}
+
+{# ── Données JS pour la génération PDF ────────────────────────────────────── #}
+<script>
+const MOIS_ANNEE = {{ moisAnnee|json_encode|raw }};
+const MOIS_LABEL = {{ moisLabel|json_encode|raw }};
+
+const FAMILLES_META = [
+{% for item in factures %}
+{% set f = item.famille %}
+{% set fa = item.facture %}
+{% set fid = f.numeroFamille|replace({'/': '-', ' ': '_'}) %}
+{
+    num:   {{ f.numeroFamille|json_encode|raw }},
+    fid:   {{ fid|json_encode|raw }},
+    nom:   {{ f.nomFamille|json_encode|raw }},
+    adr:   {{ (f.adresse ~ (f.codePostal ? ', ' ~ f.codePostal : '') ~ (f.ville ? ' ' ~ f.ville : ''))|json_encode|raw }},
+    tel:   {{ (f.telDom ?? '')|json_encode|raw }},
+    hasGE:   {{ fa.prestationsGE is not empty ? 'true' : 'false' }},
+    hasMENA: {{ fa.prestationsMENA is not empty ? 'true' : 'false' }},
+    geLabel:   {{ ('Garde d\'enfants — ' ~ fa.heuresGE ~ ' h × ' ~ fa.tauxGE|number_format(2, ',') ~ ' €/h = ' ~ fa.montantGE|number_format(2, ',') ~ ' €')|json_encode|raw }},
+    menaLabel: {{ ('Ménage — ' ~ fa.heuresMENA ~ ' h × ' ~ fa.tauxMENA|number_format(2, ',') ~ ' €/h = ' ~ fa.montantMENA|number_format(2, ',') ~ ' €')|json_encode|raw }},
+    heuresGE: {{ fa.heuresGE|json_encode|raw }},
+    heuresMENA: {{ fa.heuresMENA|json_encode|raw }},
+    nbInterventions: {{ fa.nbInterventions|json_encode|raw }},
+    montantTotal: {{ fa.montantTotal|json_encode|raw }},
+},
+{% endfor %}
+];
+</script>
+
+{# ── jsPDF ──────────────────────────────────────────────────────────────── #}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
+<script>
+async function genererToutesFacuresPDF() {
+    if (!window.jspdf) { alert('Bibliothèque PDF non chargée.'); return; }
+
+    const btn    = document.getElementById('btn-all-pdf');
+    const status = document.getElementById('pdf-status');
+    btn.disabled = true;
+    status.textContent = '';
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        const BLUE   = [30,  64, 175];
+        const GRAY   = [107, 114, 128];
+        const BLACK  = [26,  26,  26];
+        const GREEN  = [5,   150, 105];
+        const LGRAY  = [243, 244, 246];
+        const BORDER = [229, 231, 235];
+
+        const cellStyles = { fontSize: 9, cellPadding: 1.5, valign: 'middle', lineColor: BORDER, lineWidth: 0.1 };
+        const headStyles = { fillColor: LGRAY, textColor: GRAY, fontStyle: 'bold', fontSize: 8, lineColor: BORDER, lineWidth: 0.1 };
+
+        const today = new Date().toLocaleDateString('fr-FR');
+
+        FAMILLES_META.forEach((fam, idx) => {
+            if (idx > 0) doc.addPage();
+            btn.textContent = `⏳ ${idx + 1} / ${FAMILLES_META.length} — ${fam.nom}`;
+
+            let y = 15;
+
+            // ── Titre ──
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.setTextColor(...BLUE);
+            doc.text('Facture mensuelle', 14, y);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(...GRAY);
+            doc.text('Association Chaudoudoux — Service à domicile', 14, y + 5);
+
+            doc.setFontSize(9);
+            doc.setTextColor(...BLACK);
+            doc.text('Période : ' + MOIS_LABEL, 196, y, {align: 'right'});
+            doc.text('Édité le ' + today, 196, y + 5, {align: 'right'});
+            doc.setTextColor(...GRAY);
+            doc.setFontSize(8);
+            doc.text('Réf : ' + fam.num + '-' + MOIS_ANNEE, 196, y + 10, {align: 'right'});
+
+            doc.setDrawColor(...BLUE);
+            doc.setLineWidth(0.5);
+            doc.line(14, y + 14, 196, y + 14);
+            y += 18;
+
+            // ── Famille ──
+            doc.setFillColor(240, 244, 255);
+            doc.rect(14, y, 182, fam.adr ? 13 : 9, 'F');
+            doc.setDrawColor(30, 64, 175);
+            doc.setFillColor(30, 64, 175);
+            doc.rect(14, y, 4, fam.adr ? 13 : 9, 'F');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(...BLACK);
+            doc.text(fam.nom, 20, y + 5);
+            if (fam.adr) {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(...GRAY);
+                const details = [fam.adr, fam.tel ? 'Tél : ' + fam.tel : ''].filter(Boolean).join(' — ');
+                doc.text(details, 20, y + 10);
+            }
+            y += (fam.adr ? 13 : 9) + 6;
+
+            // ── KPIs ──
+            const kpiData = [];
+            if (fam.heuresGE > 0) kpiData.push(["Garde d'enfants", fam.heuresGE + " h"]);
+            if (fam.heuresMENA > 0) kpiData.push(["Ménage", fam.heuresMENA + " h"]);
+            kpiData.push(["Interventions", String(fam.nbInterventions)]);
+            kpiData.push(["Total dû", fam.montantTotal.toFixed(2).replace('.', ',') + " €"]);
+
+            const kpiColW = 182 / kpiData.length;
+            kpiData.forEach(([label, value], i) => {
+                const x = 14 + i * kpiColW;
+                doc.setFillColor(255, 255, 255);
+                doc.setDrawColor(...BORDER);
+                doc.setLineWidth(0.2);
+                doc.roundedRect(x, y, kpiColW - 2, 12, 1, 1, 'FD');
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7);
+                doc.setTextColor(...GRAY);
+                doc.text(label.toUpperCase(), x + (kpiColW - 2) / 2, y + 4, {align: 'center'});
+                const isLast = (i === kpiData.length - 1);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(isLast ? 11 : 10);
+                doc.setTextColor(...(isLast ? GREEN : BLUE));
+                doc.text(value, x + (kpiColW - 2) / 2, y + 9.5, {align: 'center'});
+            });
+            y += 16;
+
+            // ── Prestations GE ──
+            const tableGE = document.getElementById('pdf-ge-' + fam.fid);
+            if (tableGE) {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8.5);
+                doc.setTextColor(...BLUE);
+                doc.text(fam.geLabel.toUpperCase(), 14, y);
+                doc.setDrawColor(...BLUE);
+                doc.setLineWidth(0.2);
+                doc.line(14, y + 2, 196, y + 2);
+                y += 4;
+                doc.autoTable({ html: '#pdf-ge-' + fam.fid, startY: y, theme: 'plain', styles: cellStyles, headStyles: headStyles, columnStyles: { 0:{cellWidth:22}, 1:{cellWidth:16}, 2:{cellWidth:16}, 3:{cellWidth:18,halign:'right'}, 4:{cellWidth:18,halign:'right'}, 5:{cellWidth:18,halign:'right'} }, margin: {left:14,right:14} });
+                y = doc.lastAutoTable.finalY + 6;
+            }
+
+            // ── Prestations MENA ──
+            const tableMENA = document.getElementById('pdf-mena-' + fam.fid);
+            if (tableMENA) {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8.5);
+                doc.setTextColor(...BLUE);
+                doc.text(fam.menaLabel.toUpperCase(), 14, y);
+                doc.setDrawColor(...BLUE);
+                doc.setLineWidth(0.2);
+                doc.line(14, y + 2, 196, y + 2);
+                y += 4;
+                doc.autoTable({ html: '#pdf-mena-' + fam.fid, startY: y, theme: 'plain', styles: cellStyles, headStyles: headStyles, columnStyles: { 0:{cellWidth:22}, 1:{cellWidth:16}, 2:{cellWidth:16}, 3:{cellWidth:18,halign:'right'}, 4:{cellWidth:18,halign:'right'} }, margin: {left:14,right:14} });
+                y = doc.lastAutoTable.finalY + 6;
+            }
+
+            // ── Récapitulatif ──
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8.5);
+            doc.setTextColor(...BLUE);
+            doc.text('RÉCAPITULATIF FINANCIER', 14, y);
+            doc.setDrawColor(...BLUE);
+            doc.setLineWidth(0.2);
+            doc.line(14, y + 2, 196, y + 2);
+            y += 4;
+            doc.autoTable({
+                html: '#pdf-recap-' + fam.fid,
+                startY: y,
+                theme: 'plain',
+                styles: { ...cellStyles, fontSize: 9.5 },
+                headStyles: headStyles,
+                columnStyles: { 0:{cellWidth:140}, 1:{cellWidth:38,halign:'right',fontStyle:'bold'} },
+                margin: {left:14,right:14},
+                didParseCell: (d) => {
+                    if (d.section === 'foot') {
+                        d.cell.styles.fontStyle = 'bold';
+                        d.cell.styles.fontSize  = 11;
+                        d.cell.styles.lineWidth = { top: 0.4, bottom: 0, left: 0, right: 0 };
+                        d.cell.styles.lineColor = BLACK;
+                        if (d.column.index === 1) d.cell.styles.textColor = GREEN;
+                    }
+                }
+            });
+            y = doc.lastAutoTable.finalY + 8;
+
+            // ── Questionnaire (si espace) ──
+            if (y < 235) {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8.5);
+                doc.setTextColor(...BLUE);
+                doc.text('QUESTIONNAIRE DE SATISFACTION', 14, y);
+                doc.setDrawColor(...BLUE);
+                doc.setLineWidth(0.2);
+                doc.line(14, y + 2, 196, y + 2);
+                y += 4;
+                doc.autoTable({ html: '#pdf-satis-' + fam.fid, startY: y, theme: 'plain', styles: cellStyles, headStyles: headStyles, columnStyles: { 0:{cellWidth:80}, 1:{cellWidth:100} }, margin: {left:14,right:14} });
+                y = doc.lastAutoTable.finalY + 8;
+            }
+
+            // ── Signatures ──
+            if (y < 265) {
+                const sigW = 56;
+                ['Famille', "Intervenant(e)", 'Association'].forEach((label, i) => {
+                    const x = 14 + i * (sigW + 4);
+                    doc.setDrawColor(...BORDER);
+                    doc.setLineWidth(0.3);
+                    doc.rect(x, y, sigW, 18);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(7);
+                    doc.setTextColor(...GRAY);
+                    doc.text('Signature ' + label, x + sigW / 2, y + 4, {align: 'center'});
+                });
+            }
+
+            // ── Pied de page ──
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7);
+            doc.setTextColor(...GRAY);
+            doc.text('Association Chaudoudoux — ' + today, 14, 291);
+            doc.text('Réf : ' + fam.num + '-' + MOIS_ANNEE, 196, 291, {align: 'right'});
+        });
+
+        doc.save('factures-' + MOIS_ANNEE + '.pdf');
+        status.textContent = '✓ PDF généré avec succès (' + FAMILLES_META.length + ' factures)';
+        status.style.color = '#059669';
+
+    } catch (e) {
+        console.error('[genererToutesFacuresPDF]', e);
+        status.textContent = 'Erreur : ' + e.message;
+        status.style.color = '#dc2626';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '📄 Générer PDF global ({{ factures|length }} famille{% if factures|length > 1 %}s{% endif %})';
+    }
+}
+</script>
+
+</body>
+</html>

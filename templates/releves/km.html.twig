@@ -1,0 +1,55 @@
+{% extends 'base.html.twig' %}
+{% block title %}Kilomètres — {{ mois }}{% endblock %}
+{% block page_title %}Kilomètres{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Récapitulatif kilomètres</h1>
+            <p>Mois : <strong>{{ mois }}</strong></p>
+        </div>
+        <a href="{{ path('intervenant_panel_mvc', {id: intervenantId}) }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:20px;">
+    <div class="kpi-card">
+        <div class="kpi-label">Total km avec enfants</div>
+        <div class="kpi-value" style="color:var(--info);">
+            {{ kmTotal|number_format(2, ',', ' ') }} km
+        </div>
+    </div>
+</div>
+
+{% if detailsKm is not empty %}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-route" style="color:var(--primary);"></i>
+        <span class="card-title">Détail par famille</span>
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Famille</th>
+                    <th>Km</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for d in detailsKm %}
+            <tr>
+                <td style="font-weight:500;">{{ d.nomFam ?? '-' }}</td>
+                <td>{{ d.km ?? 0 }} km</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

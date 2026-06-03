@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Relevé – {{ releves[0].typePrestation }} – {{ releves[0].mois }} {{ releves[0].annee }}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 10px; margin: 10px; color: #000; }
+
+    /* ── Nav (masqué à l'impression) ─────────────────────── */
+    .nav-bar { background:#f0f4ff; border:1px solid #c0cce8; border-radius:4px; padding:6px 12px;
+               margin-bottom:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .nav-bar a, .nav-bar button { background:#2563eb; color:#fff; border:none; border-radius:3px;
+               padding:4px 10px; font-size:11px; cursor:pointer; text-decoration:none; font-family:Arial,sans-serif; }
+    .nav-bar a.sec { background:#6b7280; }
+    .flash-ok { background:#d1fae5; border:1px solid #a7f3d0; color:#065f46; border-radius:4px;
+                padding:6px 12px; margin-bottom:8px; font-size:11px; }
+
+    /* ── Document ─────────────────────────────────────────── */
+    .alerte { 
+              font-size:10px; 
+              text-align:center; 
+              border:3px double #000;
+              padding:13px 6px; 
+              margin-bottom:5px;
+              
+               }
+  #alter-info{
+    position:Relative;
+    top:0;
+    left:0;
+    right:0;
+    font-size: 5px;
+    padding: 0;
+    margin: 0;
+  }
+    strong{
+      
+      font-weight:bold;
+      text-transform:uppercase;
+      font-size: 12px;
+    }
+    h1 { font-size:12px; text-align:center; margin:3px 0; font-weight:bold; }
+    .badge { display:inline-block; padding:1px 5px; font-weight:bold; font-size:9px; color:#fff; }
+    .badge-noir  { background:#000; }
+    .badge-gris  { background:#555; }
+    .badge-rouge { background:#c00; }
+   
+    /* Info bloc */
+    table.info { width:100%; border-collapse:collapse; margin-bottom:4px; font-size:10px; }
+    table.info td { border:1px solid #000; padding:2px 5px; }
+    table.info td.lab { font-weight:bold; background:#e8e8e8; white-space:nowrap; }
+
+    /* Intervenantes */
+    table.inter { width:100%; border-collapse:collapse; margin-bottom:3px; font-size:10px; }
+    table.inter td { border:1px solid #000; padding:2px 5px; }
+    table.inter td.lab { font-weight:bold; background:#e8e8e8; white-space:nowrap; width:130px; }
+
+    /* Calendrier grid */
+    table.cal { width:100%; border-collapse:collapse; margin-bottom:4px; table-layout:fixed; }
+    table.cal td { border:1px solid #000; vertical-align:top; width:12.5%; padding:2px 3px; min-height:34px; }
+    .day-hdr  { font-size:8px; font-weight:bold; color:#222; line-height:1.2; }
+    .day-note { font-size:7px; color:#c00; line-height:1.2; }
+    .day-val  { font-size:11px; font-weight:bold; text-align:center; min-height:18px; padding-top:2px; }
+    td.dim    { background:#e8e8e8; }
+    td.ferie  { background:#ffe0e0; }
+    td.empty  { background:#f5f5f5; }
+    td.total  { background:#d4d4d4; font-weight:bold; font-size:10px; text-align:center;
+                vertical-align:middle; }
+
+    /* Récapitulatif financier */
+    table.recap { width:100%; border-collapse:collapse; margin-bottom:4px; font-size:10px; }
+    table.recap td, table.recap th { border:1px solid #000; padding:3px 5px; }
+    table.recap th { background:#ccc; text-align:center; font-size:10px; }
+    .recap-label { font-weight:normal; }
+    .recap-tarif { text-align:center; white-space:nowrap; }
+    .recap-montant { text-align:right; font-family:monospace; font-size:10px; }
+    .recap-total { font-weight:bold; background:#f0f0f0; }
+    .pay-cell { font-size:9px; vertical-align:top; line-height:1.8; }
+    .total-final { font-size:12px; font-weight:bold; font-family:monospace; }
+     .doc-page{
+        width:210mm;
+        min-height:297mm;
+        background:white;
+        margin:0 auto;
+        padding:8mm;
+        overflow:hidden;
+        page-break-after:always;
+    }
+
+    body{ 
+        background:#dfe6ee;
+    }
+    /* Questionnaire */
+    table.satis { width:100%; border-collapse:collapse; margin-bottom:5px; font-size:10px; }
+    table.satis td, table.satis th { border:1px solid #000; padding:3px 6px; text-align:center; }
+    table.satis td:first-child { text-align:left; font-weight:bold; }
+    table.satis th { background:#ccc; }
+    table.satis td.check { font-size:14px; }
+
+    /* Signatures */
+    .sig-row { display:flex; gap:12px; margin-top:8px; }
+    .sig-box { flex:1; border:1px solid #000; height:36px; padding:3px 6px;
+               font-size:9px; font-weight:bold; }
+    .sig-note { font-size:7.5px; font-weight:normal; color:#444; display:block; margin-top:2px; line-height:1.3; }
+
+    .footer { font-size:8px; text-align:center; margin-top:8px; border-top:1px solid #000; padding-top:3px; }
+    .note   { font-size:8px; margin:2px 0; }
+    .page-sep { page-break-before:always; margin-top:0; }
+
+    /* ── Questionnaire form (masqué à l'impression) ─────── */
+    .q-section { 
+      border:1px solid #c0cce8;
+       border-radius:4px; 
+       padding:10px 14px;
+        margin-top:16px; 
+        background:#f8faff; 
+        display:flex; 
+        position:fixed; 
+        bottom:0; 
+        left:0; 
+        right:0; 
+        flex-direction:column; 
+        align-items:left; 
+      }
+    .q-section h3 { font-size:11px; margin:0 0 8px; color:#1e40af; text-transform:uppercase; }
+    .q-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:8px; margin-bottom:8px; }
+    .q-grid label { display:block; font-size:10px; font-weight:bold; color:#374151; margin-bottom:2px; }
+    .q-grid select, .q-grid input { width:100%; padding:3px 5px; font-size:10px;
+                                    border:1px solid #d1d5db; border-radius:2px; }
+    .btn-save { background:#2563eb; color:#fff; border:none; border-radius:3px;
+                padding:5px 14px; font-size:11px; cursor:pointer; margin-right:6px; }
+    .btn-sign { background:#059669; color:#fff; border:none; border-radius:3px;
+                padding:5px 14px; font-size:11px; cursor:pointer; }
+    .signed-badge { display:inline-block; background:#d1fae5; color:#065f46;
+                    border:1px solid #a7f3d0; border-radius:12px; padding:2px 8px;
+                    font-size:10px; font-weight:bold; margin-left:8px; }
+
+    @media print {
+      .nav-bar, .q-section { display:none !important; }
+      body { margin:5px; }
+    }
+  </style>
+</head>
+<body>
+
+{# ══ Barre de navigation (hors impression) ══════════════════════════════════ #}
+<div class="nav-bar">
+  <a href="{{ path('famille_releves_mvc', {numFam: numFam}) }}" class="sec">← Mes relevés</a>
+  <form method="GET" style="display:flex;align-items:center;gap:6px;margin:0;">
+    <label style="font-size:11px;font-weight:bold;">Mois :</label>
+    <input type="month" name="mois" value="{{ moisAnnee }}" min="{{ "now"|date("Y-m") }}"
+       max="{{ "now"|date("Y-m") }}"
+           style="padding:3px 6px;font-size:11px;border:1px solid #d1d5db;border-radius:3px;"
+           onchange="this.form.submit()">
+    {% if typeFilter %}<input type="hidden" name="type" value="{{ typeFilter }}">{% endif %}
+  </form>
+  {% if typeFilter == 'GE' %}
+    <span style="font-size:11px;font-weight:bold;color:#1d4ed8;background:#dbeafe;padding:3px 8px;border-radius:3px;">
+      <i class="fas fa-child"></i> Garde d'enfants
+    </span>
+    <a href="{{ path('famille_ma_facture_mvc', {mois: moisAnnee, type: 'MENA'}) }}"
+       style="font-size:11px;background:#6b7280;">🔄 Voir Ménage</a>
+  {% elseif typeFilter == 'MENA' %}
+    <span style="font-size:11px;font-weight:bold;color:#065f46;background:#d1fae5;padding:3px 8px;border-radius:3px;">
+      <i class="fas fa-broom"></i> Ménage
+    </span>
+    <a href="{{ path('famille_ma_facture_mvc', {mois: moisAnnee, type: 'GE'}) }}"
+       style="font-size:11px;background:#6b7280;">🔄 Voir Garde</a>
+  {% else %}
+    <a href="{{ path('famille_ma_facture_mvc', {mois: moisAnnee, type: 'GE'}) }}"
+       style="font-size:11px;">Garde seule</a>
+    <a href="{{ path('famille_ma_facture_mvc', {mois: moisAnnee, type: 'MENA'}) }}"
+       style="font-size:11px;">Ménage seul</a>
+  {% endif %}
+  <button id="btn-pdf" onclick="genererPDF()">📄 Télécharger PDF</button>
+</div>
+
+{% for msg in app.flashes('success') %}
+<div class="flash-ok">✔ {{ msg }}</div>
+{% endfor %}
+
+{# ══ BOUCLE sur chaque type de prestation ═══════════════════════════════════ #}
+{% for releve in releves %}
+{% if not loop.first %}<div class="page-sep"></div>{% endif %}
+<div class="doc-page" id="doc-releve-{{ loop.index0 }}">
+
+{# ─── Alerte retour ─────────────────────────────────────────────────────── #}
+<div class="alerte">
+  <table id="alter-info">
+    <tr>
+      <td class="lab" >{{ releve.famille.numFam }}</td>
+    </tr>
+    <tr>
+      <td colspan="2">{{ famille_label(releve.famille.numFam) }}</td>
+    </tr>
+  </table>
+  
+  Cette feuille doit être obligatoirement retournée avant <strong> AU PLUS TARD </strong> le {{ releve.dateLimite }}
+  à l'association  <strong> accompagnée de votre règlement </strong> (sauf en cas de prélèvement).
+</div>
+
+{# ─── Titre ─────────────────────────────────────────────────────────────── #}
+<h1>
+  {{ releve.typePrestation }} / récapitulatif d'heures : {{ releve.mois }} {{ releve.annee }}
+  {% if releve.trancheAge == 'moins_3ans' %}<span class="badge badge-noir">MOINS DE 3 ANS</span>{% endif %}
+  {% if releve.trancheAge == '3_6ans'    %}<span class="badge badge-gris">3 À 6 ANS</span>{% endif %}
+  {% if not releve.famille.avecCaf       %}<span class="badge badge-rouge">PAS DE CAF</span>{% endif %}
+</h1>
+
+{# ─── Bloc famille ──────────────────────────────────────────────────────── #}
+<table class="info">
+  <tr>
+    <td class="lab" style="width:110px;">NOM</td>
+    <td colspan="2" style="font-weight:bold;">{{ famille_label(releve.famille.numFam) }}</td>
+  </tr>
+  <tr>
+    <td class="lab">NUMÉRO CLIENT</td>
+    <td>{{ releve.famille.numFam }}</td>
+    <td rowspan="3" style="width:35%; vertical-align:top; font-size:10px;">
+      {{ releve.famille.adresse }}<br>
+      {{ releve.famille.codePostal }} {{ releve.famille.ville }}
+    </td>
+  </tr>
+  <tr>
+    <td class="lab">NUMÉRO CAF</td>
+    <td>
+      {% if releve.famille.avecCaf %}{{ releve.famille.numeroCaf }}{% else %}<strong>PAS DE CAF</strong>{% endif %}
+    </td>
+  </tr>
+  <tr>
+    <td class="lab">NUMÉRO TÉL</td>
+    <td>{{ releve.famille.telephone  }}</td>
+  </tr>
+  {% if releve.typePrestation starts with 'GARDE' %}
+  <tr>
+    <td class="lab">ENFANT GARDÉ<br><small>le plus jeune</small></td>
+    <td colspan="2" style="font-size:9px;">
+      {% if releve.famille.enfantMoins3ans %}
+        <strong>[ - 3 ANS ]</strong> {{ releve.famille.enfantMoins3ans }}
+      {% endif %}
+      {% if releve.famille.enfant3a6ans %}
+        &nbsp;&nbsp;<strong>[ +3 ANS et &lt; 6 ANS ]</strong> {{ releve.famille.enfant3a6ans }}
+      {% endif %}
+      {% if releve.famille.enfantPlus6ans %}
+        &nbsp;&nbsp;<strong>[ + 6 ANS ]</strong> {{ releve.famille.enfantPlus6ans }}
+      {% endif %}
+      {% if not (releve.famille.enfantMoins3ans or releve.famille.enfant3a6ans or releve.famille.enfantPlus6ans) %}
+        —
+      {% endif %}
+    </td>
+  </tr>
+  {% endif %}
+</table>
+
+{# ─── Intervenante(s) ───────────────────────────────────────────────────── #}
+<table class="inter">
+  <tr>
+    <td class="lab">INTERVENANTE(S)</td>
+    {% if releve.intervenantes is not empty %}
+      {% for nom in releve.intervenantes %}
+        <td>{{ nom }}</td>
+      {% endfor %}
+    {% else %}
+      <td style="font-style:italic;">—</td>
+    {% endif %}
+  </tr>
+</table>
+<p class="note">(merci de n'utiliser qu'une seule feuille pour la totalité des prestations en mentionnant le nom des intervenantes concernées)</p>
+
+{# ─── En-tête calendrier ────────────────────────────────────────────────── #}
+<p style="font-weight:bold;font-size:10px;margin:4px 0 2px;">
+  NOMBRE D'HEURES EFFECTUÉES DU {{ releve.periodeDebut }}
+  AU {{ releve.periodeFin }}
+</p>
+<p class="note">Durée minimum d'une intervention à Rennes 1h30 &nbsp;–&nbsp; en dehors de Rennes 2h &nbsp;(remplir le calendrier ci-après)</p>
+
+{# ─── Calendrier 4 × 8 ─────────────────────────────────────────────────── #}
+{% set jours = releve.jours %}
+{% set nbJours = jours|length %}
+<table class="cal">
+{% for rowIdx in 0..3 %}
+  <tr>
+  {% for colIdx in 0..7 %}
+    {% set dayIdx = rowIdx * 8 + colIdx %}
+    {% set isTotal = (rowIdx == 3 and colIdx == 7) %}
+    {% if isTotal %}
+      <td class="total">
+        <div style="font-size:9px;">TOTAL</div>
+        <div style="font-size:12px;margin-top:4px;">{{ releve.totalLabel }}</div>
+      </td>
+    {% elseif dayIdx < nbJours %}
+      {% set j = jours[dayIdx] %}
+      <td class="{{ j.jourSemaine == 'DIM' ? 'dim' : '' }}{{ j.ferie ? ' ferie' : '' }}">
+        <div class="day-hdr">{{ j.jourSemaine }} {{ j.numero }}</div>
+        {% if j.ferie %}<div class="day-note">Férié</div>{% endif %}
+        <div class="day-val">{{ j.nbHeures }}</div>
+      </td>
+    {% else %}
+      <td class="empty"></td>
+    {% endif %}
+  {% endfor %}
+  </tr>
+{% endfor %}
+</table>
+
+{# ─── Note SMIC ─────────────────────────────────────────────────────────── #}
+<p class="note" style="border:1px solid #ccc;padding:2px 5px;margin-bottom:4px;">
+  INFORMATION : LE SMIC ÉTANT VALORISÉ AINSI QUE LES COTISATIONS À PARTIR DU {{ releve.periodeDebut }}.
+  LE TARIF EST AJUSTÉ DANS LES MÊMES PROPORTIONS.
+</p>
+
+{# ─── Tableau financier ─────────────────────────────────────────────────── #}
+{% set p = releve.paiement %}
+<table class="recap">
+  <thead>
+    <tr>
+      <th colspan="2">SOMME À PAYER</th>
+      <th>Tarif</th>
+      <th>Montant</th>
+      <th>Règlement par</th>
+      <th>Montant</th>
+    </tr>
+  </thead>
+  <tbody>
+    {# Ligne 1 : heures #}
+    <tr>
+      <td class="recap-label" colspan="2">Nbre d'heures réalisées</td>
+      <td class="recap-tarif">
+        {{ p.nbHeuresRealisees|number_format(2, ',', '') }} × {{ p.coutHoraire|number_format(2, ',', '') }} €/H
+      </td>
+      <td class="recap-montant">{{ p.montantPrestation|number_format(2, ',', ' ') }} €</td>
+          <td class="pay-cell" id="pay-cell-{{ loop.index0 }}" rowspan="3"
+            data-mode="{{ p.modeReglement }}"
+            data-cheque="{{ p.numCheque }}"
+            data-cesu="{{ p.nbrCESU }}">
+            {% if p.modeReglement %}
+              <span class="pay-opt" data-opt="{{ p.modeReglement }}" style="font-weight:bold;">
+                [X] {{ p.modeReglement }}
+                {% if p.modeReglement == 'Chèque' %}
+                  &nbsp;N°&nbsp;: <span class="pay-cheque-val">{{ p.numCheque ?: '……………' }}</span>
+                {% elseif p.modeReglement == 'CESU' %}
+                  <br>Nbres&nbsp;: <span class="pay-cesu-val">{{ p.nbrCESU ?: '……' }}</span>&nbsp;×&nbsp;……
+                {% endif %}
+              </span>
+            {% else %}
+              <span class="pay-opt" data-opt="Chèque">[ ] Chèque&nbsp;N°&nbsp;: <span class="pay-cheque-val">……………</span></span>
+              <br><br>
+              <span class="pay-opt" data-opt="Prélèvement">[ ] Prélèvement</span>
+              <br><br>
+              <span class="pay-opt" data-opt="CESU">[ ] CESU papier<br>Nbres&nbsp;: <span class="pay-cesu-val">……</span>&nbsp;×&nbsp;……</span>
+            {% endif %}
+          </td>
+      <td class="recap-montant total-final" rowspan="3" style="vertical-align:middle;text-align:center;">
+        {{ p.sommeAPayer|number_format(2, ',', ' ') }} €
+      </td>
+    </tr>
+    {# Ligne 2 : frais de gestion #}
+    <tr>
+      <td class="recap-label" colspan="2" style="font-size:9px;">
+        Si &lt; 8 h/mois : Frais de gestion
+      </td>
+      <td class="recap-tarif">15,00 €</td>
+      <td class="recap-montant">
+        {{ p.fraisGestion > 0 ? p.fraisGestion|number_format(2, ',', ' ') ~ ' €' : '' }}
+      </td>
+    </tr>
+    {# Ligne 3 : interventions #}
+    <tr>
+      <td class="recap-label" colspan="2">
+        Nbre d'interventions *<br>
+        <span style="font-size:8px;">* 1,50 €/intervention plafonnée à 15 € pour Rennes</span>
+      </td>
+      <td class="recap-tarif">
+        {{ p.nbInterventions }} × {{ p.parIntervention|number_format(2, ',', '') }} €/intervention
+      </td>
+      <td class="recap-montant">
+        {{ p.fraisGestion > 0 ? p.fraisGestion|number_format(2, ',', ' ') ~ ' €' : '' }}
+      </td>
+    </tr>
+    {# Ligne 4 : transport (GE seulement) #}
+    {% if releve.typePrestation starts with 'GARDE' %}
+    <tr>
+      <td class="recap-label" colspan="2">Transport avec les enfants</td>
+      <td class="recap-tarif">
+        {{ p.kmTotal|number_format(1, ',', '') }} km × {{ p.tarifKm|number_format(2, ',', '') }} €/km
+      </td>
+      <td class="recap-montant">
+        {{ p.montantKm > 0 ? p.montantKm|number_format(2, ',', ' ') ~ ' €' : '' }}
+      </td>
+    </tr>
+    {% endif %}
+    {# Ligne 5 : abonnement #}
+    <tr>
+      <td class="recap-label" colspan="2">Abonnement mensuel</td>
+      <td class="recap-tarif">+ {{ p.abonnement|number_format(2, ',', '') }} €</td>
+      <td class="recap-montant">
+        {{ p.montantAbonnement > 0 ? p.montantAbonnement|number_format(2, ',', ' ') ~ ' €' : '' }}
+      </td>
+    </tr>
+    {# Ligne 6 : supplément éventuel #}
+    {% if p.montantSupl != 0 %}
+    <tr>
+      <td class="recap-label" colspan="2">{{ p.libeleSupl ?: 'Supplément' }}</td>
+      <td class="recap-tarif"></td>
+      <td class="recap-montant">{{ p.montantSupl|number_format(2, ',', ' ') }} €</td>
+    </tr>
+    {% endif %}
+    {# Ligne TOTAL #}
+    <tr class="recap-total">
+      <td colspan="2" style="text-align:right;">TOTAL =</td>
+      <td></td>
+      <td class="recap-montant">{{ p.sommeAPayer|number_format(2, ',', ' ') }} €</td>
+    </tr>
+  </tbody>
+</table>
+
+{# ─── Questionnaire de satisfaction ────────────────────────────────────── #}
+{% set savedRel = releve.releve %}
+<table class="satis">
+  <thead>
+    <tr>
+      <th style="text-align:left;">QUESTIONNAIRE DE SATISFACTION</th>
+      <th>Très satisfait</th>
+      <th>Satisfait</th>
+      <th>Moyennement satisfait</th>
+      <th>Pas satisfait</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% set criteres = [
+      {label: 'Ponctualité',           val: savedRel ? savedRel.avisPonctualite : null},
+      {label: 'Régularité / Relation', val: savedRel ? savedRel.avisReguRela    : null},
+      {label: 'Respect des horaires',  val: savedRel ? savedRel.avisRespectHo   : null},
+      {label: 'Qualité du travail',    val: savedRel ? savedRel.avisQualiteTr   : null}
+    ] %}
+    {% for c in criteres %}
+    <tr>
+      <td>{{ c.label }}</td>
+      <td class="check">{{ c.val == 4 ? '✔' : '' }}</td>
+      <td class="check">{{ c.val == 3 ? '✔' : '' }}</td>
+      <td class="check">{{ c.val == 2 ? '✔' : '' }}</td>
+      <td class="check">{{ c.val == 1 ? '✔' : '' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{# ─── Formulaire de vacances (si activé par l'admin) ────────────────────── #}
+{% if vacancesConfig is defined and vacancesConfig %}
+{% set anneeVacances = vacancesConfig.dateApparitionDebut ? vacancesConfig.dateApparitionDebut|date('Y') : "now"|date('Y') %}
+<div class="vacances-block" style="border:2px solid #000;margin:6px 0;padding:4px 6px;font-size:9px;"
+     data-titre="{{ vacancesConfig.titre }}"
+     data-mois="{{ vacancesConfig.moisPeriodes }}"
+     data-annee="{{ anneeVacances }}"
+     data-message="{{ vacancesConfig.message }}">
+  <div style="font-weight:bold;font-size:10px;text-align:center;border-bottom:1px solid #000;padding-bottom:3px;margin-bottom:4px;">
+    Confirmation PÉRIODE DE VOS {{ vacancesConfig.titre|upper }}
+  </div>
+  <div style="text-align:center;font-size:9px;margin-bottom:5px;">
+    du <span style="border-bottom:1px solid #000;display:inline-block;min-width:80px;">&nbsp;</span>
+    &nbsp;au&nbsp;
+    <span style="border-bottom:1px solid #000;display:inline-block;min-width:60px;">&nbsp;</span>
+    &nbsp;{{ anneeVacances }}
+  </div>
+  {% if vacancesConfig.message %}
+  <p style="font-size:8px;margin:0 0 4px;font-style:italic;">{{ vacancesConfig.message }}</p>
+  {% endif %}
+  {% if vacancesConfig.moisPeriodes %}
+    {% for mois in vacancesConfig.moisPeriodes|split(',') %}
+    {% set m = mois|trim %}
+    <div style="border:1px solid #000;margin-bottom:3px;padding:3px 5px;">
+      <div style="font-weight:bold;font-size:9px;margin-bottom:3px;">PÉRIODE de {{ m }}</div>
+      <div style="font-size:8px;line-height:2;">
+        Du&nbsp;<span style="border-bottom:1px solid #000;display:inline-block;width:16px;">&nbsp;</span>&nbsp;/&nbsp;<span style="border-bottom:1px solid #000;display:inline-block;width:16px;">&nbsp;</span>&nbsp;/&nbsp;{{ anneeVacances }}
+        &emsp;Au&nbsp;<span style="border-bottom:1px solid #000;display:inline-block;width:16px;">&nbsp;</span>&nbsp;/&nbsp;<span style="border-bottom:1px solid #000;display:inline-block;width:16px;">&nbsp;</span>&nbsp;/&nbsp;{{ anneeVacances }}
+      </div>
+    </div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endif %}
+
+{# ─── Signatures ─────────────────────────────────────────────────────────── #}
+<p style="font-weight:bold;font-size:9px;text-align:center;margin:4px 0;">
+  CETTE FEUILLE DOIT ÊTRE OBLIGATOIREMENT SIGNÉE PAR LES DEUX PARTIES ET RETOURNÉE
+  AVANT LE 30 DU MOIS À L'ASSOCIATION ACCOMPAGNÉE DE VOTRE RÈGLEMENT.
+</p>
+<div class="sig-row">
+  <div class="sig-box">
+    SIGNATURE DE LA FAMILLE
+    {% if savedRel and savedRel.signerLe %}
+    <br><span style="font-size:9px;color:#065f46;">✔ Signé le {{ savedRel.signerLe|date('d/m/Y') }}</span>
+    {% endif %}
+  </div>
+  <div class="sig-box">
+    SIGNATURE DE L'INTERVENANTE(S)
+    <span class="sig-note">Merci de n'utiliser qu'une seule feuille pour la totalité des prestations en mentionnant le nom des intervenantes concernées.</span>
+  </div>
+</div>
+
+<div class="footer">
+  La Maison des Chaudoudoux – 22, rue Jean Guéhenno – 35700 RENNES | Tél : 02.99.38.60.00 | mchaudoudoux@aol.com
+</div>
+
+</div>{# fin .doc-page #}
+{% endfor %}{# fin boucle releves #}
+
+{# ══ Formulaire questionnaire + règlement (hors impression) ════════════════ #}
+<div class="q-section">
+  <h3>
+    Remplir le questionnaire &amp; valider le règlement
+    {% set sr = releves[0].releve %}
+    {% if sr and sr.signerLe %}
+      <span class="signed-badge">✔ Signé le {{ sr.signerLe|date('d/m/Y') }}</span>
+    {% endif %}
+  </h3>
+  <form method="POST" action="{{ path('famille_ma_facture_sauvegarder_mvc') }}">
+    <input type="hidden" name="moisAnnee" value="{{ moisAnnee }}">
+    {% set sr = releves[0].releve %}
+    <div class="q-grid">
+      {% set opts = [
+        {v:4, l:'Très satisfait'}, {v:3, l:'Satisfait'},
+        {v:2, l:'Moyennement satisfait'}, {v:1, l:'Pas satisfait'}
+      ] %}
+      {% for crit in [
+        {n:'avisPonctualite', l:'Ponctualité',           cur: sr ? sr.avisPonctualite : null},
+        {n:'avisReguRela',    l:'Régularité / Relation', cur: sr ? sr.avisReguRela    : null},
+        {n:'avisRespectHo',   l:'Respect des horaires',  cur: sr ? sr.avisRespectHo   : null},
+        {n:'avisQualiteTr',   l:'Qualité du travail',    cur: sr ? sr.avisQualiteTr   : null}
+      ] %}
+      <div>
+        <label>{{ crit.l }}</label>
+        <select name="{{ crit.n }}">
+          <option value="">— Choisir —</option>
+          {% for o in opts %}
+          <option value="{{ o.v }}" {{ crit.cur == o.v ? 'selected' : '' }}>{{ o.l }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endfor %}
+      <div>
+        <label>Mode de règlement</label>
+        <select name="typeReglement" id="sel-reg" onchange="togglePay()">
+          <option value="">— Choisir —</option>
+          {% for mode in ['Chèque','Prélèvement','CESU','Virement','Espèces'] %}
+          <option value="{{ mode }}" {{ sr and sr.typeReglement == mode ? 'selected' : '' }}>{{ mode }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div id="f-cheque" style="display:none;">
+        <label>N° chèque</label>
+        <input type="text" name="numCheque" value="{{ sr ? sr.numCheque : '' }}">
+      </div>
+      <div id="f-cesu" style="display:none;">
+        <label>Nombre de CESU</label>
+        <input type="number" name="nbrCESU" min="0" value="{{ sr and sr.nbrCESU ? sr.nbrCESU : '' }}">
+      </div>
+    </div>
+    <button type="submit" name="signer" value="" class="btn-save">Enregistrer</button>
+    <button type="submit" name="signer" value="1" class="btn-sign">
+      {% if sr and sr.signerLe %}Modifier la signature{% else %}Valider et signer{% endif %}
+    </button>
+  </form>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+
+
+
+/* ── Affichage/masquage champs règlement + sync document ─────── */
+function togglePay() {
+  const v = document.getElementById('sel-reg').value;
+  document.getElementById('f-cheque').style.display = (v === 'Chèque') ? '' : 'none';
+  document.getElementById('f-cesu').style.display   = (v === 'CESU')   ? '' : 'none';
+  const cheque = document.querySelector('[name="numCheque"]')?.value || '';
+  const cesu   = document.querySelector('[name="nbrCESU"]')?.value  || '';
+  const nPages = document.querySelectorAll('.pay-cell').length;
+  for (let k = 0; k < nPages; k++) updatePayCell(k, v, cheque, cesu);
+}
+
+/* Synchronise les coches du questionnaire avec les sélections du formulaire */
+function syncSatisfaction() {
+  const fields = ['avisPonctualite', 'avisReguRela', 'avisRespectHo', 'avisQualiteTr'];
+  document.querySelectorAll('.doc-page table.satis').forEach(tbl => {
+    const rows = tbl.querySelectorAll('tbody tr');
+    fields.forEach((name, i) => {
+      const sel = document.querySelector('[name="' + name + '"]');
+      if (!sel || !rows[i]) return;
+      const val = parseInt(sel.value) || 0;
+      const cells = rows[i].querySelectorAll('td');
+      /* colonnes : [label, Très satisfait(4), Satisfait(3), Moyennement(2), Pas satisfait(1)] */
+      [4, 3, 2, 1].forEach((v, ci) => {
+        if (cells[ci + 1]) cells[ci + 1].textContent = (val > 0 && v === val) ? '✔' : '';
+      });
+    });
+  });
+}
+function updatePayCell(idx, mode, cheque, cesu) {
+  const cell = document.getElementById('pay-cell-' + idx);
+  if (!cell) return;
+
+  if (mode) {
+    let html = `<span class="pay-opt" data-opt="${mode}" style="font-weight:bold;">[X] ${mode}`;
+    if (mode === 'Chèque') {
+      html += `&nbsp;N°&nbsp;: <span class="pay-cheque-val">${cheque || '……………'}</span>`;
+    } else if (mode === 'CESU') {
+      html += `<br>Nbres&nbsp;: <span class="pay-cesu-val">${cesu || '……'}</span>&nbsp;×&nbsp;……`;
+    }
+    html += '</span>';
+    cell.innerHTML = html;
+  } else {
+    cell.innerHTML = `
+      <span class="pay-opt" data-opt="Chèque">[ ] Chèque&nbsp;N°&nbsp;: <span class="pay-cheque-val">${cheque || '……………'}</span></span>
+      <br><br>
+      <span class="pay-opt" data-opt="Prélèvement">[ ] Prélèvement</span>
+      <br><br>
+      <span class="pay-opt" data-opt="CESU">[ ] CESU papier<br>Nbres&nbsp;: <span class="pay-cesu-val">${cesu || '……'}</span>&nbsp;×&nbsp;……</span>`;
+  }
+  /* Synchronise data-mode pour que le PDF lise toujours la bonne valeur */
+  cell.dataset.mode   = mode;
+  cell.dataset.cheque = cheque;
+  cell.dataset.cesu   = cesu;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  togglePay();
+  syncSatisfaction();
+  document.querySelector('[name="numCheque"]')?.addEventListener('input', togglePay);
+  document.querySelector('[name="nbrCESU"]')?.addEventListener('input', togglePay);
+  ['avisPonctualite','avisReguRela','avisRespectHo','avisQualiteTr'].forEach(n => {
+    document.querySelector('[name="' + n + '"]')?.addEventListener('change', syncSatisfaction);
+  });
+});
+
+/* ── Normalise les cellules pour le PDF ─────────────────────── */
+function fixCellForPdf(data) {
+  data.cell.text = data.cell.text.map(t =>
+    t.replace(/[☑✔]/g, 'X').replace(/☐/g, '[ ]')
+  );
+  const el = data.cell.raw;
+  if (!el) return;
+
+  /* Règlement par */
+  if (el.classList?.contains('pay-cell')) {
+    const mode   = el.dataset.mode   || '';
+    const cheque = el.dataset.cheque || '';
+    const cesu   = el.dataset.cesu   || '';
+    data.cell.text = [
+      `Cheque${mode === 'Cheque' ? ' [X]' : ' [ ]'}${cheque ? ' N: ' + cheque : ''}`,
+      `Prelevement${mode === 'Prélèvement' ? ' [X]' : ' [ ]'}`,
+      `CESU papier${mode === 'CESU' ? ' [X]' : ' [ ]'}${cesu ? ' Nb: ' + cesu : ''}`
+    ];
+  }
+
+  /* Couleurs cellules calendrier */
+  if (el.classList?.contains('total')) {
+    data.cell.styles.fillColor = [212, 212, 212];
+    data.cell.styles.fontStyle = 'bold';
+    data.cell.styles.halign    = 'center';
+    data.cell.styles.valign    = 'middle';
+  } else if (el.classList?.contains('ferie')) {
+    data.cell.styles.fillColor = [255, 224, 224];
+  } else if (el.classList?.contains('dim')) {
+    data.cell.styles.fillColor = [232, 232, 232];
+  } else if (el.classList?.contains('empty')) {
+    data.cell.styles.fillColor = [245, 245, 245];
+  }
+}
+
+/* ── Génération PDF texte via jsPDF autoTable ────────────────── */
+async function genererPDF() {
+  const btn = document.getElementById('btn-pdf');
+  btn.textContent = '⏳ Génération…';
+  btn.disabled = true;
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const MW  = 190; // largeur utile
+    const ML  = 10;  // marge gauche
+
+    const pages = document.querySelectorAll('.doc-page');
+
+    for (let i = 0; i < pages.length; i++) {
+      if (i > 0) doc.addPage();
+      doc.setTextColor(0, 0, 0);
+      let y = 8;
+
+      /* Alerte — double border, code client + nom + message centré */
+      const alertEl = pages[i].querySelector('.alerte');
+      if (alertEl) {
+        const codeClient = alertEl.querySelector('#alter-info tr:first-child td')?.innerText?.trim() || '';
+        const nomFamille = alertEl.querySelector('#alter-info tr:last-child td')?.innerText?.trim() || '';
+        const alertClone = alertEl.cloneNode(true);
+        alertClone.querySelector('#alter-info')?.remove();
+
+        // Walk DOM to extract [{t, b}] segments, preserving <strong> bold
+        function getSegs(el) {
+          const s = [];
+          el.childNodes.forEach(n => {
+            if (n.nodeType === 3) { const t = n.textContent.replace(/\s+/g,' '); if(t.trim()) s.push({t,b:false}); }
+            else if (n.nodeName==='STRONG'||n.nodeName==='B') s.push({t:(n.innerText||n.textContent).replace(/\s+/g,' ').trim(),b:true});
+            else if (n.childNodes?.length) s.push(...getSegs(n));
+          });
+          return s;
+        }
+        const segs = getSegs(alertClone);
+
+        // Word-wrap segments → lines of [{w, b}]
+        doc.setFontSize(9);
+        const msgWords = [];
+        segs.forEach(({t,b}) => t.split(/\s+/).filter(Boolean).forEach(w => msgWords.push({w,b})));
+        const msgLinesArr = [[]]; let lw = 0;
+        msgWords.forEach(word => {
+          doc.setFont('helvetica', word.b ? 'bold' : 'normal');
+          const ww = doc.getTextWidth(word.w + ' ');
+          if (lw + ww > MW - 8 && msgLinesArr[msgLinesArr.length-1].length > 0) { msgLinesArr.push([]); lw = 0; }
+          msgLinesArr[msgLinesArr.length-1].push(word);
+          lw += ww;
+        });
+
+        const LINE_H  = 3.8;
+        const headerH = (codeClient || nomFamille) ? 6 : 0;
+        const boxH    = headerH + msgLinesArr.length * LINE_H + 5;
+
+        /* Double border (2 rectangles décalés de 1 mm) */
+        doc.setLineWidth(0.6); doc.setDrawColor(0, 0, 0);
+        doc.rect(ML, y, MW, boxH);
+        doc.setLineWidth(0.3);
+        doc.rect(ML + 1.2, y + 1.2, MW - 2.4, boxH - 2.4);
+
+        let ay = y + 4.5;
+        if (codeClient || nomFamille) {
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'bold');
+          const leftX = ML + 2;
+          let ayInitial = ay;
+
+          if (codeClient) {
+              doc.text(codeClient, leftX, ayInitial);
+              ayInitial += 2;
+          }
+          if (nomFamille) {
+              doc.text(nomFamille, leftX, ayInitial);
+              ayInitial += 4;
+          }
+
+          ay = ayInitial; // mettre à jour la position Y après les deux lignes
+      }
+
+        // Render each line centered, word by word with correct bold/normal
+        doc.setFontSize(9);
+        msgLinesArr.forEach(line => {
+          let totalW = 0;
+          line.forEach(({w,b}) => { doc.setFont('helvetica', b?'bold':'normal'); totalW += doc.getTextWidth(w+' '); });
+          let cx = 105 - totalW / 2;
+          line.forEach(({w,b}) => {
+            doc.setFont('helvetica', b?'bold':'normal');
+            doc.text(w, cx, ay);
+            cx += doc.getTextWidth(w+' ');
+          });
+          ay += LINE_H;
+        });
+        y += boxH + 2;
+      }
+
+      /* Titre */
+      
+      const titleEl = pages[i].querySelector('h1');
+      if (titleEl) {
+        y +=1.5;
+        let title_y = y + 4.5;
+        doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+        const lines = doc.splitTextToSize(titleEl.innerText.replace(/\s+/g, ' ').trim(), MW);
+        doc.text(lines, 105, y + 2, { align: 'center' });
+       
+        y += lines.length * 4 + 1;
+      }
+
+      /* ── Helpers ──────────────────────────────────────────────── */
+      const addText = (content, size, style, align, maxW) => {
+        doc.setFontSize(size); doc.setFont('helvetica', style || 'normal');
+        const mw  = maxW || MW;
+        const lns = doc.splitTextToSize(content.replace(/\s+/g, ' ').trim(), mw);
+        const x   = align === 'center' ? 105 : ML;
+        doc.text(lns, x, y, { align: align || 'left' });
+        y += lns.length * (size * 0.45) + 1.5;
+      };
+
+      /* Tableau famille — 3 colonnes avec rowSpan/colSpan pour coller à l'HTML */
+      const infoTbl = pages[i].querySelector('table.info');
+      if (infoTbl) {
+        const lb = { fontStyle: 'bold', fillColor: [232,232,232], halign: 'left' };
+        const trs = [...infoTbl.querySelectorAll('tr')];
+        const get = (tr, idx) => tr?.querySelectorAll('td')[idx]?.innerText.replace(/\s+/g,' ').trim() || '';
+
+        /* Adresse : dans la cellule rowspan=3 (index 2 de la ligne NUMÉRO CLIENT) */
+        const addrFull = trs[1]?.querySelectorAll('td')[2]?.innerText.trim() || '';
+
+        const infoBody = [];
+        /* NOM : valeur span cols 1+2 */
+        if (trs[0]) infoBody.push([
+          { content: get(trs[0], 0), styles: lb },
+          { content: get(trs[0], 1), colSpan: 2, styles: { fontStyle: 'bold' } }
+        ]);
+        /* NUMÉRO CLIENT : code | adresse (rowSpan 3) */
+        if (trs[1]) infoBody.push([
+          { content: get(trs[1], 0), styles: lb },
+          { content: get(trs[1], 1) },
+          { content: addrFull, rowSpan: 3, styles: { valign: 'top', fontSize: 8 } }
+        ]);
+        /* NUMÉRO CAF */
+        if (trs[2]) infoBody.push([{ content: get(trs[2], 0), styles: lb }, { content: get(trs[2], 1) }]);
+        /* NUMÉRO TÉL */
+        if (trs[3]) infoBody.push([{ content: get(trs[3], 0), styles: lb }, { content: get(trs[3], 1) }]);
+        /* ENFANT GARDÉ (optionnel) : valeur span cols 1+2 */
+        if (trs[4]) infoBody.push([
+          { content: get(trs[4], 0), styles: lb },
+          { content: get(trs[4], 1), colSpan: 2, styles: { fontSize: 8 } }
+        ]);
+
+        doc.autoTable({
+          body: infoBody, startY: y, theme: 'grid',
+          styles: { fontSize: 9, cellPadding: 1.2, overflow: 'linebreak', lineColor: [0,0,0], lineWidth: 0.2, textColor: [0,0,0] },
+          columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 80 }, 2: { cellWidth: 65 } },
+          margin: { left: ML, right: ML },
+        });
+        y = doc.lastAutoTable.finalY + 2;
+      }
+
+      /* Tableau intervenants */
+      const interTbl = pages[i].querySelector('table.inter');
+      if (interTbl) {
+        doc.autoTable({
+          html: interTbl, startY: y, theme: 'grid',
+          styles: { fontSize: 9, cellPadding: 1.2, overflow: 'linebreak', lineColor: [0,0,0], lineWidth: 0.2, textColor: [0,0,0] },
+          margin: { left: ML, right: ML },
+          columnStyles: {
+            0: { cellWidth: 45 },  // colonne "INTERVENANTE(S)" : largeur fixe 45 mm
+            1: { cellWidth: 'auto' } // colonne des noms : largeur automatique (restant)
+          },
+          didParseCell: fixCellForPdf,
+        });
+        y = doc.lastAutoTable.finalY + 4;
+      }
+
+      /* Note intervenants */
+      addText(
+        '(merci de n\'utiliser qu\'une seule feuille pour la totalité des prestations en mentionnant le nom des intervenantes concernées)',
+        8, 'normal', 'left'
+      );
+
+      /* En-tête calendrier */
+      const calHdr = pages[i].querySelector('p[style*="font-weight:bold"]');
+      if (calHdr) addText(calHdr.innerText, 9, 'bold', 'left');
+
+      /* Note durée minimum */
+      addText('Durée minimum d\'une intervention à Rennes 1h30 – en dehors de Rennes 2h (remplir le calendrier ci-après)', 8, 'normal', 'left');
+
+      /* Calendrier */
+      const calTbl = pages[i].querySelector('table.cal');
+      if (calTbl) {
+        const colW = Math.floor(MW / 8 * 10) / 10;
+        const colStyles = {};
+        for (let c = 0; c < 8; c++) colStyles[c] = { cellWidth: colW };
+        doc.autoTable({
+          html: calTbl, startY: y, theme: 'grid',
+          styles: { fontSize: 8, cellPadding: 1, minCellHeight: 10, overflow: 'linebreak',
+                    valign: 'top', lineColor: [0,0,0], lineWidth: 0.2, textColor: [0,0,0] },
+          columnStyles: colStyles,
+          margin: { left: ML, right: ML },
+          didParseCell: fixCellForPdf,
+        });
+        y = doc.lastAutoTable.finalY + 1;
+      }
+
+      /* Note SMIC (encadrée) */
+      const smicNote = pages[i].querySelector('p.note[style*="border"]');
+      if (smicNote) {
+        doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+        const smicLines = doc.splitTextToSize(smicNote.innerText.replace(/\s+/g,' ').trim(), MW - 4);
+        const smicH = smicLines.length * 4 + 3;
+        doc.setDrawColor(180,180,180); doc.setLineWidth(0.2);
+        doc.rect(ML, y, MW, smicH);
+        doc.text(smicLines, ML + 2, y + 3.5);
+        y += smicH + 2;
+      }
+
+      /* Récapitulatif financier — construit manuellement pour éviter
+         les problèmes de colspan/rowspan avec autoTable */
+      const recapTbl = pages[i].querySelector('table.recap');
+      if (recapTbl) {
+        const y0   = y;
+        const xL   = ML;        // x départ tableau gauche
+        const xR1  = ML + 137;  // x début "Règlement par"
+        const xR2  = ML + 172;  // x début "Montant"
+        const wR1  = 35;        // largeur "Règlement par"
+        const wR2  = 18;        // largeur "Montant"
+
+        /* Données dynamiques (mode de règlement mis à jour en live) */
+        const payEl = recapTbl.querySelector('.pay-cell');
+        const mode   = payEl?.dataset.mode   || '';
+        const cheque = payEl?.dataset.cheque || '';
+        const cesu   = payEl?.dataset.cesu   || '';
+        const somme  = recapTbl.querySelector('.total-final')?.innerText?.trim() || '';
+
+        let payLines = [];
+        if      (mode === 'Chèque')       payLines = ['[X] Chèque', 'N° : ' + (cheque || '...........')];
+        else if (mode === 'Prélèvement')  payLines = ['[X] Prélèvement'];
+        else if (mode === 'CESU')         payLines = ['[X] CESU papier', 'Nbres: ' + (cesu || '...') + ' x ...'];
+        else if (mode)                    payLines = ['[X] ' + mode];
+        else                              payLines = ['[ ] Chèque', '[ ] Prélèvement', '[ ] CESU'];
+
+        /* Lignes du tableau gauche (sans pay-cell ni total-final) */
+        const recapBody = [];
+        recapTbl.querySelectorAll('tbody tr').forEach(tr => {
+          const tds = [...tr.querySelectorAll('td:not(.pay-cell):not(.total-final)')];
+          if (!tds.length) return;
+          const row = tds.map(td => ({
+            content: td.innerText.replace(/\s+/g, ' ').trim(),
+            styles: {
+              halign:    td.classList.contains('recap-montant') ? 'right'  :
+                         td.classList.contains('recap-tarif')   ? 'center' :
+                         (td.getAttribute('style') || '').includes('text-align:right') ? 'right' : 'left',
+              fontStyle: tr.classList.contains('recap-total')   ? 'bold'   : 'normal',
+              fillColor: tr.classList.contains('recap-total')   ? [240,240,240] : [255,255,255],
+            }
+          }));
+          recapBody.push(row);
+        });
+
+        /* Tableau gauche (description + tarif + montant) */
+        doc.autoTable({
+          head: [['SOMME À PAYER', 'Tarif', 'Montant']],
+          body: recapBody,
+          startY: y0, theme: 'grid',
+          styles: { fontSize: 9, cellPadding: 1.5, overflow: 'linebreak', lineColor: [0,0,0], lineWidth: 0.2, textColor: [0,0,0] },
+          headStyles: { fillColor: [200,200,200], textColor: [0,0,0], fontStyle: 'bold', halign: 'center' },
+          columnStyles: { 0: { cellWidth: 62 }, 1: { cellWidth: 50 }, 2: { cellWidth: 25 } },
+          margin: { left: xL, right: 210 - xR1 },
+          didParseCell: fixCellForPdf,
+        });
+
+        const y1   = doc.lastAutoTable.finalY;
+        const headH = 7;          // hauteur ligne en-tête ≈ 7 mm
+        const bodyH = y1 - y0 - headH;
+
+        /* En-têtes droites */
+        doc.setLineWidth(0.2); doc.setDrawColor(0,0,0); doc.setTextColor(0,0,0);
+        doc.setFillColor(200,200,200);
+        doc.rect(xR1, y0, wR1, headH, 'FD');
+        doc.rect(xR2, y0, wR2, headH, 'FD');
+        doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+        doc.text('Règlement par', xR1 + wR1 / 2, y0 + headH / 2 + 1.5, { align: 'center' });
+        doc.text('Montant',       xR2 + wR2 / 2, y0 + headH / 2 + 1.5, { align: 'center' });
+
+        /* Corps droites */
+        doc.setFillColor(255,255,255);
+        doc.rect(xR1, y0 + headH, wR1, bodyH);
+        doc.rect(xR2, y0 + headH, wR2, bodyH);
+
+        doc.setFontSize(7); doc.setFont('helvetica', mode ? 'bold' : 'normal');
+        let pyOff = y0 + headH + 3;
+        payLines.forEach(line => { doc.text(line, xR1 + 2, pyOff); pyOff += 3.8; });
+
+        doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+        doc.text(somme, xR2 + wR2 / 2, y0 + headH + bodyH / 2 + 2, { align: 'center' });
+
+        y = y1 + 2;
+      }
+
+      /* Questionnaire satisfaction */
+      const satisTbl = pages[i].querySelector('table.satis');
+      if (satisTbl) {
+        doc.autoTable({
+          html: satisTbl, startY: y, theme: 'grid',
+          styles: { fontSize: 9, cellPadding: 1.5, overflow: 'linebreak',
+                    halign: 'center', lineColor: [0,0,0], lineWidth: 0.2, textColor: [0,0,0] },
+          headStyles: { fillColor: [200,200,200], textColor: [0,0,0], fontStyle: 'bold' },
+          margin: { left: ML, right: ML },
+          didParseCell: fixCellForPdf,
+        });
+        y = doc.lastAutoTable.finalY + 4;
+      }
+
+      /* Formulaire de vacances confirmation (si activé par l'admin) */
+      const vacBlock = pages[i].querySelector('.vacances-block');
+      if (vacBlock) {
+        const vacTitre = (vacBlock.dataset.titre || '').toUpperCase();
+        const vacMois  = (vacBlock.dataset.mois || '').split(',').map(m => m.trim()).filter(Boolean);
+        const vacMsg   = vacBlock.dataset.message || '';
+        const vacAnnee = parseInt(vacBlock.dataset.annee) || new Date().getFullYear();
+
+        doc.setLineWidth(0.4); doc.setDrawColor(0,0,0);
+        doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+        const confTitre = 'Confirmation PÉRIODE DE VOS ' + vacTitre;
+        const cTL = doc.splitTextToSize(confTitre, MW - 4);
+        const cTH = cTL.length * 4.5 + 3;
+        doc.rect(ML, y, MW, cTH);
+        doc.text(cTL, 105, y + 3.5, { align: 'center' });
+        y += cTH + 2;
+
+        /* Ligne "du ___ au ___ YEAR" */
+        doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+        doc.text('du', ML + 2, y + 4);
+        doc.line(ML + 8, y + 4.5, ML + 60, y + 4.5);
+        doc.text('au', ML + 62, y + 4);
+        doc.line(ML + 67, y + 4.5, ML + 110, y + 4.5);
+        doc.text(String(vacAnnee), ML + 112, y + 4);
+        y += 8;
+
+        if (vacMsg) {
+          doc.setFontSize(7); doc.setFont('helvetica', 'italic');
+          const ml = doc.splitTextToSize(vacMsg, MW - 4);
+          doc.text(ml, ML + 2, y + 2.5);
+          y += ml.length * 2.8 + 2;
+          doc.setFont('helvetica', 'normal');
+        }
+
+        /* Blocs par mois */
+        const mH = 15;
+        vacMois.forEach(mois => {
+          doc.setLineWidth(0.3);
+          doc.rect(ML, y, MW, mH);
+          doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+          doc.text('PÉRIODE de ' + mois, ML + 2, y + 5);
+          doc.setFont('helvetica', 'normal');
+          /* Du _ _ / _ _ / YEAR */
+          doc.text('Du', ML + 2, y + 11);
+          doc.line(ML + 7, y + 11.5, ML + 14, y + 11.5);
+          doc.text('/', ML + 15, y + 11);
+          doc.line(ML + 17, y + 11.5, ML + 24, y + 11.5);
+          doc.text('/ ' + vacAnnee, ML + 25, y + 11);
+          /* Au _ _ / _ _ / YEAR */
+          doc.text('Au', ML + 55, y + 11);
+          doc.line(ML + 60, y + 11.5, ML + 67, y + 11.5);
+          doc.text('/', ML + 68, y + 11);
+          doc.line(ML + 70, y + 11.5, ML + 77, y + 11.5);
+          doc.text('/ ' + vacAnnee, ML + 78, y + 11);
+          y += mH;
+        });
+        y += 3;
+      }
+
+      /* Mention obligatoire avant signatures */
+      addText(
+        'CETTE FEUILLE DOIT ÊTRE OBLIGATOIREMENT SIGNÉE PAR LES DEUX PARTIES ET RETOURNÉE AVANT LE 30 DU MOIS À L\'ASSOCIATION ACCOMPAGNÉE DE VOTRE RÈGLEMENT.',
+        8, 'bold', 'center'
+      );
+      y += 1;
+
+      /* Zones de signature */
+      const sigH = 18;
+      doc.setLineWidth(0.5); doc.setDrawColor(0,0,0);
+      doc.rect(ML, y, 90, sigH);
+      doc.rect(ML + 95, y, 90, sigH);
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('SIGNATURE DE LA FAMILLE',        ML + 45,  y + 4.5, { align: 'center' });
+      doc.text("SIGNATURE DE L'INTERVENANTE(S)", ML + 140, y + 4.5, { align: 'center' });
+      doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
+      const interNote = doc.splitTextToSize(
+        "Merci de n'utiliser qu'une seule feuille pour la totalité des prestations en mentionnant le nom des intervenantes concernées.",
+        86
+      );
+      doc.text(interNote, ML + 140, y + 9, { align: 'center' });
+
+      /* Date de signature (si signée) */
+      const sigBox = pages[i].querySelector('.sig-box');
+      if (sigBox) {
+        const sigText = sigBox.innerText.trim();
+        const sigMatch = sigText.match(/Signé le\s+(\d{2}\/\d{2}\/\d{4})/i);
+        if (sigMatch) {
+          doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0,100,0);
+          doc.text('Signé le ' + sigMatch[1], ML + 45, y + 12, { align: 'center' });
+          doc.setTextColor(0,0,0);
+        }
+      }
+
+      /* Pied de page */
+      doc.setDrawColor(0,0,0);
+      doc.line(10,285,200,285);
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text(
+        'La Maison des Chaudoudoux – 22, rue Jean Guéhenno – 35700 RENNES | Tél : 02.99.38.60.00 | mchaudoudoux@aol.com',
+        105, 290, { align: 'center' }
+      );
+    }
+
+    const nom   = '{{ releves[0].famille.nom|replace({" ": "_"}) }}';
+    const mois  = '{{ releves[0].mois }}_{{ releves[0].annee }}';
+    const type  = '{{ typeFilter == "GE" ? "Garde" : (typeFilter == "MENA" ? "Menage" : "Releve") }}';
+    doc.save(type + '_' + nom + '_' + mois + '.pdf');
+
+  } catch(e) {
+    console.error(e);
+    alert('Erreur PDF : ' + e.message);
+  } finally {
+    btn.textContent = '📄 Télécharger PDF';
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

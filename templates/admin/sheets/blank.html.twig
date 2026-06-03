@@ -1,0 +1,118 @@
+{% extends 'base.html.twig' %}
+{% block title %}Fiches vierges{% endblock %}
+{% block page_title %}Créer des fiches vierges{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <h1>Générer des fiches vierges</h1>
+    <p>Créez des feuilles d'heures mensuelles au format PDF</p>
+</div>
+
+<div class="card" style="max-width:520px;">
+    <div class="card-header">
+        <i class="fas fa-file-alt" style="color:var(--primary);"></i>
+        <span class="card-title">Paramètres de génération</span>
+    </div>
+    <div class="card-body">
+
+        <form action="{{ path('admin_fiches_vierges_pdf_mvc') }}" method="POST">
+
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                    Type de prestation
+                </label>
+                <select id="type" name="type" required
+                        style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
+                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                    <option value="" disabled selected>Choisir le type</option>
+                    <option value="ENFA">Garde d'enfants</option>
+                    <option value="MENA">Ménage</option>
+                </select>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+
+                <div>
+                    <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                        Mois de début
+                    </label>
+                    <select id="moisDebut" name="moisDebut"
+                            style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;margin-bottom:8px;"
+                            onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                        <option value="1">Janvier</option>
+                        <option value="2">Février</option>
+                        <option value="3">Mars</option>
+                        <option value="4">Avril</option>
+                        <option value="5">Mai</option>
+                        <option value="6">Juin</option>
+                        <option value="7">Juillet</option>
+                        <option value="8">Août</option>
+                        <option value="9">Septembre</option>
+                        <option value="10">Octobre</option>
+                        <option value="11">Novembre</option>
+                        <option value="12">Décembre</option>
+                    </select>
+                    <select id="anneeDebut" name="anneeDebut"
+                            style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;"
+                            onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                    </select>
+                </div>
+
+                <div>
+                    <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                        Mois de fin
+                    </label>
+                    <select id="moisFin" name="moisFin"
+                            style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;margin-bottom:8px;"
+                            onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                        <option value="1">Janvier</option>
+                        <option value="2">Février</option>
+                        <option value="3">Mars</option>
+                        <option value="4">Avril</option>
+                        <option value="5">Mai</option>
+                        <option value="6">Juin</option>
+                        <option value="7">Juillet</option>
+                        <option value="8">Août</option>
+                        <option value="9">Septembre</option>
+                        <option value="10">Octobre</option>
+                        <option value="11">Novembre</option>
+                        <option value="12" selected>Décembre</option>
+                    </select>
+                    <select id="anneeFin" name="anneeFin"
+                            style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;"
+                            onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                    </select>
+                </div>
+
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;">
+                <i class="fas fa-file-pdf"></i> Générer les fiches PDF
+            </button>
+
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+const anneeCourante = new Date().getFullYear();
+const debutSelect = document.getElementById('anneeDebut');
+const finSelect   = document.getElementById('anneeFin');
+for (let i = 0; i <= 5; i++) {
+    const o1 = document.createElement('option');
+    o1.value = o1.textContent = anneeCourante + i;
+    debutSelect.appendChild(o1);
+    const o2 = document.createElement('option');
+    o2.value = o2.textContent = anneeCourante + i;
+    finSelect.appendChild(o2);
+}
+debutSelect.value = anneeCourante;
+finSelect.value   = anneeCourante;
+</script>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends 'base.html.twig' %}
+{% block title %}Prestations du mois{% endblock %}
+{% block page_title %}Prestations par famille{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Prestations — {{ moisLabel|capitalize }}</h1>
+            <p>Cliquez sur une famille pour voir le détail et choisir la source de facturation.</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <a href="{{ path('admin_signalements_mvc', {mois: moisOffset - 1}) }}"
+               class="btn btn-secondary btn-sm"><i class="fas fa-chevron-left"></i></a>
+            {% if moisOffset < 0 %}
+            <a href="{{ path('admin_signalements_mvc', {mois: moisOffset + 1}) }}"
+               class="btn btn-secondary btn-sm"><i class="fas fa-chevron-right"></i></a>
+            <a href="{{ path('admin_signalements_mvc') }}"
+               class="btn btn-secondary btn-sm" title="Mois courant">
+                <i class="fas fa-calendar-day"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if familles is empty %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state" style="padding:50px 20px;">
+            <div class="empty-state-icon"><i class="fas fa-calendar-times"></i></div>
+            <h3>Aucune prestation planifiée ce mois</h3>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Famille</th>
+                    <th style="text-align:center;">Créneaux</th>
+                    <th>Intervenants ayant travaillé</th>
+                    <th style="text-align:center;">Saisies famille</th>
+                    <th style="text-align:center;">Écarts</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for f in familles %}
+            <tr>
+                <td style="font-weight:600;">
+                    <i class="fas fa-home" style="color:var(--primary);margin-right:6px;"></i>
+                    {{ famille_label(f.numFam) }}
+                </td>
+                <td style="text-align:center;">
+                    <span class="badge badge-muted">{{ f.nbCreneaux }}</span>
+                </td>
+                <td>
+                    {% if f.intervenantsNoms is empty %}
+                        <span style="color:var(--text-muted);font-size:12px;">
+                            <i class="fas fa-clock"></i> Aucune saisie
+                        </span>
+                    {% else %}
+                        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                        {% for nom in f.intervenantsNoms %}
+                            <span class="badge badge-info" style="font-size:11px;">
+                                <i class="fas fa-user-tie"></i> {{ nom }}
+                            </span>
+                        {% endfor %}
+                        </div>
+                        {% if f.nbInter < f.nbCreneaux %}
+                        <div style="margin-top:4px;font-size:11px;color:var(--text-muted);">
+                            {{ f.nbInter }}/{{ f.nbCreneaux }} créneaux saisis
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </td>
+                <td style="text-align:center;">
+                    <span class="badge {{ f.nbFam == f.nbCreneaux ? 'badge-success' : 'badge-warning' }}">
+                        <i class="fas fa-users"></i> {{ f.nbFam }}/{{ f.nbCreneaux }}
+                    </span>
+                </td>
+                <td style="text-align:center;">
+                    {% if f.nbEcarts > 0 %}
+                        <span class="badge badge-danger">
+                            <i class="fas fa-exclamation-triangle"></i> {{ f.nbEcarts }}
+                        </span>
+                    {% else %}
+                        <span style="color:var(--success);"><i class="fas fa-check"></i></span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ path('admin_prestations_famille_mvc', {numFam: f.numFam, mois: moisOffset}) }}"
+                       class="btn btn-primary btn-sm">
+                        Voir le détail <i class="fas fa-chevron-right"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -2,7 +2,7 @@
 
 namespace App\Service;
 
-use App\Entity\Intervenant;
+use App\Entity\Principal\Intervenant;
 use App\Repository\IntervenantRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -14,11 +14,11 @@ class IntervenantService
     ) {}
 
     /**
-     * Retourne tous les intervenants non archivés
+     * Retourne tous les intervenants ayant un planning actif dans proposer.
      */
     public function getTousLesIntervenants(): array
     {
-        return $this->repository->findAllNonArchived();
+        return $this->repository->findWithActivePlanning();
     }
 
     /**
@@ -29,9 +29,11 @@ class IntervenantService
         return $this->repository->findInfosIntervenant($id);
     }
 
-    /**
-     * Retourne un intervenant par son numéro de salarié
-     */
+    public function getIntervenantParId(int $id): ?Intervenant
+    {
+        return $this->repository->find($id);
+    }
+
     public function getIntervenantParNumSalarie(string $numSalarie): ?Intervenant
     {
         return $this->repository->findByNumSalarie($numSalarie);
@@ -46,11 +48,11 @@ class IntervenantService
     }
 
     /**
-     * Compte le nombre d'intervenants actifs
+     * Compte les intervenants ayant un planning actif dans proposer.
      */
-    public function compterActifs(): int
+    public function countIntervenants(): int
     {
-        return $this->repository->countActifs();
+        return $this->repository->countAvecPlanningActif();
     }
 
     /**
@@ -64,7 +66,7 @@ class IntervenantService
         }
 
         $intervenant->setArchive(true);
-        $intervenant->setUpdatedAt(new \DateTimeImmutable());
+        $intervenant->setUpdatedAt(new \DateTime());
         
         $this->entityManager->flush();
         return true;
@@ -81,7 +83,7 @@ class IntervenantService
         }
 
         $intervenant->setArchive(false);
-        $intervenant->setUpdatedAt(new \DateTimeImmutable());
+        $intervenant->setUpdatedAt(new \DateTime());
         
         $this->entityManager->flush();
         return true;
@@ -92,8 +94,28 @@ class IntervenantService
      */
     public function mettreAJourIntervenant(Intervenant $intervenant): void
     {
-        $intervenant->setUpdatedAt(new \DateTimeImmutable());
+        $intervenant->setUpdatedAt(new \DateTime());
         $this->entityManager->flush();
+    }
+
+    /**
+     * Retourne true si l'intervenant est actif aujourd'hui :
+     * ni archivé définitivement, ni en archive temporaire couvrant aujourd'hui.
+     */
+    public function isActif(Intervenant $intervenant): bool
+    {
+        if ($intervenant->getArchive()) {
+            return false;
+        }
+        if ($intervenant->getArchiveTemporaire()) {
+            $today = new \DateTime('today');
+            $debut = $intervenant->getDateDebutArchiveTemporaire();
+            $fin   = $intervenant->getDateFinArchiveTemporaire();
+            if ($debut && $today >= $debut && (!$fin || $today <= $fin)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -116,8 +138,8 @@ class IntervenantService
         
         // Champs par défaut
         $intervenant->setArchive(false);
-        $intervenant->setCreatedAt(new \DateTimeImmutable());
-        $intervenant->setUpdatedAt(new \DateTimeImmutable());
+        $intervenant->setCreatedAt(new \DateTime());
+        $intervenant->setUpdatedAt(new \DateTime());
         
         $this->entityManager->persist($intervenant);
         $this->entityManager->flush();

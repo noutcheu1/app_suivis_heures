@@ -1,0 +1,42 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Profil familles - {{ user['Nom de la famille'] }}{% endblock %}
+
+{% block body %}
+<div class="profile-card">
+    <div class="profile-header">Détail de la famille</div>
+    {% if user %}
+        <img src="{{ asset(avatar) }}" alt="Avatar" class="profile-avatar">
+        <div class="profile-name">
+            <h2> <a href='{{ path('famille_panel', { id: id }) }}'> {{ user['Nom de la famille'] }} </a></h2>
+        </div>
+
+        <div class="profile-info">
+
+            <ul>
+                {% for key, value in user %}
+                    {% if key == 'email' %}
+                        <li>
+                            <strong>Email :</strong>
+                            <a href="mailto:{{ value }}">{{ value }}</a>
+                        </li>
+
+                    {% else %}
+                        <li>
+                            <strong> {{ key|capitalize }} :</strong>
+                            <span> {{ value }}</a>
+                        </li>
+                    {% endif %}
+                
+                {% endfor %}
+            </ul>
+        </div>
+
+    </div>
+    {% else %}
+        <p style="color: red; text-align: center;">La famille n'a pas été trouvé.</p>
+    {% endif %}
+</div>
+
+
+{% endblock %}

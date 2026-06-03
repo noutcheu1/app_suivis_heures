@@ -1,0 +1,206 @@
+{% extends 'base.html.twig' %}
+{% block title %}Facture — {{ famille ? famille.nomFamille : facture.numFam }} — {{ moisAnnee }}{% endblock %}
+{% block page_title %}Facture mensuelle{% endblock %}
+
+{% set labelMois = moisAnnee|date('F Y', null, 'fr') %}
+
+{% block body %}
+
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>{{ famille ? famille_label(famille) : facture.numFam }}</h1>
+            <p>Facture — <strong>{{ labelMois }}</strong></p>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <a href="{{ path('admin_facture_print_mvc', {numFam: facture.numFam, moisAnnee: moisAnnee}) }}"
+               target="_blank" class="btn btn-primary btn-sm">
+                <i class="fas fa-print"></i> Imprimer / PDF
+            </a>
+            <a href="{{ path('admin_factures_mvc', {mois: moisAnnee}) }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Retour
+            </a>
+        </div>
+    </div>
+</div>
+
+{# ── KPIs ────────────────────────────────────────────── #}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;">
+    <div class="kpi-card">
+        <div class="kpi-label">Total GE</div>
+        <div class="kpi-value" style="color:var(--primary);">{{ facture.heuresGE }} h</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Total Ménage</div>
+        <div class="kpi-value" style="color:var(--primary);">{{ facture.heuresMENA }} h</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Interventions</div>
+        <div class="kpi-value">{{ facture.nbInterventions }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Montant total</div>
+        <div class="kpi-value" style="color:var(--success,#2ba88a);font-size:22px;">
+            {{ facture.montantTotal|number_format(2, ',', ' ') }} €
+        </div>
+    </div>
+</div>
+
+{# ── Détail prestations ──────────────────────────────── #}
+{% for groupe in [
+    {label: "Garde d'enfants (ENFA)", prestations: facture.prestationsGE,   type: 'GE'},
+    {label: "Ménage (MENA)",          prestations: facture.prestationsMENA, type: 'MENA'}
+] %}
+{% if groupe.prestations is not empty %}
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+        <i class="fas fa-{{ groupe.type == 'GE' ? 'child' : 'broom' }}" style="color:var(--primary);"></i>
+        <span class="card-title">{{ groupe.label }}</span>
+        <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">
+            {% if groupe.type == 'GE' %}
+                {{ facture.heuresGE }} h × {{ facture.tauxGE|number_format(2, ',') }} €/h
+                {% if facture.tauxGESource == 'famille' %}<span class="badge badge-info" style="font-size:10px;">taux famille</span>{% endif %}
+                {% if facture.tauxGESource == 'V_non_défini' %}<span class="badge badge-warning" style="font-size:10px;">taux V non défini</span>{% endif %}
+            {% else %}
+                {{ facture.heuresMENA }} h × {{ facture.tauxMENA|number_format(2, ',') }} €/h
+                {% if facture.tauxMENASource == 'famille' %}<span class="badge badge-info" style="font-size:10px;">taux famille</span>{% endif %}
+            {% endif %}
+            = <strong>{{ (groupe.type == 'GE' ? facture.montantGE : facture.montantMENA)|number_format(2, ',') }} €</strong>
+        </span>
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+        <table class="table" style="font-size:12.5px;">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Début</th>
+                    <th>Fin</th>
+                    <th style="text-align:right;">Durée</th>
+                    {% if groupe.type == 'GE' %}<th style="text-align:right;">Km</th>{% endif %}
+                    <th>Intervenant</th>
+                    <th>Déclaré famille</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in groupe.prestations %}
+            <tr>
+                <td>{{ p.datePresta|date('d/m/Y') }}</td>
+                <td style="font-family:monospace;">{{ p.heureDebutPresta ? p.heureDebutPresta|date('H:i') : '—' }}</td>
+                <td style="font-family:monospace;">{{ p.heureFinPresta ? p.heureFinPresta|date('H:i') : '—' }}</td>
+                <td style="text-align:right;font-family:monospace;">
+                    {% if p.heureDebutPresta and p.heureFinPresta %}
+                        {% set sec = p.heureFinPresta.timestamp - p.heureDebutPresta.timestamp %}
+                        {% if sec < 0 %}{% set sec = sec + 86400 %}{% endif %}
+                        {{ (sec // 3600)|number_format(0) }}h{{ ((sec % 3600) // 60)|number_format(0, ',', '')|raw }}
+                    {% else %}—{% endif %}
+                </td>
+                {% if groupe.type == 'GE' %}
+                <td style="text-align:right;">{{ p.kmAvecEnfant ? p.kmAvecEnfant ~ ' km' : '—' }}</td>
+                {% endif %}
+                <td style="color:var(--text-muted);">N° {{ p.numInter }}</td>
+                <td style="text-align:center;">
+                    {% if p.declarerLeFam %}
+                    <i class="fas fa-check-circle" style="color:#2ba88a;"></i>
+                    {% else %}
+                    <i class="fas fa-hourglass-half" style="color:#e07b2a;"></i>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{# ── Récapitulatif financier ─────────────────────────── #}
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+        <i class="fas fa-calculator" style="color:var(--primary);"></i>
+        <span class="card-title">Récapitulatif financier</span>
+    </div>
+    <div class="card-body">
+        <table style="width:100%;font-size:13.5px;">
+            {% if facture.heuresGE > 0 %}
+            <tr>
+                <td style="padding:5px 0;color:var(--text-muted);">Garde d'enfants ({{ facture.heuresGE }} h × {{ facture.tauxGE|number_format(2, ',') }} €/h)</td>
+                <td style="text-align:right;font-weight:600;">{{ facture.montantGE|number_format(2, ',', ' ') }} €</td>
+            </tr>
+            {% endif %}
+            {% if facture.heuresMENA > 0 %}
+            <tr>
+                <td style="padding:5px 0;color:var(--text-muted);">Ménage ({{ facture.heuresMENA }} h × {{ facture.tauxMENA|number_format(2, ',') }} €/h)</td>
+                <td style="text-align:right;font-weight:600;">{{ facture.montantMENA|number_format(2, ',', ' ') }} €</td>
+            </tr>
+            {% endif %}
+            {% if facture.fraisGestion > 0 %}
+            <tr>
+                <td style="padding:5px 0;color:var(--text-muted);">Frais de gestion ({{ facture.nbInterventions }} interventions)</td>
+                <td style="text-align:right;font-weight:600;">{{ facture.fraisGestion|number_format(2, ',', ' ') }} €</td>
+            </tr>
+            {% endif %}
+            {% if facture.montantKm > 0 %}
+            <tr>
+                <td style="padding:5px 0;color:var(--text-muted);">Frais km ({{ facture.kmTotal }} km)</td>
+                <td style="text-align:right;font-weight:600;">{{ facture.montantKm|number_format(2, ',', ' ') }} €</td>
+            </tr>
+            {% endif %}
+            {% if facture.abonnement > 0 %}
+            <tr>
+                <td style="padding:5px 0;color:var(--text-muted);">Abonnement mensuel</td>
+                <td style="text-align:right;font-weight:600;">{{ facture.abonnement|number_format(2, ',', ' ') }} €</td>
+            </tr>
+            {% endif %}
+            {% if facture.montantSupl != 0 %}
+            <tr>
+                <td style="padding:5px 0;color:var(--text-muted);">{{ facture.libeleSupl ?: 'Supplément / exception' }}</td>
+                <td style="text-align:right;font-weight:600;">{{ facture.montantSupl|number_format(2, ',', ' ') }} €</td>
+            </tr>
+            {% endif %}
+            <tr style="border-top:2px solid var(--border);font-size:16px;">
+                <td style="padding:10px 0 0;font-weight:700;">Total dû</td>
+                <td style="text-align:right;font-weight:800;color:var(--primary);padding-top:10px;">
+                    {{ facture.montantTotal|number_format(2, ',', ' ') }} €
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+{# ── Questionnaire satisfaction ──────────────────────── #}
+{% set releve = facture.releveGE ?? facture.releveMENA %}
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-star" style="color:var(--primary);"></i>
+        <span class="card-title">Questionnaire de satisfaction</span>
+        {% if releve and releve.signerLe %}
+        <span class="badge badge-success" style="margin-left:auto;">Signé le {{ releve.signerLe|date('d/m/Y') }}</span>
+        {% else %}
+        <span class="badge badge-warning" style="margin-left:auto;">Non signé</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% macro etoiles(note) %}{% for i in 1..5 %}<i class="fas fa-star" style="color:{{ i <= note ? '#f59e0b' : 'var(--border)' }};font-size:16px;"></i>{% endfor %}{% endmacro %}
+
+        {% if releve %}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+            {% for critere in [
+                {label: 'Ponctualité',        val: releve.avisPonctualite},
+                {label: 'Régularité relation', val: releve.avisReguRela},
+                {label: 'Respect horaires',    val: releve.avisRespectHo},
+                {label: 'Qualité du travail',  val: releve.avisQualiteTr}
+            ] %}
+            <div>
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:4px;">{{ critere.label }}</div>
+                <div>{{ critere.val ? _self.etoiles(critere.val) : '—' }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--text-muted);font-size:13px;">Aucun relevé mensuel enregistré pour ce mois.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

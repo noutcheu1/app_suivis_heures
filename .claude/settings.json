@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -A5 \"INSERT INTO \\\\`typeadh\\\\`\" \"/home/noutcheu/Downloads/houserennes/app-suivis-heures/bdchaudoudoux \\(12\\).sql\")",
+      "Bash(git -C /home/noutcheu/Downloads/houserennes/app-suivis-heures show 5174f5e:templates/intervenants/hours/followup.html.twig)"
+    ]
+  }
+}

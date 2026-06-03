@@ -1,0 +1,350 @@
+{% extends 'base.html.twig' %}
+{% block title %}Connexion — La Maison des Chaudoudoux{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+.login-card {
+    width: 100%;
+    max-width: 440px;
+    background: #fff;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,.25), 0 4px 16px rgba(0,0,0,.1);
+}
+
+.login-top {
+    padding: 36px 36px 24px;
+    text-align: center;
+}
+
+.login-logo {
+    width: 56px; height: 56px;
+    background: #4f46e5;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+}
+.login-logo i { font-size: 24px; color: #fff; }
+
+.login-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 4px;
+}
+.login-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+}
+
+.login-body { padding: 0 36px 32px; }
+
+.login-step { display: none; }
+.login-step.active { display: block; }
+
+.type-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.type-btn {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 18px 12px;
+    text-align: center;
+    cursor: pointer;
+    background: #fff;
+    transition: all .2s;
+    font-family: inherit;
+}
+.type-btn:hover {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+    transform: translateY(-1px);
+}
+.type-btn-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: #eef2ff;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px;
+    transition: background .2s;
+}
+.type-btn:hover .type-btn-icon { background: #4f46e5; }
+.type-btn-icon i { font-size: 20px; color: #4f46e5; transition: color .2s; }
+.type-btn:hover .type-btn-icon i { color: #fff; }
+.type-btn-label { font-size: 13px; font-weight: 600; color: #0f172a; display: block; }
+.type-btn-hint  { font-size: 11px; color: #94a3b8; display: block; margin-top: 2px; }
+
+.btn-back {
+    background: none; border: none;
+    color: #94a3b8; font-size: 12.5px;
+    cursor: pointer; display: inline-flex;
+    align-items: center; gap: 5px;
+    padding: 0; margin-bottom: 18px;
+    font-family: inherit;
+    transition: color .15s;
+}
+.btn-back:hover { color: #4f46e5; }
+
+.field-label {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .6px;
+    color: #64748b; display: block; margin-bottom: 6px;
+}
+
+.input-wrap { position: relative; margin-bottom: 4px; }
+.input-wrap .input-icon {
+    position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px; color: #94a3b8; pointer-events: none;
+}
+.input-wrap input {
+    width: 100%; padding: 0 42px 0 38px; height: 44px;
+    border: 1.5px solid #e2e8f0; border-radius: 10px;
+    background: #f8fafc; color: #0f172a;
+    font-size: 14px; font-family: inherit;
+    box-sizing: border-box; outline: none;
+    transition: all .2s;
+}
+.input-wrap input:focus {
+    border-color: #4f46e5; background: #fff;
+    box-shadow: 0 0 0 4px rgba(79,70,229,.1);
+}
+.input-wrap input::placeholder { color: #cbd5e1; }
+
+.eye-btn {
+    position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    color: #cbd5e1; padding: 4px; line-height: 1;
+    transition: color .15s;
+}
+.eye-btn:hover { color: #4f46e5; }
+
+.field-hint { font-size: 11px; color: #94a3b8; margin: 4px 0 14px; }
+
+.forgot-row { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+.forgot-row a { font-size: 12px; color: #4f46e5; font-weight: 500; }
+
+.btn-login {
+    width: 100%; height: 44px;
+    background: #4f46e5; color: #fff;
+    border: none; border-radius: 10px;
+    font-size: 14px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+    display: flex; align-items: center;
+    justify-content: center; gap: 8px;
+    transition: all .15s;
+    box-shadow: 0 4px 14px rgba(79,70,229,.35);
+}
+.btn-login:hover {
+    background: #4338ca;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(79,70,229,.45);
+}
+
+.divider {
+    text-align: center; font-size: 12px; color: #cbd5e1;
+    margin: 18px 0; position: relative;
+}
+.divider::before, .divider::after {
+    content: ''; position: absolute; top: 50%;
+    width: 40%; height: 1px; background: #f1f5f9;
+}
+.divider::before { left: 0; }
+.divider::after  { right: 0; }
+
+.register-cta { text-align: center; font-size: 13px; color: #64748b; }
+.register-cta a { color: #4f46e5; font-weight: 600; }
+
+.error-box {
+    background: #fef2f2; border: 1.5px solid #fecaca;
+    border-radius: 10px; padding: 11px 14px;
+    font-size: 13px; color: #991b1b;
+    display: flex; align-items: center; gap: 9px;
+    margin-bottom: 16px;
+}
+
+.login-footer {
+    padding: 14px 36px;
+    border-top: 1px solid #f1f5f9;
+    background: #f8fafc;
+    text-align: center;
+    font-size: 11.5px; color: #94a3b8;
+    display: flex; align-items: center;
+    justify-content: center; gap: 6px;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="login-card">
+
+    <div class="login-top">
+        <div class="login-logo"><i class="fas fa-heart"></i></div>
+        <h1 class="login-title">La Maison des Chaudoudoux</h1>
+        <p class="login-subtitle">Connectez-vous à votre espace personnel</p>
+    </div>
+
+    <div class="login-body">
+
+        {% if error %}
+        <div class="error-box">
+            <i class="fas fa-exclamation-circle"></i>
+            {{ error.messageKey | trans(error.messageData, 'security') }}
+        </div>
+        {% endif %}
+
+        {# Étape 1 : choix du profil #}
+        <div id="step1" class="login-step {{ not type ? 'active' : '' }}">
+
+            <p style="font-size:13px;color:#64748b;margin:0 0 16px;text-align:center;">Choisissez votre profil</p>
+
+            <div class="type-grid">
+                <button type="button" class="type-btn" onclick="choisir('INTER')">
+                    <div class="type-btn-icon"><i class="fas fa-id-card"></i></div>
+                    <span class="type-btn-label">Intervenant</span>
+                    <span class="type-btn-hint">Identifiant salarié</span>
+                </button>
+                <button type="button" class="type-btn" onclick="choisir('FAM')">
+                    <div class="type-btn-icon"><i class="fas fa-users"></i></div>
+                    <span class="type-btn-label">Famille</span>
+                    <span class="type-btn-hint">Code PM ou PGE</span>
+                </button>
+            </div>
+
+            <div class="divider">ou</div>
+            <div class="register-cta">
+                Pas de compte ? <a href="{{ path('app_register') }}">Créer un compte</a>
+            </div>
+
+        </div>
+
+        {# Étape 2 : formulaire #}
+        <div id="step2" class="login-step {{ type ? 'active' : '' }}">
+
+            <button type="button" class="btn-back" onclick="retour()">
+                <i class="fas fa-arrow-left"></i> Changer de profil
+            </button>
+
+            <form method="post" action="{{ path('app_login') }}">
+                <input type="hidden" name="type" id="inputType" value="{{ type ?? '' }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+                <div class="mb-3">
+                    <label class="field-label" id="labelId">
+                        {{ type == 'INTER' ? 'Identifiant salarié' : 'Code client (PM ou PGE)' }}
+                    </label>
+                    <div class="input-wrap">
+                        <i class="fas fa-id-badge input-icon" id="iconId"></i>
+                        <input type="text" id="inputId" name="id"
+                               value="{{ last_username ?? '' }}"
+                               maxlength="{{ type == 'INTER' ? '21' : '7' }}"
+                               placeholder="{{ type == 'INTER' ? '1.85.06.75.123.456.78' : 'PGE1234' }}"
+                               autocomplete="username" required autofocus>
+                    </div>
+                    <p class="field-hint" id="hintId">
+                        {{ type == 'INTER' ? 'Format : 9.xx.xx.xx.xxx.xxx.xx' : 'Format : PGE1234 ou PM1234' }}
+                    </p>
+                </div>
+
+                <div class="mb-3">
+                    <label class="field-label">Mot de passe</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="inputPwd" name="password"
+                               placeholder="••••••••" autocomplete="current-password" required>
+                        <button type="button" class="eye-btn" onclick="togglePwd()">
+                            <i class="fas fa-eye" id="eyeIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="forgot-row">
+                    <a href="{{ path('mdp_oublie_mvc') }}"><i class="fas fa-key me-1"></i>Mot de passe oublié ?</a>
+                </div>
+
+                <button type="submit" class="btn-login">
+                    <i class="fas fa-sign-in-alt"></i> Se connecter
+                </button>
+            </form>
+
+            <div class="divider" style="margin-top:20px;">ou</div>
+            <div class="register-cta">
+                Pas de compte ? <a href="{{ path('app_register') }}">Créer un compte</a>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="login-footer">
+        <i class="fas fa-shield-alt"></i>
+        Connexion sécurisée — données chiffrées
+    </div>
+
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+const CONFIG = {
+    INTER: { label: 'Identifiant salarié', icon: 'fa-id-card', hint: 'Format : 9.xx.xx.xx.xxx.xxx.xx', max: 21, placeholder: '1.85.06.75.123.456.78', fmt: formatSS },
+    FAM:   { label: 'Code client (PM ou PGE)',    icon: 'fa-users',   hint: 'Format : PGE1234 ou PM1234',    max: 7,  placeholder: 'PGE1234',              fmt: formatFAM }
+};
+
+function choisir(type) {
+    const c = CONFIG[type];
+    document.getElementById('inputType').value     = type;
+    document.getElementById('labelId').textContent = c.label;
+    document.getElementById('iconId').className    = 'fas ' + c.icon + ' input-icon';
+    document.getElementById('inputId').placeholder = c.placeholder;
+    document.getElementById('inputId').maxLength   = c.max;
+    document.getElementById('hintId').textContent  = c.hint;
+    document.getElementById('inputId').value = '';
+    document.getElementById('step1').classList.remove('active');
+    document.getElementById('step2').classList.add('active');
+    document.getElementById('inputId').focus();
+}
+
+function retour() {
+    document.getElementById('step2').classList.remove('active');
+    document.getElementById('step1').classList.add('active');
+}
+
+function togglePwd() {
+    const i = document.getElementById('inputPwd');
+    const e = document.getElementById('eyeIcon');
+    i.type = i.type === 'password' ? 'text' : 'password';
+    e.className = i.type === 'text' ? 'fas fa-eye-slash' : 'fas fa-eye';
+}
+
+document.getElementById('inputId').addEventListener('input', () => {
+    const t = document.getElementById('inputType').value;
+    if (CONFIG[t]) CONFIG[t].fmt();
+});
+
+function formatSS() {
+    let v = document.getElementById('inputId').value.replace(/\D/g, '');
+    const b = [1,2,2,2,3,3,2];
+    let r = '', pos = 0;
+    for (let i = 0; i < b.length && pos < v.length; i++) {
+        if (i > 0) r += '.';
+        r += v.slice(pos, pos + b[i]);
+        pos += b[i];
+    }
+    document.getElementById('inputId').value = r;
+}
+
+function formatFAM() {
+    document.getElementById('inputId').value =
+        document.getElementById('inputId').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+</script>
+{% endblock %}

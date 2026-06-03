@@ -1,0 +1,635 @@
+{% extends 'base.html.twig' %}
+{% block title %}Planning — {{ user.nom }} {{ user.prenom }}{% endblock %}
+{% block page_title %}Mon planning{% endblock %}
+
+{% block body %}
+
+{% set moisLabels = {
+    1: 'Janvier', 2: 'Février', 3: 'Mars', 4: 'Avril',
+    5: 'Mai', 6: 'Juin', 7: 'Juillet', 8: 'Août',
+    9: 'Septembre', 10: 'Octobre', 11: 'Novembre', 12: 'Décembre'
+} %}
+{% set prestColors = {
+    'MENA': '#2ba88a',
+    'ENFA': '#4f8ef7',
+    'BURO': '#e07b2a',
+    'GE':   '#7c5cbf',
+    'DISP': '#8e8e8e',
+    'DRCT': '#c0392b'
+} %}
+{% set prestLabels = {
+    'MENA': 'Ménage',
+    'ENFA': 'Garde',
+    'BURO': 'Bureau',
+    'GE':   'Garde/Enf.',
+    'DISP': 'Disp.',
+    'DRCT': 'Direct'
+} %}
+
+{# ── Calcul grille période de facturation ────────────────────── #}
+{% set today         = 'now'|date('Y-m-d') %}
+{% set periodStartStr = periodStart|date('Y-m-d') %}
+{% set periodEndStr   = periodEnd|date('Y-m-d') %}
+{% set nbRows        = nbGridDays / 7 %}
+{% set prevMonthNum  = month == 1 ? 12 : month - 1 %}
+{% set prevYear      = month == 1 ? year - 1 : year %}
+
+{# ── En-tête page ────────────────────────────────────────────── #}
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Mon planning</h1>
+            <p>{{ planning|length }} jour{% if planning|length > 1 %}s{% endif %} de travail
+               · 25 {{ moisLabels[prevMonthNum] }} → 24 {{ moisLabels[month] }} {{ year }}</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <a href="{{ path('intervenant_qr_mvc', {id: user.id}) }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-qrcode"></i> Scanner QR
+            </a>
+            <a href="{{ path('intervenant_panel_mvc', {id: user.id}) }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Retour
+            </a>
+        </div>
+    </div>
+</div>
+
+{# ── Calendrier ──────────────────────────────────────────────── #}
+<div class="cal-wrapper">
+
+    {# Navigation #}
+    <div class="cal-nav">
+        <a href="{{ path('intervenant_planning_mvc', {id: user.id, mois: moisPrev}) }}" class="cal-nav-btn">
+            <i class="fas fa-chevron-left"></i>
+        </a>
+        <div class="cal-nav-title">
+            <span>{{ moisLabels[month] }} {{ year }}</span>
+            <span style="font-size:11px;color:var(--text-muted);display:block;">
+                25 {{ moisLabels[prevMonthNum]|slice(0,3) }} → 24 {{ moisLabels[month]|slice(0,3) }}
+            </span>
+            {% if moisOffset != moisCourant %}
+            <a href="{{ path('intervenant_planning_mvc', {id: user.id}) }}" class="cal-today-link">
+                <i class="fas fa-circle-dot"></i> Période courante
+            </a>
+            {% else %}
+            <span class="cal-today-badge"><i class="fas fa-circle" style="font-size:7px;vertical-align:2px;"></i> Période courante</span>
+            {% endif %}
+        </div>
+        <a href="{{ path('intervenant_planning_mvc', {id: user.id, mois: moisNext}) }}" class="cal-nav-btn">
+            <i class="fas fa-chevron-right"></i>
+        </a>
+    </div>
+
+    {# Légende #}
+    <div class="cal-legend">
+        {% for code, color in prestColors %}
+        <span class="cal-legend-item" style="--c:{{ color }};">
+            <span class="cal-legend-dot"></span>{{ prestLabels[code] ?? code }}
+        </span>
+        {% endfor %}
+        <span class="cal-legend-item" style="margin-left:auto;gap:10px;">
+            <span style="width:12px;height:10px;border-left:3px solid #555;background:#f2f2f2;border-radius:3px;display:inline-block;"></span><span style="font-size:11px;color:var(--text-muted);">Réel</span>
+            <span style="width:12px;height:10px;border-left:3px dashed #555;background:#f2f2f2;border-radius:3px;display:inline-block;margin-left:8px;opacity:.75;"></span><span style="font-size:11px;color:var(--text-muted);">Planifié</span>
+        </span>
+    </div>
+
+    {# Grille #}
+    <div class="cal-grid">
+
+        {# Jours de la semaine #}
+        {% for label in ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] %}
+        <div class="cal-dow{% if loop.index >= 6 %} cal-weekend{% endif %}">{{ label }}</div>
+        {% endfor %}
+
+        {# Cellules #}
+        {% for row in 0..(nbRows - 1) %}
+        {% for dow in 1..7 %}
+        {% set offset     = row * 7 + dow - 1 %}
+        {% set cellDate   = gridStart|date_modify('+' ~ offset ~ ' days') %}
+        {% set dateKey    = cellDate|date('Y-m-d') %}
+        {% set isInPeriod = dateKey >= periodStartStr and dateKey <= periodEndStr %}
+        {% set isToday    = dateKey == today %}
+        {% set isPast     = isInPeriod and dateKey < today %}
+        {% set items      = isInPeriod and planning[dateKey] is defined ? planning[dateKey] : [] %}
+
+        <div class="cal-cell{% if not isInPeriod %} cal-cell-out{% endif %}{% if isToday %} cal-cell-today{% endif %}{% if isPast %} cal-cell-past{% endif %}{% if dow >= 6 %} cal-weekend{% endif %}"
+             {% if items|length > 0 %}onclick="openDay('{{ dateKey }}')" title="Voir les interventions du {{ cellDate|date('d') }} {{ moisLabels[cellDate|date('n')] }}"{% endif %}>
+
+            {# Numéro du jour #}
+            <div class="cal-day-num{% if isToday %} cal-day-num-today{% endif %}{% if not isInPeriod %} cal-day-num-out{% endif %}">
+                {{ cellDate|date('j') }}
+            </div>
+
+            {# Événements #}
+            {% if items|length > 0 %}
+            <div class="cal-events">
+                {% for item in items %}
+                {% set isConf  = item.type == 'confirmed' %}
+                {% set typeCode = isConf ? item.horaire.typePresta : item.proposer.typePrestation %}
+                {% set color    = prestColors[typeCode] ?? '#8e8e8e' %}
+                {% set hD = isConf ? item.horaire.heureDebutPresta : item.proposer.heureDebut %}
+                {% set hF = isConf ? item.horaire.heureFinPresta   : item.proposer.heureFin %}
+                <div class="cal-event{% if not isConf %} cal-event-planned{% endif %}"
+                     style="--ev-color:{{ color }};"
+                     onclick="event.stopPropagation();openPlanning(this)"
+                     data-type="{{ item.type }}"
+                     data-couleur="{{ color }}"
+                     data-date="{{ item.date|date('Y-m-d') }}"
+                     data-jour="{{ item.date|date('D')|replace({'Mon':'Lundi','Tue':'Mardi','Wed':'Mercredi','Thu':'Jeudi','Fri':'Vendredi','Sat':'Samedi','Sun':'Dimanche'}) }}"
+                     data-heure-debut="{{ hD ? hD|date('H:i') : '' }}"
+                     data-heure-fin="{{ hF ? hF|date('H:i') : '' }}"
+                     data-famille="{{ item.famille ? famille_label(item.famille) : '' }}"
+                     data-numero="{{ item.famille ? item.famille.numeroFamille : '' }}"
+                     data-adresse="{{ item.famille ? item.famille.adresse : '' }}"
+                     data-ville="{{ item.famille ? item.famille.ville : '' }}"
+                     data-tel="{{ item.famille ? item.famille.telDom : '' }}"
+                     data-prestation="{{ isConf ? typeCode : item.proposer.labelPrestation }}"
+                     data-type-code="{{ typeCode }}"
+                     {% if isConf %}
+                     data-horaire-id="{{ item.horaire.id }}"
+                     data-declared="{{ item.horaire.declarerLeFam ? '1' : '0' }}"
+                     {% else %}
+                     data-statut="{{ item.proposer.statut ?? '' }}"
+                     data-date-deb="{{ item.proposer.dateDeb|date('Y') > 1950 ? item.proposer.dateDeb|date('Y-m-d') : '' }}"
+                     data-date-fin="{{ item.proposer.dateFin ? item.proposer.dateFin|date('Y-m-d') : '' }}"
+                     data-modalites="{{ item.proposer.modalites ?? '' }}"
+                     data-valid-interv="{{ item.proposer.validIntervenant ? '1' : '0' }}"
+                     data-valid-famille="{{ item.proposer.validFamille ? '1' : '0' }}"
+                     {% endif %}
+                >
+                    <span class="cal-event-time">{{ hD ? hD|date('H:i') : '?' }}</span>
+                    <span class="cal-event-label">{{ item.famille ? famille_label(item.famille)|slice(0,12) : typeCode }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+        </div>
+        {% endfor %}
+        {% endfor %}
+
+    </div>{# /cal-grid #}
+
+</div>{# /cal-wrapper #}
+
+{# ── Récap liste du mois ─────────────────────────────────────── #}
+{% if planning|length > 0 %}
+<div style="margin-top:28px;">
+    <div class="section-label"><i class="fas fa-list-ul"></i> Détail du mois</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+    {% for dateKey, items in planning %}
+    {% set date   = items[0].date %}
+    {% set isT    = (dateKey == today) %}
+    {% set isPast = (dateKey < today) %}
+    <div class="card day-row{% if isT %} day-row-today{% endif %}{% if isPast %} day-row-past{% endif %}">
+        <div class="card-body" style="padding:12px 18px;">
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                <div class="day-badge{% if isT %} day-badge-today{% endif %}">
+                    <div class="day-badge-dow">
+                        {{ date|date('D')|replace({'Mon':'Lun','Tue':'Mar','Wed':'Mer','Thu':'Jeu','Fri':'Ven','Sat':'Sam','Sun':'Dim'}) }}
+                    </div>
+                    <div class="day-badge-num">{{ date|date('d') }}</div>
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:700;font-size:13.5px;color:var(--text-primary);">
+                        {{ date|date('D')|replace({'Mon':'Lundi','Tue':'Mardi','Wed':'Mercredi','Thu':'Jeudi','Fri':'Vendredi','Sat':'Samedi','Sun':'Dimanche'}) }}
+                        {{ date|date('d') }} {{ moisLabels[date|date('n')] }}
+                        {% if isT %}<span class="badge badge-info" style="margin-left:4px;font-size:9px;">Aujourd'hui</span>{% endif %}
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">
+                    {% for item in items %}
+                    {% set isConf   = item.type == 'confirmed' %}
+                    {% set typeCode = isConf ? item.horaire.typePresta : item.proposer.typePrestation %}
+                    {% set color    = prestColors[typeCode] ?? '#8e8e8e' %}
+                    {% set hD = isConf ? item.horaire.heureDebutPresta : item.proposer.heureDebut %}
+                    {% set hF = isConf ? item.horaire.heureFinPresta   : item.proposer.heureFin %}
+                    <button class="ev-chip{% if not isConf %} ev-chip-planned{% endif %}"
+                            style="--c:{{ color }};"
+                            onclick="openPlanning(this)"
+                            data-type="{{ item.type }}"
+                            data-couleur="{{ color }}"
+                            data-date="{{ item.date|date('Y-m-d') }}"
+                            data-jour="{{ item.date|date('D')|replace({'Mon':'Lundi','Tue':'Mardi','Wed':'Mercredi','Thu':'Jeudi','Fri':'Vendredi','Sat':'Samedi','Sun':'Dimanche'}) }}"
+                            data-heure-debut="{{ hD ? hD|date('H:i') : '' }}"
+                            data-heure-fin="{{ hF ? hF|date('H:i') : '' }}"
+                            data-famille="{{ item.famille ? famille_label(item.famille) : '' }}"
+                            data-numero="{{ item.famille ? item.famille.numeroFamille : '' }}"
+                            data-adresse="{{ item.famille ? item.famille.adresse : '' }}"
+                            data-ville="{{ item.famille ? item.famille.ville : '' }}"
+                            data-tel="{{ item.famille ? item.famille.telDom : '' }}"
+                            data-prestation="{{ isConf ? typeCode : item.proposer.labelPrestation }}"
+                            data-type-code="{{ typeCode }}"
+                            {% if isConf %}
+                            data-horaire-id="{{ item.horaire.id }}"
+                            data-declared="{{ item.horaire.declarerLeFam ? '1' : '0' }}"
+                            {% else %}
+                            data-statut="{{ item.proposer.statut ?? '' }}"
+                            data-date-deb="{{ item.proposer.dateDeb|date('Y') > 1950 ? item.proposer.dateDeb|date('Y-m-d') : '' }}"
+                            data-date-fin="{{ item.proposer.dateFin ? item.proposer.dateFin|date('Y-m-d') : '' }}"
+                            data-modalites="{{ item.proposer.modalites ?? '' }}"
+                            data-valid-interv="{{ item.proposer.validIntervenant ? '1' : '0' }}"
+                            data-valid-famille="{{ item.proposer.validFamille ? '1' : '0' }}"
+                            {% endif %}
+                    >
+                        <span style="font-weight:800;">{{ hD ? hD|date('H:i') : '?' }}</span>
+                        {% if hF %}→ {{ hF|date('H:i') }}{% endif %}
+                        · {{ item.famille ? famille_label(item.famille) : typeCode }}
+                        <span class="ev-chip-badge">{{ typeCode }}</span>
+                    </button>
+                    {% endfor %}
+                    </div>
+                </div>
+                {# Total heures de la journée #}
+                {% set totalMin = 0 %}
+                {% for it in items %}
+                    {% set itConf = it.type == 'confirmed' %}
+                    {% set itD = itConf ? it.horaire.heureDebutPresta : it.proposer.heureDebut %}
+                    {% set itF = itConf ? it.horaire.heureFinPresta   : it.proposer.heureFin %}
+                    {% if itD and itF %}
+                        {% set dMin = itD|date('H') * 60 + itD|date('i') %}
+                        {% set fMin = itF|date('H') * 60 + itF|date('i') %}
+                        {% if fMin > dMin %}{% set totalMin = totalMin + (fMin - dMin) %}{% endif %}
+                    {% endif %}
+                {% endfor %}
+                {% if totalMin > 0 %}
+                <div style="flex-shrink:0;text-align:center;padding:6px 12px;background:var(--bg-secondary);border-radius:8px;min-width:52px;">
+                    <div style="font-size:17px;font-weight:800;color:var(--text-primary);">{{ totalMin // 60 }}h{% if totalMin % 60 > 0 %}{{ '%02d'|format(totalMin % 60) }}{% endif %}</div>
+                    <div style="font-size:10px;color:var(--text-muted);">ce jour</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Modal détail créneau ──────────────────────────────────── #}
+<div id="planningModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeModal()">
+    <div style="background:#fff;border-radius:14px;width:100%;max-width:420px;box-shadow:0 12px 40px rgba(0,0,0,.22);overflow:hidden;animation:modalIn .18s ease;">
+        <div id="modalHeader" style="padding:20px 22px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <div id="modalJour" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;opacity:.8;margin-bottom:4px;"></div>
+                <div id="modalHoraire" style="font-size:24px;font-weight:800;"></div>
+            </div>
+            <button onclick="closeModal()" style="background:rgba(255,255,255,.25);border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:17px;color:inherit;display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div style="padding:20px 22px;">
+            <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:18px;">
+                <div id="modalFamilleIcon" style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fas fa-house-user" style="font-size:18px;"></i>
+                </div>
+                <div>
+                    <div id="modalFamilleNom" style="font-size:16px;font-weight:700;color:var(--text-primary);"></div>
+                    <div id="modalFamilleNumero" style="font-size:11px;color:var(--text-muted);font-family:monospace;"></div>
+                </div>
+            </div>
+            <div style="display:grid;gap:11px;">
+                <div id="rowAdresse" style="display:none;align-items:flex-start;gap:10px;">
+                    <i class="fas fa-map-marker-alt" style="width:16px;text-align:center;color:var(--text-muted);margin-top:2px;"></i>
+                    <span id="modalAdresse" style="font-size:13px;"></span>
+                </div>
+                <div id="rowTel" style="display:none;align-items:center;gap:10px;">
+                    <i class="fas fa-phone" style="width:16px;text-align:center;color:var(--text-muted);"></i>
+                    <a id="modalTel" href="#" style="font-size:13px;color:var(--primary);"></a>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <i class="fas fa-briefcase" style="width:16px;text-align:center;color:var(--text-muted);"></i>
+                    <span id="modalPrestation" style="font-size:13px;font-weight:500;"></span>
+                </div>
+                <div id="rowStatut" style="display:none;align-items:center;gap:10px;">
+                    <i class="fas fa-info-circle" style="width:16px;text-align:center;color:var(--text-muted);"></i>
+                    <span id="modalStatut"></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <i class="fas fa-calendar-alt" style="width:16px;text-align:center;color:var(--text-muted);"></i>
+                    <span id="modalPeriode" style="font-size:13px;"></span>
+                </div>
+                <div style="display:flex;gap:16px;padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+                    <div style="text-align:center;flex:1;">
+                        <div style="font-size:10.5px;color:var(--text-muted);margin-bottom:5px;">Vos heures</div>
+                        <div id="modalValidInterv" style="font-size:24px;"></div>
+                    </div>
+                    <div style="text-align:center;flex:1;">
+                        <div style="font-size:10.5px;color:var(--text-muted);margin-bottom:5px;">Saisie famille</div>
+                        <div id="modalValidFamille" style="font-size:24px;"></div>
+                    </div>
+                </div>
+                <div id="rowModalites" style="display:none;align-items:flex-start;gap:10px;">
+                    <i class="fas fa-sticky-note" style="width:16px;text-align:center;color:var(--text-muted);margin-top:2px;"></i>
+                    <span id="modalModalites" style="font-size:13px;font-style:italic;color:var(--text-muted);"></span>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:20px;">
+                <a id="modalBtnSaisir" href="#" class="btn btn-primary" style="flex:1;justify-content:center;">
+                    <i class="fas fa-plus"></i> Saisir des heures
+                </a>
+                <button onclick="closeModal()" class="btn btn-secondary" style="flex:1;justify-content:center;">Fermer</button>
+            </div>
+            <div id="modalBtnConfirmedNote" style="display:none;margin-top:8px;font-size:11px;color:var(--text-muted);text-align:center;">
+                Prestation déjà saisie — cliquez pour voir ou modifier.
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ── Calendrier ── */
+.cal-wrapper {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+.cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+.cal-nav-btn {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: background .15s, box-shadow .15s;
+}
+.cal-nav-btn:hover { background: var(--primary-light); box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+.cal-nav-title { text-align: center; }
+.cal-nav-title > span { display: block; font-size: 17px; font-weight: 700; color: var(--text-primary); }
+.cal-today-link { font-size: 11.5px; color: var(--primary); text-decoration: none; margin-top: 2px; display: inline-block; }
+.cal-today-badge { font-size: 11.5px; color: var(--primary); font-weight: 600; margin-top: 2px; display: inline-block; }
+
+.cal-legend {
+    display: flex; flex-wrap: wrap; gap: 8px 16px;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+.cal-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-muted); }
+.cal-legend-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex-shrink: 0; }
+
+.cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+.cal-dow {
+    padding: 9px 4px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+.cal-dow:last-child { border-right: none; }
+.cal-weekend { background: #fafafa; }
+
+.cal-cell {
+    min-height: 88px;
+    padding: 6px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    transition: background .12s;
+    position: relative;
+}
+.cal-cell:last-child,
+.cal-grid > .cal-cell:nth-child(7n) { border-right: none; }
+.cal-cell[onclick] { cursor: pointer; }
+.cal-cell[onclick]:hover { background: var(--primary-light, #eef4ff); }
+.cal-cell-out { background: #f8f8fa; }
+.cal-cell-today { background: #eef4ff; }
+.cal-cell-today:hover { background: #dceaff; }
+.cal-cell-past { opacity: .65; }
+
+.cal-day-num {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+}
+.cal-day-num-today {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 700;
+}
+.cal-day-num-out { color: #bbb; font-weight: 400; }
+
+.cal-events { display: flex; flex-direction: column; gap: 3px; }
+.cal-event {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: color-mix(in srgb, var(--ev-color) 12%, white);
+    border-left: 3px solid var(--ev-color);
+    border-radius: 4px;
+    padding: 2px 5px;
+    cursor: pointer;
+    transition: filter .12s;
+    overflow: hidden;
+}
+.cal-event:hover { filter: brightness(.92); }
+.cal-event-planned { border-left-style: dashed; opacity: .85; }
+.cal-event-time { font-size: 10px; font-weight: 700; color: var(--ev-color); flex-shrink: 0; }
+.cal-event-label { font-size: 10px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Liste du bas ── */
+.section-label {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--text-muted);
+}
+.section-label i { margin-right: 6px; }
+
+.day-row { transition: opacity .1s; }
+.day-row-past { opacity: .72; }
+.day-row-today { border-left: 3px solid var(--primary) !important; }
+
+.day-badge {
+    width: 44px; height: 44px; flex-shrink: 0;
+    border-radius: 10px;
+    background: var(--bg-secondary);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.day-badge-today { background: var(--primary); }
+.day-badge-dow { font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+.day-badge-today .day-badge-dow { color: rgba(255,255,255,.75); }
+.day-badge-num { font-size: 20px; font-weight: 800; color: var(--text-primary); line-height: 1.1; }
+.day-badge-today .day-badge-num { color: #fff; }
+
+.ev-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: color-mix(in srgb, var(--c) 10%, white);
+    border: 1px solid color-mix(in srgb, var(--c) 25%, white);
+    border-left: 3px solid var(--c);
+    border-radius: 6px;
+    padding: 4px 9px;
+    font-size: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: filter .12s, box-shadow .12s;
+}
+.ev-chip:hover { filter: brightness(.93); box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+.ev-chip-planned { border-left-style: dashed; opacity: .85; }
+.ev-chip-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--c);
+    background: color-mix(in srgb, var(--c) 15%, white);
+    border-radius: 4px;
+    padding: 1px 5px;
+}
+
+@keyframes modalIn {
+    from { opacity:0; transform:translateY(-14px) scale(.97); }
+    to   { opacity:1; transform:none; }
+}
+
+@media (max-width: 600px) {
+    .cal-cell { min-height: 64px; padding: 4px; }
+    .cal-event-label { display: none; }
+    .cal-event { padding: 2px 3px; }
+    .cal-day-num { font-size: 12px; width: 22px; height: 22px; }
+}
+</style>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+const SAISIR_URL = "{{ path('intervenant_suivie_mvc', {id: user.id}) }}";
+
+function openDay(dateKey) { /* cellule jour — ouverture possible future */ }
+
+function openPlanning(el) {
+    const d = el.dataset;
+    const c = d.couleur;
+
+    document.getElementById('modalHeader').style.cssText +=
+        `;background:${c};color:#fff;`;
+    document.getElementById('modalJour').textContent    = d.jour + ' ' + d.date;
+    document.getElementById('modalHoraire').textContent = d.heureFin
+        ? d.heureDebut + ' – ' + d.heureFin
+        : d.heureDebut;
+
+    document.getElementById('modalFamilleNom').textContent    = d.famille || '—';
+    document.getElementById('modalFamilleNumero').textContent = d.numero  || '';
+    const icon = document.getElementById('modalFamilleIcon');
+    icon.style.background = c + '22';
+    icon.querySelector('i').style.color = c;
+
+    setRow('rowAdresse', 'modalAdresse',
+        d.adresse ? d.adresse + (d.ville ? ', ' + d.ville : '') : '');
+
+    if (d.tel) {
+        document.getElementById('rowTel').style.display = 'flex';
+        const a = document.getElementById('modalTel');
+        a.textContent = d.tel; a.href = 'tel:' + d.tel;
+    } else {
+        document.getElementById('rowTel').style.display = 'none';
+    }
+
+    document.getElementById('modalPrestation').textContent = d.prestation || '—';
+
+    if (d.type === 'confirmed') {
+        document.getElementById('rowStatut').style.display = 'none';
+        document.getElementById('modalPeriode').textContent = 'Prestation réelle saisie';
+        const decl = d.declared === '1';
+        document.getElementById('modalValidInterv').innerHTML =
+            '<i class="fas fa-check-circle" style="color:#2ba88a;"></i>';
+        document.getElementById('modalValidFamille').innerHTML =
+            decl ? '<i class="fas fa-check-circle" style="color:#2ba88a;"></i>'
+                 : '<i class="fas fa-hourglass-half" style="color:#e07b2a;"></i>';
+    } else {
+        if (d.statut) {
+            document.getElementById('rowStatut').style.display = 'flex';
+            const ok = d.statut.toLowerCase().includes('valid');
+            document.getElementById('modalStatut').innerHTML =
+                `<span class="badge ${ok ? 'badge-success' : 'badge-warning'}">${d.statut}</span>`;
+        } else {
+            document.getElementById('rowStatut').style.display = 'none';
+        }
+
+        let periode = d.dateDeb ? 'Depuis le ' + d.dateDeb : 'Début non défini';
+        if (d.dateFin) periode += ' → ' + d.dateFin;
+        document.getElementById('modalPeriode').textContent = periode;
+
+        document.getElementById('modalValidInterv').innerHTML =
+            d.validInterv === '1'
+                ? '<i class="fas fa-check-circle" style="color:#2ba88a;"></i>'
+                : '<i class="fas fa-hourglass-half" style="color:#e07b2a;"></i>';
+        document.getElementById('modalValidFamille').innerHTML =
+            d.validFamille === '1'
+                ? '<i class="fas fa-check-circle" style="color:#2ba88a;"></i>'
+                : '<i class="fas fa-hourglass-half" style="color:#e07b2a;"></i>';
+    }
+
+    setRow('rowModalites', 'modalModalites', d.modalites || '');
+   
+    const btnSaisir = document.getElementById('modalBtnSaisir');
+    const noteConfirmed = document.getElementById('modalBtnConfirmedNote');
+
+    if (d.type === 'confirmed' && d.horaireId) {
+        btnSaisir.href = SAISIR_URL + '?edite=' + d.horaireId;
+        btnSaisir.innerHTML = '<i class="fas fa-edit"></i> Voir / Modifier';
+        noteConfirmed.style.display = 'block';
+    } else if (d.type === 'planned') {
+        const qs = new URLSearchParams();
+        if (d.numero)     qs.set('famille', d.numero);
+        if (d.typeCode)   qs.set('type',    d.typeCode);
+        if (d.date)       qs.set('date',    d.date);
+        if (d.heureDebut) qs.set('hdeb',    d.heureDebut);
+        if (d.heureFin)   qs.set('hfin',    d.heureFin);
+        btnSaisir.href = SAISIR_URL + '?' + qs.toString();
+        btnSaisir.innerHTML = '<i class="fas fa-magic"></i> Pré-remplir et saisir';
+        noteConfirmed.style.display = 'none';
+    } else {
+        btnSaisir.href = SAISIR_URL;
+        btnSaisir.innerHTML = '<i class="fas fa-plus"></i> Saisir des heures';
+        noteConfirmed.style.display = 'none';
+    }
+
+
+    const modal = document.getElementById('planningModal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function setRow(rowId, fieldId, value) {
+    const row = document.getElementById(rowId);
+    if (value) { row.style.display = 'flex'; document.getElementById(fieldId).textContent = value; }
+    else { row.style.display = 'none'; }
+}
+
+function closeModal() {
+    document.getElementById('planningModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// Scroll vers aujourd'hui dans la liste
+document.addEventListener('DOMContentLoaded', () => {
+    const todayRow = document.querySelector('.day-row-today');
+    if (todayRow) todayRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+</script>
+{% endblock %}

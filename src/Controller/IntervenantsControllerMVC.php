@@ -2,148 +2,342 @@
 
 namespace App\Controller;
 
-use App\Entity\Intervenant;
+use App\Service\AuthService;
+use App\Service\FamilleIntervenantService;
+use App\Service\FamilleService;
+use App\Service\HoraireinterService;
 use App\Service\IntervenantService;
-use App\Security\Auth;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-/**
- * Contrôleur refactorisé selon le pattern MVC
- * Remplace IntervenantsController.php
- */
 final class IntervenantsControllerMVC extends AbstractController
 {
     public function __construct(
-        private IntervenantService $intervenantService
+        private IntervenantService        $intervenantService,
+        private AuthService               $authService,
+        private HoraireinterService       $horaireService,
+        private FamilleService            $familleService,
+        private FamilleIntervenantService $familleIntervenantService,
     ) {}
+
+    // ── Admin : liste ─────────────────────────────────────────────────────────
 
     #[Route('/intervenants-mvc', name: 'intervenants_mvc')]
     public function intervenants(Request $request): Response
     {
-        $auth = new Auth($request->getSession());
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
 
-        if (!$auth->isAdmin()) {
+        if (!$this->authService->isAdmin()) {
             return $this->redirectToRoute('intervenant_panel_mvc', [
-                'id' => $auth->intervenant_id()
+                'id' => $this->authService->intervenant_id()
             ]);
         }
 
         $users = $this->intervenantService->getTousLesIntervenants();
 
-        return $this->render('intervenants/index.html.twig', [
-            'auth' => $auth->check(),
+        return $this->render('admin/intervenants/list.html.twig', [
+            'auth'  => $this->authService->check(),
             'users' => $users,
         ]);
     }
 
+    // ── Dashboard intervenant ─────────────────────────────────────────────────
+
     #[Route('/intervenants-mvc/{id}/panel', name: 'intervenant_panel_mvc')]
     public function intervenantPanel(int $id, Request $request): Response
     {
-        $auth = new Auth($request->getSession());
-
-        if (!$auth->isAdmin() && $id != $auth->intervenant_id()) {
-            return $this->redirectToRoute('intervenant_panel_mvc', [
-                'id' => $auth->intervenant_id()
-            ]);
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
         }
+
+        $id = $this->resolveId($id);
 
         $user = $this->intervenantService->getInfosIntervenant($id);
-
         if (!$user) {
-            throw $this->createNotFoundException("Intervenant introuvable");
+            throw $this->createNotFoundException('Intervenant introuvable');
         }
 
-        return $this->render('intervenants/panel.html.twig', [
-            'auth' => $auth->check(),
-            'user' => $user,
+        $prochainCreneau = $this->familleIntervenantService->getProchainCreneau($id);
+        $familles        = $this->familleIntervenantService->getFamillesForIntervenant($id);
+        $stats           = $this->horaireService->getDashboardStats($id);
+        $alertes         = $this->horaireService->getRelevesASigner($id);
+        $dernieres       = array_slice(
+            $this->horaireService->getPrestationsParIntervenant($id),
+            0, 5
+        );
+
+        return $this->render('intervenants/dashboard.html.twig', [
+            'auth'            => $this->authService->check(),
+            'user'            => $user,
+            'stats'           => $stats,
+            'alertes'         => $alertes,
+            'dernieres'       => $dernieres,
+            'prochainCreneau' => $prochainCreneau,
+            'familles'        => $familles,
         ]);
     }
+
+    // ── Profil ────────────────────────────────────────────────────────────────
 
     #[Route('/intervenants-mvc/{id}/profile', name: 'intervenant_profile_mvc')]
     public function intervenantProfile(int $id, Request $request): Response
     {
-        $auth = new Auth($request->getSession());
-
-        if (!$auth->isAdmin() && $id != $auth->intervenant_id()) {
-            return $this->redirectToRoute('intervenant_profile_mvc', [
-                'id' => $auth->intervenant_id()
-            ]);
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
         }
 
+        $id   = $this->resolveId($id);
         $user = $this->intervenantService->getInfosIntervenant($id);
-
         if (!$user) {
-            throw $this->createNotFoundException("Intervenant introuvable");
+            throw $this->createNotFoundException('Intervenant introuvable');
         }
 
         return $this->render('intervenants/profile.html.twig', [
-            'auth' => $auth->check(),
+            'auth' => $this->authService->check(),
             'user' => $user,
         ]);
     }
+
+    // ── Heures saisies ────────────────────────────────────────────────────────
 
     #[Route('/intervenants-mvc/{id}/heures', name: 'intervenant_heures_mvc')]
     public function heures(int $id, Request $request): Response
     {
-        $auth = new Auth($request->getSession());
-
-        if (!$auth->isAdmin() && $id != $auth->intervenant_id()) {
-            return $this->redirectToRoute('intervenant_heures_mvc', [
-                'id' => $auth->intervenant_id()
-            ]);
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
         }
 
+        $id   = $this->resolveId($id);
         $user = $this->intervenantService->getInfosIntervenant($id);
-
         if (!$user) {
-            throw $this->createNotFoundException("Intervenant introuvable");
+            throw $this->createNotFoundException('Intervenant introuvable');
         }
 
-        // Pour les heures, nous aurions besoin d'un service dédié
-        $prestations = []; // TODO: Implémenter avec un PrestationService
+        $prestations = $this->horaireService->getPrestationsParIntervenant($id);
 
-        return $this->render('intervenants/heures.html.twig', [
-            'auth' => $auth->check(),
-            'user' => $user,
+        $nbrJours   = $this->horaireService->getNbrJourSaisie();
+        $dateLimite = (new \DateTime('today'))->modify('-' . $nbrJours . ' days');
+
+        return $this->render('intervenants/hours/list.html.twig', [
+            'auth'        => $this->authService->check(),
+            'user'        => $user,
             'prestations' => $prestations,
+            'isAdmin'     => $this->authService->isAdmin(),
+            'dateLimite'  => $dateLimite,
         ]);
     }
+
+    // ── Saisie / suivi des heures ─────────────────────────────────────────────
 
     #[Route('/intervenants-mvc/{id}/suivie', name: 'intervenant_suivie_mvc')]
     public function suivie(int $id, Request $request): Response
     {
-        $auth = new Auth($request->getSession());
-
-        if (!$auth->isAdmin() && $id != $auth->intervenant_id()) {
-            return $this->redirectToRoute('intervenant_suivie_mvc', [
-                'id' => $auth->intervenant_id()
-            ]);
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
         }
 
+        $id   = $this->resolveId($id);
         $user = $this->intervenantService->getInfosIntervenant($id);
-
         if (!$user) {
-            throw $this->createNotFoundException("Intervenant introuvable");
+            throw $this->createNotFoundException('Intervenant introuvable');
         }
 
-        return $this->render('intervenants/suivie.html.twig', [
-            'auth' => $auth->check(),
-            'user' => $user,
+        $familles     = $this->familleIntervenantService->getFamillesForIntervenant($id);
+        $assignations = $this->familleIntervenantService->getAssignationsActives($id);
+
+        // Plage de facturation courante : 25 du mois précédent → aujourd'hui
+        $today = new \DateTime('today');
+        $day   = (int)$today->format('d');
+        if ($day >= 25) {
+            $billingStart = new \DateTime($today->format('Y-m') . '-25');
+        } else {
+            $billingStart = (clone $today)->modify('first day of last month')->modify('+24 days');
+        }
+
+        return $this->render('intervenants/hours/followup.html.twig', [
+            'auth'              => $this->authService->check(),
+            'user'              => $user,
+            'isAdmin'           => $this->authService->isAdmin(),
+            'familles'          => $familles,
+            'assignations'      => $assignations,
+            'periodeDebut'      => $billingStart,
+            'editId'            => $request->query->get('edite'),
+            'toutesLesFamilles' => $this->familleService->getToutesLesFamilles(),
         ]);
     }
+
+    // ── Planning mensuel ──────────────────────────────────────────────────────
+
+    #[Route('/intervenants-mvc/{id}/planning', name: 'intervenant_planning_mvc')]
+    public function planning(int $id, Request $request): Response
+    {
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
+
+        $id   = $this->resolveId($id);
+        $user = $this->intervenantService->getInfosIntervenant($id);
+        if (!$user) {
+            throw $this->createNotFoundException('Intervenant introuvable');
+        }
+
+        $now       = new \DateTime();
+        $moisParam = $request->query->get('mois');
+        if ($moisParam && preg_match('/^\d{4}-\d{2}$/', $moisParam)) {
+            [$year, $month] = array_map('intval', explode('-', $moisParam));
+        } else {
+            // Période de facturation courante : si on est après le 24, la nouvelle période
+            // a commencé le 25 du mois courant, donc le mois de référence est le mois suivant.
+            $nowDay = (int)$now->format('d');
+            if ($nowDay >= 25) {
+                $billingRef = (clone $now)->modify('+1 month');
+            } else {
+                $billingRef = clone $now;
+            }
+            $year  = (int)$billingRef->format('Y');
+            $month = (int)$billingRef->format('m');
+        }
+
+        // Plage de facturation : 25 du mois M-1 → 24 du mois M
+        $periodStart = (new \DateTime(sprintf('%04d-%02d-01', $year, $month)))
+            ->modify('-1 month')
+            ->modify('+24 days'); // = 25 du mois précédent
+        $periodEnd = new \DateTime(sprintf('%04d-%02d-24', $year, $month));
+
+        // Grille : du lundi de la semaine contenant periodStart
+        //          au dimanche de la semaine contenant periodEnd
+        $startDow  = (int)$periodStart->format('N'); // 1=Lun … 7=Dim
+        $gridStart = (clone $periodStart)->modify('-' . ($startDow - 1) . ' days');
+        $endDow    = (int)$periodEnd->format('N');
+        $gridEnd   = (clone $periodEnd)->modify('+' . (7 - $endDow) . ' days');
+        $nbGridDays = ((int)$gridStart->diff($gridEnd)->days) + 1;
+
+        $moisOffset  = sprintf('%04d-%02d', $year, $month);
+        $moisPrev    = (new \DateTime(sprintf('%04d-%02d-01', $year, $month)))->modify('-1 month')->format('Y-m');
+        $moisNext    = (new \DateTime(sprintf('%04d-%02d-01', $year, $month)))->modify('+1 month')->format('Y-m');
+
+        // Période de facturation "courante" pour le badge "Période courante"
+        $nowDay2 = (int)$now->format('d');
+        $nowRef  = $nowDay2 >= 25 ? (clone $now)->modify('+1 month') : clone $now;
+        $moisCourant = $nowRef->format('Y-m');
+
+        $planning = $this->familleIntervenantService->getPlanningMensuel($periodStart, $periodEnd, $id);
+        $familles = $this->familleIntervenantService->getFamillesForIntervenant($id);
+
+        return $this->render('intervenants/planning.html.twig', [
+            'auth'         => $this->authService->check(),
+            'user'         => $user,
+            'planning'     => $planning,
+            'familles'     => $familles,
+            'year'         => $year,
+            'month'        => $month,
+            'periodStart'  => $periodStart,
+            'periodEnd'    => $periodEnd,
+            'gridStart'    => $gridStart,
+            'nbGridDays'   => $nbGridDays,
+            'moisOffset'   => $moisOffset,
+            'moisPrev'     => $moisPrev,
+            'moisNext'     => $moisNext,
+            'moisCourant'  => $moisCourant,
+        ]);
+    }
+
+    // ── Scanner QR ────────────────────────────────────────────────────────────
+
+    #[Route('/intervenants-mvc/{id}/qr-scan', name: 'intervenant_qr_mvc')]
+    public function qrScan(int $id, Request $request): Response
+    {
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
+
+        $id   = $this->resolveId($id);
+        $user = $this->intervenantService->getInfosIntervenant($id);
+        if (!$user) {
+            throw $this->createNotFoundException('Intervenant introuvable');
+        }
+
+        $familles     = $this->familleIntervenantService->getFamillesForIntervenant($id);
+        $assignations = $this->familleIntervenantService->getAssignationsActives($id);
+
+        return $this->render('intervenants/qr-scan.html.twig', [
+            'auth'        => $this->authService->check(),
+            'user'        => $user,
+            'familles'    => $familles,
+            'assignations'=> $assignations,
+        ]);
+    }
+
+    // ── API QR (AJAX POST) ────────────────────────────────────────────────────
+
+    #[Route('/intervenants-mvc/{id}/qr-api', name: 'intervenant_qr_api_mvc', methods: ['POST'])]
+    public function qrApi(int $id, Request $request): JsonResponse
+    {
+        if (!$this->authService->check()) {
+            return $this->json(['success' => false, 'error' => 'Non authentifié'], 401);
+        }
+
+        if (!$this->authService->isAdmin() && !$this->authService->isIntervenantAccepted()) {
+            return $this->json(['success' => false, 'error' => 'Candidature en attente d\'acceptation'], 403);
+        }
+
+        $id = $this->resolveId($id);
+
+        // Vérification autorisation
+        if (!$this->authService->isAdmin() && $id !== $this->authService->intervenant_id()) {
+            return $this->json(['success' => false, 'error' => 'Accès refusé'], 403);
+        }
+
+        $data       = json_decode($request->getContent(), true) ?? [];
+        $action     = $data['action']     ?? null;
+        $numFam     = $data['numFam']     ?? null;
+        $nomFam     = $data['nomFam']     ?? '';
+        $heureDebut = $data['heureDebut'] ?? null;
+        $heureFin   = $data['heureFin']   ?? null;
+        $date       = $data['date']       ?? date('Y-m-d');
+        $type       = $data['type']       ?? 'ENFA';
+        $km         = $data['km']         ?? null;
+
+        if (!$numFam) {
+            return $this->json(['success' => false, 'error' => 'Famille manquante'], 400);
+        }
+
+        if (!$this->familleIntervenantService->peutPointer($id, $numFam)) {
+            return $this->json(['success' => false, 'error' => 'Intervenant non assigné à cette famille'], 403);
+        }
+
+        if ($action === 'fin' && $heureDebut && $heureFin) {
+            $this->horaireService->ajouterPrestation([
+                'numFam'           => $numFam,
+                'nomFam'           => $nomFam,
+                'numInter'         => $id,
+                'datePresta'       => $date,
+                'heureDebutPresta' => $heureDebut,
+                'heureFinPresta'   => $heureFin,
+                'typePresta'       => $type,
+                'kmAvecEnfant'     => $km,
+            ]);
+            return $this->json(['success' => true, 'action' => 'saved']);
+        }
+
+        return $this->json(['success' => true, 'action' => 'debut_recorded']);
+    }
+
+    // ── Admin : archiver ──────────────────────────────────────────────────────
 
     #[Route('/intervenants-mvc/archiver/{id}', name: 'intervenant_archiver_mvc', methods: ['POST'])]
     public function archiver(int $id, Request $request): Response
     {
-        $auth = new Auth($request->getSession());
-
-        if (!$auth->isAdmin()) {
+        if (!$this->authService->isAdmin()) {
             throw $this->createAccessDeniedException('Accès refusé');
         }
-
+        $id = $this->resolveId($id);
         $success = $this->intervenantService->archiverIntervenant($id);
 
         if ($success) {
@@ -155,21 +349,67 @@ final class IntervenantsControllerMVC extends AbstractController
         return $this->redirectToRoute('intervenants_mvc');
     }
 
+    // ── Admin : recherche ─────────────────────────────────────────────────────
+
     #[Route('/intervenants-mvc/recherche', name: 'intervenant_recherche_mvc')]
     public function recherche(Request $request): Response
     {
-        $auth = new Auth($request->getSession());
-        $terme = $request->query->get('q', '');
-
-        $users = [];
-        if (!empty($terme)) {
-            $users = $this->intervenantService->rechercherIntervenants($terme);
+        if (!$this->authService->isAdmin()) {
+            throw $this->createAccessDeniedException('Accès refusé');
         }
 
+        $terme = $request->query->get('q', '');
+        $users = !empty($terme) ? $this->intervenantService->rechercherIntervenants($terme) : [];
+
         return $this->render('intervenants/recherche.html.twig', [
-            'auth' => $auth->check(),
+            'auth'  => $this->authService->check(),
             'users' => $users,
             'terme' => $terme,
         ]);
+    }
+
+    // ── Utilitaires ───────────────────────────────────────────────────────────
+
+    /**
+     * Gate for every intervenant action.
+     * - Unauthenticated → redirect to login.
+     * - Non-admin whose linked candidature is still 'En attente' → redirect to
+     *   login with an explanatory flash so the user understands why access is blocked.
+     * Returns null when access is allowed.
+     */
+    private function guardIntervenantAccess(): ?RedirectResponse
+    {
+        if (!$this->authService->check()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        if ($this->authService->isAdmin()) {
+            return null;
+        }
+
+        if (!$this->authService->isIntervenantAccepted()) {
+            $this->addFlash('warning', 'Votre candidature est en cours de traitement. Votre accès sera activé une fois votre candidature acceptée.');
+            return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->authService->isIntervenantActif()) {
+            $this->addFlash('warning', 'Votre compte a été archivé. Veuillez contacter l\'administration.');
+            return $this->redirectToRoute('app_login');
+        }
+
+        return null;
+    }
+
+    /**
+     * Pour un non-admin, force l'ID de l'intervenant connecté.
+     * Pour un admin, conserve l'ID passé en URL.
+     */
+    private function resolveId(int $id): int
+    {
+        if ($this->authService->isAdmin()) {
+            return $id;
+        }
+
+        return $this->authService->intervenant_id() ?? $id;
     }
 }

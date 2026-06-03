@@ -1,0 +1,72 @@
+{% extends 'base.html.twig' %}
+{% block title %}Configuration générale{% endblock %}
+{% block page_title %}Configuration générale{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+  <div>
+    <h1>Configuration générale</h1>
+    <p>Paramètres applicatifs modifiables par l'administrateur.</p>
+  </div>
+</div>
+
+{% for msg in app.flashes('success') %}
+<div class="flash-ok" style="background:#d1fae5;border:1px solid #a7f3d0;color:#065f46;border-radius:4px;padding:8px 14px;margin-bottom:10px;">
+  <i class="fas fa-check"></i> {{ msg }}
+</div>
+{% endfor %}
+
+<div class="card" style="max-width:520px;">
+  <div class="card-header">
+    <i class="fas fa-sliders" style="color:var(--primary);"></i>
+    <span class="card-title">Paramètres</span>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ path('admin_config_mvc') }}">
+
+      <div style="margin-bottom:18px;">
+        <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:4px;">
+          Nombre de jours de saisie autorisés en arrière
+        </label>
+        <input type="number" name="nbrJourSaisie" min="1" max="365"
+               value="{{ config.nbrJourSaisie }}"
+               style="width:100%;padding:7px 10px;font-size:14px;border:1px solid #d1d5db;border-radius:6px;">
+        <p style="font-size:11px;color:#6b7280;margin:4px 0 0;">
+          Un intervenant peut saisir des heures jusqu'à N jours dans le passé.
+        </p>
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:4px;">
+          Nombre de paliers tarifaires — Garde d'enfants
+        </label>
+        <input type="number" name="nbrPalierTarifGE" min="0" max="10"
+               value="{{ config.nbrPalierTarifGE }}"
+               style="width:100%;padding:7px 10px;font-size:14px;border:1px solid #d1d5db;border-radius:6px;">
+      </div>
+
+      <div style="margin-bottom:24px;">
+        <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:4px;">
+          Nombre de paliers tarifaires — Ménage
+        </label>
+        <input type="number" name="nbrPalierTarifM" min="0" max="10"
+               value="{{ config.nbrPalierTarifM }}"
+               style="width:100%;padding:7px 10px;font-size:14px;border:1px solid #d1d5db;border-radius:6px;">
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin_config') }}">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save"></i> Enregistrer
+        </button>
+        <span style="font-size:11px;color:#9ca3af;">
+          Mis à jour le {{ config.updatedAt|date('d/m/Y à H:i') }}
+        </span>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends 'base.html.twig' %}
+{% block title %}Factures — {{ moisAnnee }}{% endblock %}
+{% block page_title %}Factures familles{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Factures mensuelles</h1>
+            <p>{{ familles|length }} famille{% if familles|length > 1 %}s{% endif %}</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <form method="GET" style="display:flex;align-items:center;gap:8px;">
+                <input type="month" name="mois" value="{{ moisAnnee }}"
+                       style="height:38px;padding:0 12px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;outline:none;"
+                       onchange="this.form.submit()">
+            </form>
+            <a href="{{ path('admin_factures_print_all_mvc', {mois: moisAnnee}) }}"
+               target="_blank" class="btn btn-secondary btn-sm">
+                <i class="fas fa-print"></i> Tout imprimer
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Famille</th>
+                    <th>N°</th>
+                    <th style="text-align:right;">Montant estimé</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for famille in familles %}
+            <tr>
+                <td style="font-weight:500;">{{ famille_label(famille) }}</td>
+                <td style="font-family:monospace;font-size:12px;color:var(--text-muted);">{{ famille.numeroFamille }}</td>
+                <td style="text-align:right;">
+                    <span style="font-size:12px;color:var(--text-muted);">calcul à l'ouverture</span>
+                </td>
+                <td style="text-align:right;">
+                    <a href="{{ path('admin_facture_detail_mvc', {numFam: famille.numeroFamille, moisAnnee: moisAnnee}) }}"
+                       class="btn btn-primary btn-sm">
+                        <i class="fas fa-file-invoice"></i> Voir la facture
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted);">Aucune famille active</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

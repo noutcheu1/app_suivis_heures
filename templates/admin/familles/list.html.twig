@@ -1,0 +1,261 @@
+{% extends 'base.html.twig' %}
+{% block title %}Familles{% endblock %}
+{% block page_title %}Familles{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+            <h1>Familles</h1>
+            <p>{{ users|length }} famille{% if users|length > 1 %}s{% endif %} enregistrée{% if users|length > 1 %}s{% endif %}</p>
+        </div>
+    </div>
+</div>
+
+<div class="table-wrapper">
+
+    <div class="table-toolbar">
+        <div class="table-search">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Rechercher une famille..." oninput="filterRows()">
+        </div>
+    </div>
+
+    {% if users is empty %}
+    <div class="empty-state">
+        <div class="empty-state-icon"><i class="fas fa-users"></i></div>
+        <h3>Aucune famille enregistrée</h3>
+        <p>Les familles apparaîtront ici une fois ajoutées</p>
+    </div>
+    {% else %}
+
+    <table class="data-table" id="familleTable">
+        <thead>
+            <tr>
+                <th rowspan="2" data-sort-col="0">Famille</th>
+                <th rowspan="2" data-sort-col="1">N° famille</th>
+                <th colspan="2">IDENTIFIANT</th>
+                <th rowspan="2" data-sort-col="4">Services</th>
+                <th rowspan="2" data-sort-col="5">Statut</th>
+                <th rowspan="2" data-sort-col="6">Fraiskm</th>
+            </tr>
+            <tr>
+                <th data-sort-col="2">N° PM</th>
+                <th data-sort-col="3">N° PGE</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for user in users %}
+        <tr>
+            <td>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fas fa-house-user" style="font-size:13px;color:var(--primary);"></i>
+                    </div>
+                    <span style="font-weight:500;">{{ famille_label(user) }}</span>
+                </div>
+            </td>
+            <td><code style="font-size:12px;color:var(--text-muted);">{{ user.numeroFamille }}</code></td>
+            <td>
+                {% if user.prestMenage %}
+                    <span class="badge badge-muted">{{user.pmFamille}}</span>
+                {% endif %}
+                
+            </td>
+            <td>
+                {% if user.prestGardeEnfants %}
+                    <span class="badge badge-muted">{{user.pgeFamille}}</span>
+                {% endif %}
+            </td>
+            
+            <td>
+                {% if user.prestMenage %}
+                    <span class="badge badge-muted">Ménage</span>
+                {% endif %}
+
+                {% if user.prestGardeEnfants %}
+                    <span class="badge badge-info">Garde enfants</span>
+                {% endif %}
+
+                {% if not user.prestMenage and not user.prestGardeEnfants %}
+                    <span class="badge badge-muted">—</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if user.archive %}
+                    <span class="badge badge-danger">Archivée</span>
+                {% else %}
+                    <span class="badge badge-success">Non Archivée</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="{{ path('admin_famille_detail_mvc', {numFam: user.numeroFamille}) }}"
+                   class="btn btn-ghost btn-sm" title="Voir détail">
+                    <i class="fas fa-eye"></i> infos
+                </a>
+                {% if user.ville|lower == 'rennes' %}
+                    {% set exGE  = (kmExonerations[user.numeroFamille]['GE'] ?? false) and user.prestGardeEnfants %}
+                    {% set exM   = (kmExonerations[user.numeroFamille]['M']  ?? false) and user.prestMenage %}
+                    {% set hasGE = user.prestGardeEnfants ? 'true' : 'false' %}
+                    {% set hasM  = user.prestMenage ? 'true' : 'false' %}
+                    <button class="btn btn-ghost btn-sm" title="Exemption kilométrique"
+                            onclick="ouvrirModalKm('{{ user.numeroFamille }}', '{{ famille_label(user)|e('js') }}', {{ exGE ? 'true' : 'false' }}, {{ exM ? 'true' : 'false' }}, {{ hasGE }}, {{ hasM }})">
+                        <i class="fas fa-route me-1"
+                           style="color:{{ (exGE or exM) ? '#44ef4dff' : 'var(--text-muted)' }};"></i>
+                        Frais de km  
+                    </button>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% endif %}
+
+</div>
+
+{# ── Modal exemption km ──────────────────────────────────────────────────── #}
+<div id="modalKm" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:24px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="margin:0;font-size:15px;" id="modalKmTitre"></h3>
+            <button onclick="fermerModalKm()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);">&times;</button>
+        </div>
+        <div id="rowKmGE" style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);">
+            <div>
+                <div style="font-weight:600;font-size:13px;">Garde d'enfants</div>
+                <div style="font-size:11px;margin-top:2px;" id="labelKmGE">Désactivé KM facturés</div>
+            </div>
+            <label class="switch-km">
+                <input type="checkbox" id="switchKmGE" onchange="toggleKm('GE')">
+                <span class="slider-km"></span>
+            </label>
+        </div>
+        <div id="rowKmM" style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);">
+            <div>
+                <div style="font-weight:600;font-size:13px;">Ménage</div>
+                <div style="font-size:11px;margin-top:2px;" id="labelKmM">Désactivé KM facturés</div>
+            </div>
+            <label class="switch-km">
+                <input type="checkbox" id="switchKmM" onchange="toggleKm('M')">
+                <span class="slider-km"></span>
+            </label>
+        </div>
+        <div style="text-align:right;margin-top:8px;">
+            <button onclick="fermerModalKm()" class="btn btn-secondary btn-sm">Fermer</button>
+        </div>
+    </div>
+</div>
+<style>
+.switch-km {
+    position: relative;
+    display: inline-block;
+    width: 52px;
+    height: 28px;
+}
+
+.switch-km input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider-km {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #d1d5db;
+    transition: .25s;
+    border-radius: 999px;
+}
+
+.slider-km::before {
+    content: "";
+    position: absolute;
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    top: 3px;
+    background: white;
+    transition: .25s;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0,0,0,.2);
+}
+
+.switch-km input:checked + .slider-km {
+    background-color: #22c55e;
+}
+
+.switch-km input:checked + .slider-km::before {
+    transform: translateX(24px);
+}
+</style>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+function filterRows() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    document.querySelectorAll('#familleTable tbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+let _kmNumFam = null;
+
+function ouvrirModalKm(numFam, label, actifGE, actifM, hasGE, hasM) {
+    _kmNumFam = numFam;
+    document.getElementById('modalKmTitre').textContent = label;
+    document.getElementById('rowKmGE').style.display = hasGE ? 'flex' : 'none';
+    document.getElementById('rowKmM').style.display  = hasM  ? 'flex' : 'none';
+    majSwitch('GE', actifGE);
+    majSwitch('M',  actifM);
+    document.getElementById('modalKm').style.display = 'flex';
+}
+
+function majSwitch(type, actif) {
+    const sw    = document.getElementById('switchKm' + type);
+    const label = document.getElementById('labelKm'  + type);
+    if (!sw || !label) return;
+    sw.checked        = actif;
+    label.textContent = actif ? 'DESACTIVER le KM facturés' : 'ACTIVER le KM facturés';
+    label.style.color = actif ? '#16a34a' : 'var(--text-muted)';
+}
+
+async function toggleKm(type) {
+    const sw = document.getElementById('switchKm' + type);
+    sw.disabled = true;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+    const resp = await fetch(`/familles-mvc/${_kmNumFam}/toggle-km/${type}`, { method: 'POST', headers: { 'X-CSRF-Token': csrfToken } });
+    const data = await resp.json();
+    majSwitch(type, data.exonereKm);
+    sw.disabled = false;
+}
+
+function fermerModalKm() {
+    document.getElementById('modalKm').style.display = 'none';
+    location.reload();
+}
+
+const tbody = document.querySelector('#familleTable tbody');
+if (tbody) {
+    document.querySelectorAll('#familleTable thead th[data-sort-col]').forEach(th => {
+        const col = parseInt(th.dataset.sortCol);
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', function () {
+            this.asc = !this.asc;
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort((a, b) => {
+                const v1 = a.children[col]?.textContent.trim() ?? '';
+                const v2 = b.children[col]?.textContent.trim() ?? '';
+                return this.asc ? v1.localeCompare(v2) : v2.localeCompare(v1);
+            });
+            rows.forEach(r => tbody.appendChild(r));
+        });
+    });
+}
+</script>
+{% endblock %}
