@@ -133,7 +133,7 @@
             {% endfor %}
         </tr>
         <tr>
-            <td class="no-borders"></td><th colspan="2"></th>
+            <td class="no-borders"></td><th colspan="2">TRAJET X Nombre de Km</th>
             {% for i in 0..4 %}
                 <td style="font-size:10px;">
                     {%- if familles[i] is defined and familles[i].distanceAller > 0 -%}
@@ -165,7 +165,8 @@
             <td class="no-borders"></td>
             <td colspan="2" class="no-borders">TOTAL MENSUEL DES HEURES</td>
             <td>{{ fiche.totalHeures }}</td>
-            <th class="no-borders"></th><td></td>
+            <th class="no-borders"> TOTAL KM TRAJET SANS ENFANTS </th>
+            <td> {{  fiche.totaux.kmMois|number_format(1, ',', ' ') }} Km  X ..... €</td>
             {% if fiche.totaux.kmMois > 0 or fiche.totaux.kmEnfantsMois > 0 %}
                 <th class="no-borders">TOTAL KM TRAJET{% if fiche.afficherKm %} / AVEC ENFANTS{% endif %}</th>
                 <td>

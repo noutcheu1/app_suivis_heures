@@ -124,7 +124,7 @@
         </tr>
         <tr>
             <td class="no-borders"></td>
-            <th colspan="2"></th>
+            <th colspan="2">TRAJET X Nombre de Km</th>
             {% for i in 0..4 %}
                 <td style="font-size:10px;">
                     
@@ -174,8 +174,10 @@
             <td class="no-borders"></td>
             <td colspan="2" class="no-borders">TOTAL MENSUEL DES HEURES</td>
             <td>{{ totalHeures }}</td>
-            <th class="no-borders"></th>
-            <td></td>
+        {% if isAdmin %}
+            <th class="no-borders">  TOTAL KM TRAJET SANS ENFANTS</th>
+            <td>{{ totaux.kmMois|number_format(1, ',', ' ') }} Km X ........ €</td>
+
             {% set totalKmAffichage = totaux.kmMois %}
             {% if totalKmAffichage == 0 %}
                 {% for page in famillesPages %}{% for fam in page %}
@@ -186,14 +188,15 @@
             {% endif %}
             {% if totalKmAffichage > 0 or totaux.kmEnfantsMois > 0 %}
                 <th class="no-borders">
-                    TOTAL KM TRAJET{% if afficherKm %} / AVEC ENFANTS{% endif %}
+                    TOTAL KM TRAJET {% if afficherKm %} / AVEC ENFANTS{% endif %}
                 </th>
                 <td>
-                    {{ totaux.kmEnfantsMois|number_format(1, ',', ' ') }} km
+                    {{ totaux.kmEnfantsMois|number_format(1, ',', ' ') }} km X ........ €
                 </td>
             {% else %}
                 <td class="no-borders" colspan="2"></td>
             {% endif %}
+        {% endif %}
         </tr>
         <tr>
             <td class="no-borders" colspan="4"></td>

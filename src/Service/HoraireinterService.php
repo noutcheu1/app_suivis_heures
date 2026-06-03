@@ -544,9 +544,10 @@ class HoraireinterService
             $famillesMap[$nom]['totalSecondes']  += $dureeSec;
             $famillesMap[$nom]['nbPrestations']++;
             // Ne pas cumuler le km si famille exonérée
-            if (!$famillesMap[$nom]['exonereKm']) {
-                $famillesMap[$nom]['totalKm'] += $famillesMap[$nom]['distanceAller'];
+            if ($famillesMap[$nom]['exonereKm']) {
+                $famillesMap[$nom]['totalKm'] += $famillesMap[$nom]['distanceAller'] > 15 ? 15.0 : $famillesMap[$nom]['distanceAller'] ;
             }
+            
             $famillesMap[$nom]['totalKmEnfants'] += $type === 'ENFA'
                 ? (float)($p->getKmAvecEnfant() ?? 0)
                 : 0.0;
