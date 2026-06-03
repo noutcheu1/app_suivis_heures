@@ -111,6 +111,14 @@ final class HeuresControllerMVC extends AbstractController
         $isAdmin = $this->authService->isAdmin();
         $horaire = $this->horaireService->getPrestation($id);
 
+        if (!$horaire) {
+            return $this->json(['success' => false, 'error' => 'Prestation introuvable'], 404);
+        }
+
+        if (!$isAdmin && $horaire->getNumInter() !== $this->authService->intervenant_id()) {
+            return $this->json(['success' => false, 'error' => 'Non autorisé'], 403);
+        }
+
         if ($horaire && !$isAdmin && $this->horaireService->isVerrouille($horaire)) {
             return $this->json([
                 'success' => false,
@@ -196,9 +204,12 @@ final class HeuresControllerMVC extends AbstractController
 
         $data = $this->getData($request);
 
+        $numFam = $data['famille'] ?? $data['numFam'] ?? null;
+        $isFamilleOccasionnelle = ($numFam === null || $numFam === '' || $numFam === '0' || $numFam == 0);
+
         $donnees = [
-            'numFam' => null,
-            'nomFam' => 'HORS STRUCTURE',
+            'numFam' => $isFamilleOccasionnelle ? null : $numFam,
+            'nomFam' => $data['nomRemplacement'] ?? $data['nomFam'] ?? null,
             'numInter' => $intervenantId,
             'datePresta' => $data['date'] ?? $data['datePresta'] ?? null,
             'heureDebutPresta' => ($data['heureDebut'] ?? '') . ':' . ($data['minuteDebut'] ?? ''),
@@ -233,6 +244,11 @@ final class HeuresControllerMVC extends AbstractController
 
         if (!$horaire) {
             return $this->json(['success' => false, 'error' => 'Prestation introuvable'], 404);
+        }
+
+        $isAdmin = $this->authService->isAdmin();
+        if (!$isAdmin && $horaire->getNumInter() !== $this->authService->intervenant_id()) {
+            return $this->json(['success' => false, 'error' => 'Non autorisé'], 403);
         }
 
         return $this->json([

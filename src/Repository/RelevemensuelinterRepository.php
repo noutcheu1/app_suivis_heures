@@ -95,6 +95,13 @@ class RelevemensuelinterRepository extends ServiceEntityRepository
         return $releve;
     }
 
+    public function marquerTelecharge(string $moisAnnee, int $numInter, string $typePresta): void
+    {
+        $releve = $this->findOrCreate($moisAnnee, $numInter, $typePresta);
+        $releve->setTelechargerLe(new \DateTime());
+        $this->getEntityManager()->flush();
+    }
+
     private function findOrCreate(string $moisAnnee, int $numInter, string $typePresta): Relevemensuelinter
     {
         $releve = $this->findByMoisAnneeIntervenant($moisAnnee, $numInter, $typePresta);

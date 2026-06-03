@@ -32,7 +32,11 @@ class HoraireinterService
         $numInter = (int)($donnees['numInter'] ?? 0);
         $numFam   = $donnees['numFam'] ?? null;
 
-        if ($numInter && $numFam && !$this->proposerRepository->isIntervenantAssignedToFamille($numInter, $numFam)) {
+        if ($numInter <= 0) {
+            throw new \LogicException('L\'intervenant doit être identifié pour déclarer des heures.');
+        }
+
+        if ($numFam && !$this->proposerRepository->isIntervenantAssignedToFamille($numInter, $numFam)) {
             throw new \LogicException(
                 sprintf('L\'intervenant %d n\'est pas assigné à la famille %s dans le planning.', $numInter, $numFam)
             );
@@ -41,6 +45,19 @@ class HoraireinterService
         $datePresta  = new \DateTime($donnees['datePresta']);
         $heureDebut  = new \DateTime($donnees['heureDebutPresta']);
         $typePresta  = $donnees['typePresta'] ?? '';
+
+        // Interdire les dates futures
+        if ($datePresta > new \DateTime('today')) {
+            throw new \LogicException('Impossible de déclarer des heures pour une date future.');
+        }
+
+        // Si c'est aujourd'hui, l'heure de fin doit être passée
+        if ($datePresta->format('Y-m-d') === (new \DateTime('today'))->format('Y-m-d')) {
+            $heureFin = \DateTime::createFromFormat('H:i', $donnees['heureFinPresta']);
+            if ($heureFin && $heureFin > new \DateTime()) {
+                throw new \LogicException('L\'heure de fin n\'est pas encore passée. Vous pourrez déclarer cette prestation une fois terminée.');
+            }
+        }
 
         if ($this->repository->existsDoublon($numInter, $datePresta, $heureDebut, $typePresta)) {
             throw new \LogicException('Une prestation avec cette heure de début existe déjà pour ce jour.');
@@ -77,22 +94,7 @@ class HoraireinterService
         return $horaire;
     }
 
-    /**
-     * Calcule les heures entre deux timestamps
-     */
-    private function calculerHeures(string $debut, string $fin): float
-    {
-        $dateDebut = new \DateTime($debut);
-        $dateFin = new \DateTime($fin);
-
-        $seconds = $dateFin->getTimestamp() - $dateDebut->getTimestamp();
-
-            if ($seconds < 0) {
-                $seconds += 24 * 3600;
-            }
-
-            return round($seconds / 3600, 2);
-    }
+    
 
     /**
      * Retourne les prestations d'un intervenant pour une période
@@ -122,7 +124,27 @@ class HoraireinterService
 
     public function getMoisDisponibles(int $numInter): array
     {
-        return $this->repository->findMoisDisponibles($numInter);
+        // Pour chaque type, on ne remonte que les mois où l'intervenant a un planning PREST
+        // pour CE type précis (évite d'afficher un relevé ENFA si le planning est MENA only).
+        $rows = [];
+        foreach (['MENA', 'ENFA'] as $t) {
+            $validFamIds = $this->proposerRepository->findFamilleIdsPrestByIntervenant($numInter, $t);
+            if (empty($validFamIds)) {
+                continue; // pas de planning PREST pour ce type → aucun mois disponible
+            }
+            foreach ($this->repository->findMoisDisponibles($numInter, $validFamIds) as $row) {
+                if (strtoupper($row['typePresta']) === $t) {
+                    $rows[] = $row;
+                }
+            }
+        }
+
+        // Tri décroissant : annee DESC, mois DESC, typePresta
+        usort($rows, fn($a, $b) =>
+            [$b['annee'], $b['mois'], $b['typePresta']] <=> [$a['annee'], $a['mois'], $a['typePresta']]
+        );
+
+        return $rows;
     }
 
     /**
@@ -367,11 +389,31 @@ class HoraireinterService
         return $this->repository->countByFamille($familleId, $mois);
     }
 
+
+
+    /**
+     * Calcule les heures entre deux timestamps
+     */
+    private function calculerHeures(string $debut, string $fin): float
+    {
+        $dateDebut = new \DateTime($debut);
+        $dateFin = new \DateTime($fin);
+
+        $seconds = $dateFin->getTimestamp() - $dateDebut->getTimestamp();
+
+            if ($seconds < 0) {
+                $seconds += 24 * 3600;
+            }
+
+            return round($seconds / 3600, 2);
+    }
+    
+
     /**
      * Construit la structure JSON du relevé mensuel pour le front-end.
      * @param object|null $intervenant Entité Intervenant (pour le nom dans la signature)
      */
-    public function getReleveData(int $numInter, string $type, int $moisOffset, ?object $intervenant = null): array
+   public function getReleveData(int $numInter, string $type, int $moisOffset, ?object $intervenant = null): array
     {
         $date = new \DateTime('first day of this month');
         if ($moisOffset !== 0) {
@@ -380,41 +422,58 @@ class HoraireinterService
         $year  = (int)$date->format('Y');
         $month = (int)$date->format('m');
 
-        // Période universelle : du 25 du mois précédent au 24 du mois courant
-        $startDate = new \DateTime(sprintf('%04d-%02d-25', $year, $month));
-        $startDate->modify('-1 month');
-        $endDate   = new \DateTime(sprintf('%04d-%02d-24', $year, $month));
+        if ($type == 'MENA') {
+            // Période du 25 du mois précédent au 24 du mois courant
+            $startDate = new \DateTime(sprintf('%04d-%02d-25', $year, $month));
+            $startDate->modify('-1 month');
+            $endDate = new \DateTime(sprintf('%04d-%02d-24', $year, $month));
+        } else {
+            // Type 'enfant' : période du 1er au dernier jour du mois courant
+            $startDate = new \DateTime(sprintf('%04d-%02d-01', $year, $month));
+            $endDate   = new \DateTime(sprintf('%04d-%02d-01', $year, $month));
+            $endDate->modify('last day of this month');
+        }
 
         $moisAnnee = sprintf('%02d/%04d', $month, $year);
 
         $prestations = $this->repository->findByIntervenantPeriodType($numInter, $startDate, $endDate, $type);
 
-        // ── Pré-calcul des distances trajet (ENFA et MENA, familles hors Rennes) ────
-        // Règle : famille À Rennes → distanceAller = 0 (pas de km trajet)
-        //         famille HORS Rennes → distance routière intervenant → famille via API
-        // Toutes les requêtes HTTP sont envoyées en parallèle (curl_multi).
-        $distancesParFamille = [];
-        if ($intervenant?->getAdresse()) {
-            $adresseIntervenant = trim(
-                ($intervenant->getAdresse() ?? '') . ', ' .
-                ($intervenant->getCodePostal() ?? '') . ' ' .
-                ($intervenant->getVille() ?? '')
-            );
+        // N'inclure que les heures pour des familles ayant un planning PREST pour CE type
+        // (actif ou historique). Source de vérité : table proposer (idADH_TypeADH = 'PREST').
+        // Les familles occasionnelles (numFam null ou '0') sont toujours incluses.
+        $validFamIds = $this->proposerRepository->findFamilleIdsPrestByIntervenant($numInter, $type);
+        $prestations = array_values(array_filter($prestations, function ($p) use ($validFamIds) {
+            $numFam = $p->getNumFam();
+            return $numFam === null || $numFam === '' || $numFam === '0'
+                || in_array($numFam, $validFamIds, true);
+        }));
 
-            // Identifier les familles hors Rennes qui ont une adresse
-            $adressesFamillesHorsRennes = [];
-            $exoneresKm = [];
-            foreach ($prestations as $p) {
-                $numFam = $p->getNumFam() ?? '';
-                if (!$numFam || isset($adressesFamillesHorsRennes[$numFam]) || isset($distancesParFamille[$numFam])) {
-                    continue;
+            // ── Pré-calcul des distances trajet (ENFA et MENA, familles hors Rennes) ────
+            // Règle : famille À Rennes → distanceAller = 0 (pas de km trajet)
+            //         famille HORS Rennes → distance routière intervenant → famille via API
+            // Toutes les requêtes HTTP sont envoyées en parallèle (curl_multi).
+            $distancesParFamille = [];
+            $exoneresKm          = [];
+            if ($intervenant?->getAdresse()) {
+                $adresseIntervenant = trim(
+                    ($intervenant->getAdresse() ?? '') . ', ' .
+                    ($intervenant->getCodePostal() ?? '') . ' ' .
+                    ($intervenant->getVille() ?? '')
+                );
+
+                // Identifier les familles hors Rennes qui ont une adresse
+                $adressesFamillesHorsRennes = [];
+                foreach ($prestations as $p) {
+                    $numFam = $p->getNumFam() ?? '';
+                    if (!$numFam || isset($adressesFamillesHorsRennes[$numFam]) || isset($distancesParFamille[$numFam])) {
+                        continue;
                 }
                 $famille = $this->familleRepository->findByNumero($numFam);
                 if (!$famille) {
                     $distancesParFamille[$numFam] = 0.0;
                     continue;
                 }
-                if ($this->tarifFamilleRepository->isExonereKmFamille($numFam)) {
+                if ($this->tarifFamilleRepository->isExonereKm($numFam, $type)) {
                     $exoneresKm[$numFam] = true;
                 }
                 // Famille à Rennes → 0 km (distance réelle nulle)
@@ -477,10 +536,9 @@ class HoraireinterService
             $finSec   = $fin->getTimestamp()  - $fin->setTime(0,0)->getTimestamp();
             if ($finSec < $debutSec) $finSec += 86400;
             $dureeSec = $finSec - $debutSec;
-            $dH = intdiv($dureeSec, 3600);
-            $dM = ($dureeSec % 3600) / 60;
 
-            $timeStr = $dM > 0 ? "{$dH}h" . sprintf('%02d', $dM) : "{$dH}h";
+            // Centièmes : 2h30 → "2,50"
+            $timeStr = number_format($dureeSec / 3600, 2, ',', '');
             $famillesMap[$nom]['prestations'][$dateKey][] = $timeStr;
 
             $famillesMap[$nom]['totalSecondes']  += $dureeSec;
@@ -509,8 +567,20 @@ class HoraireinterService
             $cur->modify('+1 day');
         }
 
+        // totalKm = km facturables (familles non exonérées)
+        // totalKmAffichage = tous les km pour affichage dans le relevé (y compris exonérées)
         $totalKm        = array_sum(array_column(array_values($famillesMap), 'totalKm'));
         $totalKmEnfants = array_sum(array_column(array_values($famillesMap), 'totalKmEnfants'));
+
+        // Pour l'affichage : si toutes les familles sont exonérées, on utilise quand même leur distance × nb prestations
+        $totalKmAffichage = $totalKm;
+        if ($totalKmAffichage == 0) {
+            foreach ($famillesMap as $fam) {
+                if ($fam['exonereKm']) {
+                    $totalKmAffichage += $fam['distanceAller'] * $fam['nbPrestations'];
+                }
+            }
+        }
 
         $releve = $this->releveRepository->findByMoisAnneeIntervenant($moisAnnee, $numInter, $type);
         $signerData = ['etat' => false, 'date' => '', 'nom' => ''];
@@ -534,6 +604,7 @@ class HoraireinterService
         $intervenantData = [
             'nom'               => $intervenant?->getNom() ?? '',
             'prenom'            => $intervenant?->getPrenom() ?? '',
+            'numSalarie'        => $intervenant?->getNumSalarie() ?? '',
             'Téléhone'          => $intervenant?->getTelPortable() ?? '',
             'adresse'           => $intervenant?->getAdresse() ?? '',
             'ville de résidence'=> $intervenant?->getVille() ?? '',
@@ -636,7 +707,16 @@ class HoraireinterService
             $end   = new \DateTime(sprintf('%04d-%02d-24', $y, $m));
 
             foreach (['ENFA', 'MENA'] as $type) {
-                $nb = count($this->repository->findByIntervenantPeriodType($numInter, $start, $end, $type));
+                // Vérifie que l'intervenant a un planning PREST pour CE type
+                $validIds = $this->proposerRepository->findFamilleIdsPrestByIntervenant($numInter, $type);
+                if (empty($validIds)) {
+                    continue; // pas de service de ce type → pas de relevé à signer
+                }
+                $allPrestations = $this->repository->findByIntervenantPeriodType($numInter, $start, $end, $type);
+                $nb = count(array_filter($allPrestations, function ($p) use ($validIds) {
+                    $n = $p->getNumFam();
+                    return $n === null || $n === '' || $n === '0' || in_array($n, $validIds, true);
+                }));
                 if ($nb === 0) continue;
                 $releve = $this->releveRepository->findByMoisAnneeIntervenant($mois, $numInter, $type);
                 if (!$releve || !$releve->isSigner()) {

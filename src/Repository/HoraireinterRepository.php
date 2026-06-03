@@ -404,17 +404,81 @@ class HoraireinterRepository extends ServiceEntityRepository
     /**
      * Returns distinct (year, month, typePresta) tuples for an intervenant, most recent first.
      */
-    public function findMoisDisponibles(int $numInter): array
+    /**
+     * @param string   $debut       Date début (Y-m-d)
+     * @param string   $fin         Date fin (Y-m-d)
+     * @param string[] $validFamIds IDs familles prestataires (fournis par FamilleRepository).
+     *                              Si vide, aucun filtre famille (toutes les heures comptées).
+     */
+    public function getStatsPeriodeParIntervenant(string $debut, string $fin, array $validFamIds = []): array
     {
         $conn = $this->getEntityManager()->getConnection();
-        $sql  = 'SELECT DISTINCT YEAR(datePresta) AS annee,
-                        MONTH(datePresta) AS mois,
-                        typePresta
-                 FROM horaireinter
-                 WHERE numInter = :numInter
-                   AND desactiver = 0
-                 ORDER BY annee DESC, mois DESC, typePresta';
-        return $conn->executeQuery($sql, ['numInter' => $numInter])->fetchAllAssociative();
+
+        $params = ['debut' => $debut, 'fin' => $fin];
+        $types  = [];
+        $familleWhere = '';
+
+        if (!empty($validFamIds)) {
+            $familleWhere = "AND (h.numFam IS NULL OR h.numFam = '0' OR h.numFam IN (:validFamIds))";
+            $params['validFamIds'] = $validFamIds;
+            $types['validFamIds']  = \Doctrine\DBAL\ArrayParameterType::STRING;
+        }
+
+        $sql  = "
+            SELECT h.numInter, h.typePresta,
+                   SUM(TIMESTAMPDIFF(SECOND, h.heureDebutPresta, h.heureFinPresta) / 3600) AS totalHeures,
+                   MAX(h.ajouterLe) AS derniereAjout
+            FROM horaireinter h
+            WHERE h.datePresta BETWEEN :debut AND :fin
+              AND h.desactiver = 0
+              AND h.numInter > 0
+              AND h.heureDebutPresta IS NOT NULL
+              AND h.heureFinPresta IS NOT NULL
+              $familleWhere
+            GROUP BY h.numInter, h.typePresta
+        ";
+        $rows = $conn->executeQuery($sql, $params, $types)->fetchAllAssociative();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $id = (int)$row['numInter'];
+            $result[$id][$row['typePresta']] = (float)$row['totalHeures'];
+            $prev = $result[$id]['derniereAjout'] ?? '0000-00-00 00:00:00';
+            $result[$id]['derniereAjout'] = ($row['derniereAjout'] ?? '') > $prev
+                ? $row['derniereAjout'] : $prev;
+        }
+        return $result;
+    }
+
+    /**
+     * @param int      $numInter
+     * @param string[] $validFamIds IDs des familles prestataires valides (fournis par FamilleRepository).
+     *                              Si vide, aucun filtre famille n'est appliqué.
+     */
+    public function findMoisDisponibles(int $numInter, array $validFamIds = []): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $params = ['numInter' => $numInter];
+        $types  = [];
+        $familleWhere = '';
+
+        if (!empty($validFamIds)) {
+            $familleWhere = "AND (h.numFam IS NULL OR h.numFam = '0' OR h.numFam IN (:validFamIds))";
+            $params['validFamIds'] = $validFamIds;
+            $types['validFamIds']  = \Doctrine\DBAL\ArrayParameterType::STRING;
+        }
+
+        $sql = "SELECT DISTINCT YEAR(h.datePresta) AS annee,
+                        MONTH(h.datePresta) AS mois,
+                        h.typePresta
+                 FROM horaireinter h
+                 WHERE h.numInter = :numInter
+                   AND h.desactiver = 0
+                   $familleWhere
+                 ORDER BY annee DESC, mois DESC, h.typePresta";
+
+        return $conn->executeQuery($sql, $params, $types)->fetchAllAssociative();
     }
 
     /**

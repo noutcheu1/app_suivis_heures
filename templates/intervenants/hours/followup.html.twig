@@ -28,7 +28,7 @@
                 </p>
             {% endif %}
         </div>
-        <a href="{{ path('intervenant_panel_mvc', {id: user.id}) }}" class="btn btn-secondary btn-sm">
+        <a href="{{ path('intervenant_panel_mvc', {id: intervenantId}) }}" class="btn btn-secondary btn-sm">
             <i class="fas fa-arrow-left"></i> Retour
         </a>
     </div>
@@ -57,6 +57,7 @@
                     Date de la prestation
                 </label>
                 <input type="date" id="date" name="date" required
+                       
                        style="width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;outline:none;transition:border-color .2s;"
                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
             </div>
@@ -90,6 +91,9 @@
                         <option data-num="{{ famille.numeroFamille }}"
                                 data-prestations="{{ types|join(',') }}"
                                 data-nom="{{ famille_label(famille) }}"
+                                data-mandataire="{{ famille.mandataire == true ? '1' : '0' }}"
+                                data-pge="{{ famille.pgeFamille ?? '' }}"
+                                data-pm="{{ famille.pmFamille ?? '' }}"
                                 value="{{ famille.numeroFamille }}">
                             {{ famille_label(famille) }}
                         </option>
@@ -167,10 +171,22 @@
 {% block javascripts %}
 {{ parent() }}
 <script>
-const ID = {{ user.id }};
-{% set familles_occ_labels = [] %}{% for f in toutesLesFamilles %}{% set familles_occ_labels = familles_occ_labels|merge([famille_label(f)]) %}{% endfor %}
-const FAMILLES_OCC = {{ familles_occ_labels|json_encode|raw }};
-const PLANNING_URL = "{{ path('intervenant_planning_mvc', {id: user.id}) }}";
+const ID = {{ intervenantId }};
+const IS_ADMIN = {{ isAdmin ? 'true' : 'false' }};
+{% set familles_occ_data = [] %}
+{% for f in toutesLesFamilles %}
+{% set familles_occ_data = familles_occ_data|merge([{
+    'nom':  famille_label(f),
+    'mand': f.mandataire == true ? 1 : 0,
+    'pge':  f.pgeFamille ?? '',
+    'pm':   f.pmFamille  ?? ''
+}]) %}
+{% endfor %}
+const FAMILLES_OCC = {{ familles_occ_data|json_encode|raw }}
+    .filter(f => f.mand === 0 && (f.pge !== '' || f.pm !== ''))
+    .map(f => f.nom);
+const PLANNING_URL = "{{ path('intervenant_planning_mvc', {id: intervenantId}) }}";
+
 </script>
 <script src="{{ asset('/assets/js/suivie.js') }}" defer></script>
 {% endblock %}

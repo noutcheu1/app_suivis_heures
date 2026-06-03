@@ -1,4 +1,7 @@
 
+/* globals injected by Twig template */
+/* global ID, IS_ADMIN, FAMILLES_OCC, PLANNING_URL */
+
 /* ----- VERIFICATION DATE ----- */
 const dateInput = document.getElementById('date');
 const today = new Date();
@@ -70,7 +73,7 @@ async function getInfoData(id_edit) {
         if (!result.success) {
             showModal({
                 title: "Erreur",
-                body: "Erreur  : " + result.message,
+                body: "Erreur  : " + (result.error || result.message),
                 buttons: [{text: "Ok", class: "btn btn-danger", dismiss: true}]
             });
         } else if (result.data.verrouille) {
@@ -202,6 +205,33 @@ form.addEventListener("submit", async (e) => {
         return;
     }
 
+    // Vérifier que la date n'est pas dans le futur
+    const dateChoisie  = form.date.value;
+    const aujourdHui   = formatDate(new Date());
+    if (dateChoisie > aujourdHui) {
+        showModal({
+            title: 'Date invalide',
+            body: 'Vous ne pouvez pas déclarer des heures pour une date future. Veuillez choisir aujourd\'hui ou un jour passé.',
+            buttons: [{ text: 'Corriger', class: 'btn btn-danger', dismiss: true }]
+        });
+        return;
+    }
+
+    // Si c'est aujourd'hui, vérifier que l'heure de fin est passée
+    if (dateChoisie === aujourdHui) {
+        const maintenant = new Date();
+        const finEnMinutes = parseInt(heureFinH) * 60 + parseInt(heureFinM || '0');
+        const maintenantEnMinutes = maintenant.getHours() * 60 + maintenant.getMinutes();
+        if (finEnMinutes > maintenantEnMinutes) {
+            showModal({
+                title: 'Heure non encore passée',
+                body: `Il est actuellement ${String(maintenant.getHours()).padStart(2,'0')}h${String(maintenant.getMinutes()).padStart(2,'0')}. Vous ne pouvez pas déclarer une prestation dont l'heure de fin (${heureFinH}h${heureFinM}) n'est pas encore passée.\n\nRevenez déclarer ces heures une fois l'intervention terminée.`,
+                buttons: [{ text: 'Compris', class: 'btn btn-warning', dismiss: true }]
+            });
+            return;
+        }
+    }
+
     const trajetInput = document.getElementById('trajet');
     const data = {
         id: id,
@@ -232,13 +262,44 @@ form.addEventListener("submit", async (e) => {
         let route = "/heures-mvc/modifier/" + id;
         sendData(route, data);
     } else {
-        let route = "/heures-mvc/ajouter";
+        // Les admins utilisent toujours la route avec paramètre ID
+        let route = IS_ADMIN ? "/heures-mvc/ajouter-hors-structure/" + ID : "/heures-mvc/ajouter";
+        console.log('IS_ADMIN:', IS_ADMIN, 'ID:', ID, 'Route:', route);
         sendData(route, data);
     }
 
 });
 
 
+
+/**
+ * Vérifie qu'une option famille est prestataire (non mandataire, avec PGE ou PM).
+ * La famille occasionnelle (value=0) est toujours acceptée.
+ */
+function isPrestataire(option) {
+    if (!option.value || option.value === '0') return true;
+    const mand = option.dataset.mandataire;
+    const pge  = option.dataset.pge  ?? '';
+    const pm   = option.dataset.pm   ?? '';
+    return mand !== '1' && (pge !== '' || pm !== '');
+}
+
+/**
+ * Masque définitivement les options mandataires du select famille.
+ * Appelé à l'initialisation.
+ */
+function filterMandataireFamilles() {
+    const selectFamille = document.getElementById('famille');
+    Array.from(selectFamille.options).forEach(o => {
+        if (!o.value || o.value === '0') return;
+        if (!isPrestataire(o)) {
+            o.hidden   = true;
+            o.disabled = true;
+        }
+    });
+    const cur = selectFamille.selectedOptions[0];
+    if (cur && cur.hidden) selectFamille.value = '';
+}
 
 // Sélection d'une famille → pré-sélectionne le type selon proposer
 function handleFamilleChange() {
@@ -264,11 +325,16 @@ function handleFamilleChange() {
 
 // Sélection d'un type → filtre les familles qui ont ce type dans proposer
 function filterFamillesByType() {
-    const type         = document.getElementById("type").value;
+    const type          = document.getElementById("type").value;
     const selectFamille = document.getElementById("famille");
 
     Array.from(selectFamille.options).forEach(o => {
         if (!o.value || o.value === '0') { o.hidden = false; return; }
+
+        // Exclure définitivement les familles mandataires ou sans PGE/PM
+        if (!isPrestataire(o)) { o.hidden = true; o.disabled = true; return; }
+
+        // Filtre par type de prestation
         if (!type) { o.hidden = false; return; }
         const prests = o.dataset.prestations ? o.dataset.prestations.split(',').filter(Boolean) : [];
         o.hidden = prests.length > 0 && !prests.includes(type);
@@ -377,6 +443,7 @@ familleOccaSearch.addEventListener('keydown', (e) => {
 });
 
 // Initialisation
+filterMandataireFamilles(); // masque les familles mandataires dès le chargement
 updateVisibility();
 
 if (params.has('edite')) {

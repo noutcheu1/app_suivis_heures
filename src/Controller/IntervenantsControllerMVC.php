@@ -163,6 +163,7 @@ final class IntervenantsControllerMVC extends AbstractController
         return $this->render('intervenants/hours/followup.html.twig', [
             'auth'              => $this->authService->check(),
             'user'              => $user,
+            'intervenantId'     => $id,
             'isAdmin'           => $this->authService->isAdmin(),
             'familles'          => $familles,
             'assignations'      => $assignations,
