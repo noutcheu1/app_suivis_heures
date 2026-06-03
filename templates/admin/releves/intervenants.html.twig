@@ -1,0 +1,783 @@
+{% extends 'base.html.twig' %}
+{% block title %}Relevés intervenants{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+.h-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+.h-mena  { background:#eff6ff; color:#1d4ed8; }
+.h-enfa  { background:#f0fdf4; color:#15803d; }
+.h-total { background:#f5f3ff; color:#6d28d9; }
+
+tr.selected-row { background:#eef2ff !important; }
+tr.selected-row:hover td { background:#eef2ff !important; }
+
+/* Barre flottante */
+#floatBar {
+    position:fixed; bottom:-120px; left:50%; transform:translateX(-50%);
+    background:#1e1b4b; color:#fff; border-radius:14px;
+    padding:12px 20px; display:flex; align-items:center; gap:10px;
+    box-shadow:0 8px 32px rgba(0,0,0,.35); z-index:1000;
+    transition:bottom .3s cubic-bezier(.34,1.56,.64,1);
+    flex-wrap:wrap; justify-content:center;
+}
+#floatBar.visible { bottom:24px; }
+.float-btn {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:0 14px; height:34px; border-radius:8px;
+    font-size:13px; font-weight:600; cursor:pointer; border:none;
+}
+.float-btn-mena { background:#3b82f6; color:#fff; }
+.float-btn-enfa { background:#22c55e; color:#fff; }
+.float-btn-all  { background:#fff; color:#1e1b4b; }
+.float-btn:hover { filter:brightness(1.1); }
+
+/* Modal choix format */
+#modalFormat { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:2000; align-items:center; justify-content:center; }
+#modalFormat.open { display:flex; }
+.modal-format-box {
+    background:#fff; border-radius:14px; padding:28px 32px;
+    max-width:440px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.2);
+}
+.format-btn {
+    display:flex; align-items:center; gap:14px;
+    padding:14px 18px; border-radius:10px; border:2px solid var(--border);
+    cursor:pointer; margin-bottom:10px; background:#fff; width:100%;
+    text-align:left; transition:border-color .15s, background .15s;
+    font-family:inherit;
+}
+.format-btn:hover { border-color:var(--primary); background:var(--primary-light); }
+.format-btn-icon { font-size:22px; width:36px; text-align:center; flex-shrink:0; }
+
+.table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+/* Boutons filtre */
+.flt-btn {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:0 11px; height:28px; border-radius:20px;
+    font-size:12px; font-weight:500; cursor:pointer;
+    border:1px solid var(--border); background:#fff;
+    color:var(--text-muted); transition:all .15s; white-space:nowrap;
+    font-family:inherit;
+}
+.flt-btn:hover { border-color:var(--border-strong); color:var(--text); background:var(--bg); }
+.flt-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.flt-mena.active { background:#3b82f6; border-color:#3b82f6; color:#fff; }
+.flt-enfa.active { background:#22c55e; border-color:#22c55e; color:#fff; }
+
+@media(max-width:768px){
+    .col-sm-hide { display:none; }
+    table.data-table thead th, table.data-table tbody td { padding:10px 8px; font-size:12px; }
+    .flt-btn { font-size:11px; padding:0 8px; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+
+{# ── En-tête ── #}
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
+    <div>
+        <h1 style="font-size:20px;font-weight:700;margin:0 0 4px;">Relevés des intervenants</h1>
+        <p style="font-size:13px;color:var(--text-muted);margin:0;">
+            Du <strong>{{ periodeDebut|date('d/m/Y') }}</strong> au <strong>{{ periodeFin|date('d/m/Y') }}</strong>
+            — {{ intervenants|length }} intervenants
+        </p>
+    </div>
+    <form method="get">
+        <select name="mois" onchange="this.form.submit()"
+            style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:500;background:var(--bg);cursor:pointer;font-family:inherit;">
+            {% for mois in moisDisponibles %}
+            <option value="{{ mois.value }}" {{ mois.value == moisActuel ? 'selected' : '' }}>{{ mois.label }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+{# ── Filtres ── #}
+<div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:14px;box-shadow:var(--shadow-xs);">
+
+    {# Ligne 1 : recherche + filtres de base #}
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+        <div class="table-search" style="max-width:200px;">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Nom, code..." oninput="filterRows()">
+        </div>
+
+        <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Heures :</span>
+        <div style="display:flex;gap:4px;">
+            <button class="flt-btn" data-groupe="heures" data-filter="actif" onclick="setFilter('heures','actif')"><i class="fas fa-check"></i> Avec heures</button>
+            <button class="flt-btn" data-groupe="heures" data-filter="vide"  onclick="setFilter('heures','vide')"><i class="fas fa-minus"></i> Sans heures</button>
+        </div>
+
+        <div style="width:1px;height:22px;background:var(--border);"></div>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Type :</span>
+        <div style="display:flex;gap:4px;">
+            <button class="flt-btn flt-mena" data-groupe="type" data-filter="mena"      onclick="setFilter('type','mena')"><i class="fas fa-broom"></i> Ménage</button>
+            <button class="flt-btn flt-enfa" data-groupe="type" data-filter="enfa"      onclick="setFilter('type','enfa')"><i class="fas fa-child"></i> Garde</button>
+            <button class="flt-btn"          data-groupe="type" data-filter="deuxTypes" onclick="setFilter('type','deuxTypes')"><i class="fas fa-layer-group"></i> Les deux</button>
+        </div>
+
+        <div style="width:1px;height:22px;background:var(--border);"></div>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Statut :</span>
+        <div style="display:flex;gap:4px;">
+            <button class="flt-btn" data-groupe="statut" data-filter="signe"    onclick="setFilter('statut','signe')"><i class="fas fa-circle-check" style="color:#22c55e;"></i> Signé</button>
+            <button class="flt-btn" data-groupe="statut" data-filter="nonsigne" onclick="setFilter('statut','nonsigne')"><i class="fas fa-circle-xmark" style="color:#f59e0b;"></i> Non signé</button>
+        </div>
+
+        <div style="width:1px;height:22px;background:var(--border);"></div>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:500;">PDF :</span>
+        <div style="display:flex;gap:4px;">
+            <button class="flt-btn" data-groupe="pdf" data-filter="telecharge"    onclick="setFilter('pdf','telecharge')"><i class="fas fa-cloud-arrow-down" style="color:#22c55e;"></i> Téléchargé</button>
+            <button class="flt-btn" data-groupe="pdf" data-filter="nontelecharge" onclick="setFilter('pdf','nontelecharge')"><i class="fas fa-cloud-arrow-down" style="color:var(--text-xmuted);"></i> Non téléchargé</button>
+        </div>
+    </div>
+
+    {# Ligne 2 : progression + date téléchargement #}
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;padding-top:8px;border-top:1px solid var(--border);">
+        <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Progression :</span>
+        <div style="display:flex;gap:4px;">
+            <button class="flt-btn" data-groupe="progression" data-filter="complet"   onclick="setFilter('progression','complet')"
+                title="Signé ET téléchargé pour tous les types avec heures">
+                <i class="fas fa-check-double" style="color:#15803d;"></i> Complet
+            </button>
+            <button class="flt-btn" data-groupe="progression" data-filter="encours"   onclick="setFilter('progression','encours')"
+                title="Partiellement traité (signé OU téléchargé mais pas les deux)">
+                <i class="fas fa-hourglass-half" style="color:#d97706;"></i> En cours
+            </button>
+            <button class="flt-btn" data-groupe="progression" data-filter="nontraite" onclick="setFilter('progression','nontraite')"
+                title="A des heures mais ni signé ni téléchargé">
+                <i class="fas fa-circle-exclamation" style="color:#dc2626;"></i> Non traité
+            </button>
+        </div>
+
+        <div style="width:1px;height:22px;background:var(--border);"></div>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Téléchargé le :</span>
+        <div style="display:flex;gap:4px;">
+            <button class="flt-btn" data-groupe="dlDate" data-filter="today"   onclick="setFilter('dlDate','today')">
+                <i class="fas fa-calendar-day"></i> Aujourd'hui
+            </button>
+            <button class="flt-btn" data-groupe="dlDate" data-filter="week"    onclick="setFilter('dlDate','week')">
+                <i class="fas fa-calendar-week"></i> 7 jours
+            </button>
+            <button class="flt-btn" data-groupe="dlDate" data-filter="month"   onclick="setFilter('dlDate','month')">
+                <i class="fas fa-calendar"></i> Ce mois
+            </button>
+            <button class="flt-btn" data-groupe="dlDate" data-filter="jamais"  onclick="setFilter('dlDate','jamais')"
+                title="N'a jamais été téléchargé (parmi ceux avec heures)">
+                <i class="fas fa-ban" style="color:#dc2626;"></i> Jamais
+            </button>
+        </div>
+
+        <div style="width:1px;height:22px;background:var(--border);"></div>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Volume :</span>
+        <div style="display:flex;gap:4px;">
+            <button class="flt-btn" data-groupe="volume" data-filter="low"  onclick="setFilter('volume','low')"  title="Moins de 20h ce mois"><i class="fas fa-angle-down"></i> &lt; 20h</button>
+            <button class="flt-btn" data-groupe="volume" data-filter="mid"  onclick="setFilter('volume','mid')"  title="Entre 20h et 60h ce mois"><i class="fas fa-equals"></i> 20–60h</button>
+            <button class="flt-btn" data-groupe="volume" data-filter="high" onclick="setFilter('volume','high')" title="Plus de 60h ce mois"><i class="fas fa-angle-up"></i> &gt; 60h</button>
+        </div>
+    </div>
+
+    {# Ligne 2 : presets + sélection rapide + reset #}
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--border);">
+
+        <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Preset :</span>
+        <button onclick="presetAImprimer()"
+            style="display:inline-flex;align-items:center;gap:6px;padding:0 12px;height:30px;border-radius:8px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:12px;font-weight:600;cursor:pointer;"
+            title="Avec heures + non encore téléchargé par l'admin">
+            <i class="fas fa-file-arrow-down"></i> À imprimer
+        </button>
+        <button onclick="presetASigner()"
+            style="display:inline-flex;align-items:center;gap:6px;padding:0 12px;height:30px;border-radius:8px;background:#fdf4ff;color:#7e22ce;border:1px solid #e9d5ff;font-size:12px;font-weight:600;cursor:pointer;"
+            title="Avec heures + non encore signé par l'intervenant">
+            <i class="fas fa-signature"></i> À signer
+        </button>
+
+        <div style="width:1px;height:18px;background:var(--border);"></div>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Sélection :</span>
+        <button onclick="selectionnerType('mena')"
+            style="display:inline-flex;align-items:center;gap:6px;padding:0 12px;height:30px;border-radius:8px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-size:12px;font-weight:600;cursor:pointer;">
+            <i class="fas fa-broom"></i> Tous les ménages
+        </button>
+        <button onclick="selectionnerType('enfa')"
+            style="display:inline-flex;align-items:center;gap:6px;padding:0 12px;height:30px;border-radius:8px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;font-size:12px;font-weight:600;cursor:pointer;">
+            <i class="fas fa-child"></i> Toutes les gardes
+        </button>
+        <button onclick="selectVisible()" class="btn btn-ghost btn-sm"><i class="fas fa-check-square"></i> Tout sélectionner</button>
+        <button onclick="deselectAll()" class="btn btn-ghost btn-sm"><i class="fas fa-square"></i> Désélectionner</button>
+
+        <div style="width:1px;height:18px;background:var(--border);"></div>
+        <button onclick="resetFiltres()" class="btn btn-ghost btn-sm" style="color:var(--danger);">
+            <i class="fas fa-xmark"></i> Effacer les filtres
+        </button>
+        <span id="resultCount" style="font-size:12px;color:var(--text-muted);margin-left:4px;"></span>
+    </div>
+</div>
+
+{# hidden select pour compatibilité avec filterRows() #}
+<select id="filterType" style="display:none;" onchange="filterRows()"></select>
+
+{# ── Tableau ── #}
+<div class="table-wrapper table-scroll">
+    <table class="data-table" id="relevesTable">
+        <thead>
+            <tr>
+                <th style="width:40px;padding-left:16px;">
+                    <input type="checkbox" id="checkAll" onchange="toggleAll(this)"
+                           style="width:15px;height:15px;cursor:pointer;accent-color:var(--primary);">
+                </th>
+                <th onclick="sortTable(1)" style="cursor:pointer;">Intervenant <i class="fas fa-sort" style="font-size:9px;opacity:.35;"></i></th>
+                <th onclick="sortTable(2)" style="cursor:pointer;text-align:center;">
+                    <i class="fas fa-broom" style="color:#1d4ed8;"></i> Ménage <i class="fas fa-sort" style="font-size:9px;opacity:.35;"></i>
+                </th>
+                <th onclick="sortTable(3)" style="cursor:pointer;text-align:center;">
+                    <i class="fas fa-child" style="color:#15803d;"></i> Garde <i class="fas fa-sort" style="font-size:9px;opacity:.35;"></i>
+                </th>
+                <th onclick="sortTable(4)" style="cursor:pointer;text-align:center;">
+                    Total <i class="fas fa-sort" style="font-size:9px;opacity:.35;"></i>
+                </th>
+                <th class="col-sm-hide" style="text-align:center;">
+                    <i class="fas fa-pen-to-square"></i> Dernière saisie
+                </th>
+                <th style="text-align:center;">
+                    <i class="fas fa-circle-half-stroke"></i> Statut
+                </th>
+                <th class="col-sm-hide" style="text-align:center;">
+                    <i class="fas fa-cloud-arrow-down"></i> Téléchargé admin
+                    <button onclick="toggleFilterTelecharge()" id="btnFilterDl"
+                        style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--text-xmuted);padding:0 3px;"
+                        title="Filtrer">▼</button>
+                </th>
+                <th style="text-align:center;padding-right:16px;" colspan="3">
+                    <i class="fas fa-file-pdf" style="color:#dc2626;"></i> PDF individuel
+                </th>
+            </tr>
+        </thead>
+        <tbody id="relevesBody">
+        {% for intervenant in intervenants %}
+            {% set id     = intervenant.id|default(0) %}
+            {% set hM     = stats[id]['MENA']|default(0) %}
+            {% set hE     = stats[id]['ENFA']|default(0) %}
+            {% set hT     = hM + hE %}
+            {% set last   = stats[id]['derniereAjout']|default(null) %}
+            {% set signeM = releves[id]['MENA']['signer'] ?? false %}
+            {% set signeE = releves[id]['ENFA']['signer'] ?? false %}
+            {% set dateSigneM = releves[id]['MENA']['signerLe'] ?? null %}
+            {% set dateSigneE = releves[id]['ENFA']['signerLe'] ?? null %}
+            {% set dlM    = releves[id]['MENA']['telechargerLe'] ?? null %}
+            {% set dlE    = releves[id]['ENFA']['telechargerLe'] ?? null %}
+            {% set urlM   = path('releves_intervenant_pdf_mvc', {intervenantId: id, type: 'MENA', mois: moisOffset}) %}
+            {% set urlE   = path('releves_intervenant_pdf_mvc', {intervenantId: id, type: 'ENFA', mois: moisOffset}) %}
+            {% set signe  = (hM > 0 and signeM) or (hE > 0 and signeE) %}
+            {% set telecharge = dlM is not null or dlE is not null %}
+            {% set doitMena = typesParInter[id]['MENA'] is defined or typesParInter[id]['M'] is defined %}
+            {% set doitEnfa = typesParInter[id]['ENFA'] is defined or typesParInter[id]['GE'] is defined %}
+            {# Timestamp du téléchargement le plus récent (pour filtre par date) #}
+            {% set dlTs = 0 %}
+            {% if dlM %}{% set dlTs = dlM|date('U') %}{% endif %}
+            {% if dlE %}{% set dlTs2 = dlE|date('U') %}{% set dlTs = (dlTs2 > dlTs) ? dlTs2 : dlTs %}{% endif %}
+            {# Complet = tous les types avec heures sont signés ET téléchargés #}
+            {% set complet = hT > 0 and (hM == 0 or (signeM and dlM)) and (hE == 0 or (signeE and dlE)) %}
+            {# Non traité = heures mais ni signé ni téléchargé #}
+            {% set nonTraite = hT > 0 and not signe and not telecharge %}
+            {# En cours = partiellement traité (signé OU téléchargé mais pas les deux) #}
+            {% set enCours = hT > 0 and not complet and (signe or telecharge) %}
+        <tr data-id="{{ id }}"
+            data-nom="{{ intervenant.nom|lower }} {{ intervenant.prenom|lower }}"
+            data-mena="{{ hM }}"
+            data-enfa="{{ hE }}"
+            data-type-mena="{{ doitMena ? '1' : '0' }}"
+            data-type-enfa="{{ doitEnfa ? '1' : '0' }}"
+            data-signe="{{ signe ? '1' : '0' }}"
+            data-telecharge="{{ telecharge ? '1' : '0' }}"
+            data-dl-ts="{{ dlTs }}"
+            data-complet="{{ complet ? '1' : '0' }}"
+            data-non-traite="{{ nonTraite ? '1' : '0' }}"
+            data-en-cours="{{ enCours ? '1' : '0' }}"
+            data-deux-types="{{ (hM > 0 and hE > 0) ? '1' : '0' }}"
+            data-url-mena="{{ urlM }}"
+            data-url-enfa="{{ urlE }}">
+
+            <td style="padding-left:16px;">
+                <input type="checkbox" class="row-check" data-id="{{ id }}"
+                       onchange="updateCount()"
+                       style="width:15px;height:15px;cursor:pointer;accent-color:var(--primary);">
+            </td>
+            <td>
+                <div style="font-weight:600;">{{ intervenant.nom }} {{ intervenant.prenom }}</div>
+                <div style="font-size:11px;color:var(--text-xmuted);">#{{ id }}</div>
+            </td>
+            <td style="text-align:center;">
+                {% if hM > 0 %}<span class="h-badge h-mena">{{ hM|number_format(1, 'h', '') }}</span>
+                {% else %}<span style="color:var(--border-strong);">—</span>{% endif %}
+            </td>
+            <td style="text-align:center;">
+                {% if hE > 0 %}<span class="h-badge h-enfa">{{ hE|number_format(1, 'h', '') }}</span>
+                {% else %}<span style="color:var(--border-strong);">—</span>{% endif %}
+            </td>
+            <td style="text-align:center;">
+                {% if hT > 0 %}<span class="h-badge h-total">{{ hT|number_format(1, 'h', '') }}</span>
+                {% else %}<span style="color:var(--border-strong);">—</span>{% endif %}
+            </td>
+            <td class="col-sm-hide" style="font-size:12px;color:var(--text-muted);">
+                {% if last and last != '0000-00-00 00:00:00' %}
+                    {{ last|date('d/m/Y') }}<br><span style="font-size:11px;color:var(--text-xmuted);">{{ last|date('H:i') }}</span>
+                {% else %}<span style="color:var(--border-strong);">—</span>{% endif %}
+            </td>
+
+            {# Statut synthétique : signé + téléchargé par type #}
+            <td style="text-align:center;font-size:11px;">
+                {% if hT == 0 %}
+                    <span style="color:var(--border-strong);">—</span>
+                {% else %}
+                    <div style="display:inline-flex;flex-direction:column;gap:4px;align-items:flex-start;">
+                    {% if hM > 0 %}
+                        {% set okM = signeM and dlM %}
+                        {% set warnM = signeM and not dlM %}
+                        {% set todoM = not signeM %}
+                        <span style="display:flex;align-items:center;gap:5px;"
+                              title="Ménage — Signé : {{ signeM ? (dateSigneM ? dateSigneM|date('d/m/Y') : 'oui') : 'non' }} | Téléchargé : {{ dlM ? dlM|date('d/m/Y') : 'non' }}">
+                            <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:10px;font-weight:700;
+                                background:{{ okM ? '#dcfce7' : (warnM ? '#fef9c3' : '#fee2e2') }};
+                                color:{{ okM ? '#15803d' : (warnM ? '#854d0e' : '#dc2626') }};">
+                                {{ okM ? '✓' : (warnM ? '!' : '×') }}
+                            </span>
+                            <span style="color:var(--text-muted);">M
+                                {% if signeM and dateSigneM %}<span style="color:#15803d;">✎{{ dateSigneM|date('d/m') }}</span>{% endif %}
+                                {% if dlM %}<span style="color:#1d4ed8;margin-left:2px;">⬇{{ dlM|date('d/m') }}</span>{% endif %}
+                            </span>
+                        </span>
+                    {% endif %}
+                    {% if hE > 0 %}
+                        {% set okE = signeE and dlE %}
+                        {% set warnE = signeE and not dlE %}
+                        {% set todoE = not signeE %}
+                        <span style="display:flex;align-items:center;gap:5px;"
+                              title="Garde — Signé : {{ signeE ? (dateSigneE ? dateSigneE|date('d/m/Y') : 'oui') : 'non' }} | Téléchargé : {{ dlE ? dlE|date('d/m/Y') : 'non' }}">
+                            <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:10px;font-weight:700;
+                                background:{{ okE ? '#dcfce7' : (warnE ? '#fef9c3' : '#fee2e2') }};
+                                color:{{ okE ? '#15803d' : (warnE ? '#854d0e' : '#dc2626') }};">
+                                {{ okE ? '✓' : (warnE ? '!' : '×') }}
+                            </span>
+                            <span style="color:var(--text-muted);">GE
+                                {% if signeE and dateSigneE %}<span style="color:#15803d;">✎{{ dateSigneE|date('d/m') }}</span>{% endif %}
+                                {% if dlE %}<span style="color:#1d4ed8;margin-left:2px;">⬇{{ dlE|date('d/m') }}</span>{% endif %}
+                            </span>
+                        </span>
+                    {% endif %}
+                    </div>
+                {% endif %}
+            </td>
+
+            {# Téléchargé admin — M et GE avec date #}
+            <td class="col-sm-hide" style="text-align:center;font-size:12px;">
+                {% if hT == 0 %}
+                    <span style="color:var(--border-strong);">—</span>
+                {% else %}
+                    <div style="display:inline-flex;flex-direction:column;gap:3px;align-items:center;">
+                    {% if hM > 0 %}
+                        <span style="display:flex;align-items:center;gap:4px;"
+                              title="Ménage : {{ dlM ? 'Téléchargé le ' ~ dlM|date('d/m/Y à H:i') : 'Non téléchargé' }}">
+                            <i class="fas fa-{{ dlM ? 'circle-check' : 'circle-minus' }}"
+                               style="color:{{ dlM ? '#22c55e' : 'var(--text-xmuted)' }};font-size:14px;"></i>
+                            <small style="color:var(--text-muted);">Ménage{% if dlM %} {{ dlM|date('d/m') }}{% endif %}</small>
+                        </span>
+                    {% endif %}
+                    {% if hE > 0 %}
+                        <span style="display:flex;align-items:center;gap:4px;"
+                              title="Garde : {{ dlE ? 'Téléchargé le ' ~ dlE|date('d/m/Y à H:i') : 'Non téléchargé' }}">
+                            <i class="fas fa-{{ dlE ? 'circle-check' : 'circle-minus' }}"
+                               style="color:{{ dlE ? '#22c55e' : 'var(--text-xmuted)' }};font-size:14px;"></i>
+                            <small style="color:var(--text-muted);">GardeEnfant{% if dlE %} {{ dlE|date('d/m') }}{% endif %}</small>
+                        </span>
+                    {% endif %}
+                    </div>
+                {% endif %}
+            </td>
+
+            {# PDF individuel + Consulter #}
+            <td style="text-align:center;padding-right:16px;">
+                <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">
+                    {% if hM > 0 %}
+                    <a href="{{ urlM }}" target="_blank"
+                       style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:500;text-decoration:none;border:1px solid #bfdbfe;">
+                        <i class="fas fa-file-arrow-down"></i> Ménage
+                    </a>
+                    {% endif %}
+                </div>
+            </td>
+            {% if hE > 0 %}
+            <td style="text-align:center;">
+                <a href="{{ urlE }}" target="_blank"
+                       style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;background:#f0fdf4;color:#15803d;font-size:12px;font-weight:500;text-decoration:none;border:1px solid #bbf7d0;">
+                        <i class="fas fa-file-arrow-down"></i> Garde
+                    </a>
+                  
+                    
+            </td>
+              {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <div id="emptyMsg" style="display:none;text-align:center;padding:48px 20px;color:var(--text-muted);">
+        <i class="fas fa-filter" style="font-size:28px;color:var(--border-strong);display:block;margin-bottom:12px;"></i>
+        Aucun résultat pour ce filtre.
+    </div>
+</div>
+
+{# ── Barre flottante ── #}
+<div id="floatBar">
+    <span id="floatCount" style="font-size:13px;font-weight:600;"></span>
+    <div style="width:1px;height:20px;background:rgba(255,255,255,.2);"></div>
+    <button onclick="ouvrirModal('MENA')" class="float-btn float-btn-mena">
+        <i class="fas fa-file-arrow-down"></i> Ménages
+    </button>
+    <button onclick="ouvrirModal('ENFA')" class="float-btn float-btn-enfa">
+        <i class="fas fa-file-arrow-down"></i> Gardes
+    </button>
+    <button onclick="ouvrirModal('ALL')" class="float-btn float-btn-all">
+        <i class="fas fa-file-zipper"></i> Les deux
+    </button>
+    <button onclick="deselectAll()" style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:20px;padding:0 4px;">×</button>
+</div>
+
+{# ── Modal choix format ── #}
+<div id="modalFormat">
+    <div class="modal-format-box">
+        <h2 style="font-size:17px;font-weight:700;margin:0 0 6px;">Choisir le format de téléchargement</h2>
+        <p style="font-size:13px;color:var(--text-muted);margin:0 0 20px;" id="modalFormatSub"></p>
+
+        <button class="format-btn" onclick="telecharger('groupe')">
+            <span class="format-btn-icon" style="color:var(--primary);">📄</span>
+            <div>
+                <div style="font-weight:600;font-size:14px;">Un seul PDF groupé</div>
+                <div style="font-size:12px;color:var(--text-muted);">Toutes les fiches dans un seul fichier, une page par intervenant</div>
+            </div>
+        </button>
+
+        <button class="format-btn" onclick="telecharger('individuel')">
+            <span class="format-btn-icon" style="color:#22c55e;">📁</span>
+            <div>
+                <div style="font-weight:600;font-size:14px;">PDFs séparés par intervenant</div>
+                <div style="font-size:12px;color:var(--text-muted);">Un fichier PDF ouvert dans un onglet par intervenant sélectionné</div>
+            </div>
+        </button>
+
+        <button onclick="fermerModal()"
+            style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:13px;color:var(--text-muted);">
+            Annuler
+        </button>
+    </div>
+</div>
+
+{# ── Modal PDFs individuels ── #}
+<div id="modalIndividuel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;padding:24px 28px;max-width:520px;width:92%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div>
+                <h3 style="font-size:16px;font-weight:700;margin:0;">PDFs individuels</h3>
+                <p id="modalIndividuelCount" style="font-size:12px;color:var(--text-muted);margin:2px 0 0;"></p>
+            </div>
+            <button onclick="document.getElementById('modalIndividuel').style.display='none'"
+                style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);padding:0 4px;">×</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px;padding:8px 12px;background:#f8fafc;border-radius:8px;border-left:3px solid var(--primary);">
+            <i class="fas fa-info-circle"></i> Cliquez sur chaque bouton pour ouvrir le PDF dans un nouvel onglet.
+            Les boutons s'estompent une fois cliqués.
+        </p>
+        <div id="modalIndividuelList" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;"></div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px;">
+            <button onclick="ouvrirTousLesPdfs()" id="btnOuvrirTous"
+                style="flex:1;padding:9px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+                <i class="fas fa-external-link-alt"></i> Tout ouvrir d'un coup
+            </button>
+            <button onclick="document.getElementById('modalIndividuel').style.display='none'"
+                style="padding:9px 16px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:13px;color:var(--text-muted);">
+                Fermer
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+let currentType = 'ALL';
+
+// Filtres actifs par groupe — combinables
+const activeFilters = { heures: '', type: '', statut: '', pdf: '', progression: '', dlDate: '', volume: '' };
+
+function setFilter(groupe, val) {
+    activeFilters[groupe] = activeFilters[groupe] === val ? '' : val;
+    document.querySelectorAll(`.flt-btn[data-groupe="${groupe}"]`).forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === activeFilters[groupe]);
+    });
+    filterRows();
+}
+
+function resetFiltres() {
+    Object.keys(activeFilters).forEach(k => activeFilters[k] = '');
+    document.querySelectorAll('.flt-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('searchInput').value = '';
+    filterRows();
+}
+
+/* ── Filtre combiné ── */
+function filterRows() {
+    const search   = document.getElementById('searchInput').value.toLowerCase();
+    const fHeures  = activeFilters.heures;
+    const fType    = activeFilters.type;
+    const fStatut  = activeFilters.statut;
+    const fPdf     = activeFilters.pdf;
+    const fProg    = activeFilters.progression;
+    const fDlDate  = activeFilters.dlDate;
+    const fVolume  = activeFilters.volume;
+    let visible    = 0;
+
+    const now    = Math.floor(Date.now() / 1000);
+    const today  = Math.floor(new Date().setHours(0,0,0,0) / 1000);
+    const week7  = now - 7 * 86400;
+    const d      = new Date();
+    const month1 = Math.floor(new Date(d.getFullYear(), d.getMonth(), 1).getTime() / 1000);
+
+    document.querySelectorAll('#relevesBody tr').forEach(row => {
+        const nom        = row.dataset.nom       || '';
+        const id         = row.dataset.id        || '';
+        const mena       = parseFloat(row.dataset.mena       || 0);
+        const enfa       = parseFloat(row.dataset.enfa       || 0);
+        const typeMena   = row.dataset.typeMena  === '1';
+        const typeEnfa   = row.dataset.typeEnfa  === '1';
+        const signe      = row.dataset.signe     === '1';
+        const telecharge = row.dataset.telecharge=== '1';
+        const dlTs       = parseInt(row.dataset.dlTs         || 0, 10);
+        const complet    = row.dataset.complet   === '1';
+        const nonTraite  = row.dataset.nonTraite === '1';
+        const enCours    = row.dataset.enCours   === '1';
+        const deuxTypes  = row.dataset.deuxTypes === '1';
+        const tot        = mena + enfa;
+
+        const matchSearch = !search || nom.includes(search) || id.includes(search);
+
+        const matchHeures = !fHeures
+            || (fHeures === 'actif' && tot > 0)
+            || (fHeures === 'vide'  && tot === 0);
+
+        const matchType = !fType
+            || (fType === 'mena'      && typeMena)
+            || (fType === 'enfa'      && typeEnfa)
+            || (fType === 'deuxTypes' && deuxTypes);
+
+        const matchStatut = !fStatut
+            || (fStatut === 'signe'    && tot > 0 && signe)
+            || (fStatut === 'nonsigne' && tot > 0 && !signe);
+
+        const matchPdf = !fPdf
+            || (fPdf === 'telecharge'    && tot > 0 && telecharge)
+            || (fPdf === 'nontelecharge' && tot > 0 && !telecharge);
+
+        const matchProg = !fProg
+            || (fProg === 'complet'   && complet)
+            || (fProg === 'nontraite' && nonTraite)
+            || (fProg === 'encours'   && enCours);
+
+        const matchDlDate = !fDlDate
+            || (fDlDate === 'today'  && dlTs >= today)
+            || (fDlDate === 'week'   && dlTs >= week7)
+            || (fDlDate === 'month'  && dlTs >= month1)
+            || (fDlDate === 'jamais' && tot > 0 && dlTs === 0);
+
+        const matchVolume = !fVolume
+            || (fVolume === 'low'  && tot > 0  && tot < 20)
+            || (fVolume === 'mid'  && tot >= 20 && tot <= 60)
+            || (fVolume === 'high' && tot > 60);
+
+        const show = matchSearch && matchHeures && matchType && matchStatut && matchPdf
+                  && matchProg && matchDlDate && matchVolume;
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+
+    document.getElementById('emptyMsg').style.display = visible === 0 ? 'block' : 'none';
+    document.getElementById('resultCount').textContent = visible + ' résultat' + (visible > 1 ? 's' : '');
+    updateCount();
+}
+
+/* Filtre rapide depuis l'icône colonne téléchargé */
+function toggleFilterTelecharge() {
+    const sel = document.getElementById('filterType');
+    sel.value = sel.value === 'nontelecharge' ? 'telecharge' : 'nontelecharge';
+    filterRows();
+}
+
+/* ── Sélection ── */
+function toggleAll(master) {
+    document.querySelectorAll('#relevesBody tr').forEach(row => {
+        if (row.style.display !== 'none') row.querySelector('.row-check').checked = master.checked;
+    });
+    updateCount();
+}
+function selectVisible() {
+    document.querySelectorAll('#relevesBody tr').forEach(row => {
+        if (row.style.display !== 'none') row.querySelector('.row-check').checked = true;
+    });
+    document.getElementById('checkAll').checked = true;
+    updateCount();
+}
+function selectionnerType(type) {
+    // Active le filtre type puis sélectionne toutes les lignes visibles
+    setFilter('type', type);
+    // Si le filtre heures n'est pas actif, l'activer automatiquement (inutile de cocher les vides)
+    if (!activeFilters.heures) setFilter('heures', 'actif');
+    filterRows();
+    document.querySelectorAll('#relevesBody tr').forEach(row => {
+        if (row.style.display !== 'none') row.querySelector('.row-check').checked = true;
+    });
+    updateCount();
+}
+
+/* Presets combinés */
+function presetAImprimer() {
+    // Avec heures + non téléchargé → lignes prêtes à être imprimées par l'admin
+    resetFiltres();
+    activeFilters.heures = 'actif';
+    activeFilters.pdf    = 'nontelecharge';
+    document.querySelectorAll('.flt-btn[data-groupe="heures"][data-filter="actif"]').forEach(b => b.classList.add('active'));
+    document.querySelectorAll('.flt-btn[data-groupe="pdf"][data-filter="nontelecharge"]').forEach(b => b.classList.add('active'));
+    filterRows();
+    // Sélectionner automatiquement les lignes visibles
+    document.querySelectorAll('#relevesBody tr').forEach(row => {
+        if (row.style.display !== 'none') row.querySelector('.row-check').checked = true;
+    });
+    updateCount();
+}
+
+function presetASigner() {
+    // Avec heures + non signé → lignes en attente de signature
+    resetFiltres();
+    activeFilters.heures = 'actif';
+    activeFilters.statut = 'nonsigne';
+    document.querySelectorAll('.flt-btn[data-groupe="heures"][data-filter="actif"]').forEach(b => b.classList.add('active'));
+    document.querySelectorAll('.flt-btn[data-groupe="statut"][data-filter="nonsigne"]').forEach(b => b.classList.add('active'));
+    filterRows();
+    document.querySelectorAll('#relevesBody tr').forEach(row => {
+        if (row.style.display !== 'none') row.querySelector('.row-check').checked = true;
+    });
+    updateCount();
+}
+function deselectAll() {
+    document.querySelectorAll('.row-check').forEach(cb => cb.checked = false);
+    document.getElementById('checkAll').checked = false;
+    updateCount();
+}
+function updateCount() {
+    const n   = document.querySelectorAll('.row-check:checked').length;
+    const bar = document.getElementById('floatBar');
+    document.getElementById('floatCount').textContent = n + ' intervenant' + (n > 1 ? 's' : '') + ' sélectionné' + (n > 1 ? 's' : '');
+    bar.classList.toggle('visible', n > 0);
+    document.querySelectorAll('#relevesBody tr').forEach(row => {
+        row.classList.toggle('selected-row', !!row.querySelector('.row-check')?.checked);
+    });
+}
+
+/* ── Modal format ── */
+function ouvrirModal(type) {
+    const checked = document.querySelectorAll('.row-check:checked');
+    if (!checked.length) return;
+    currentType = type;
+    const label = type === 'MENA' ? 'ménage' : type === 'ENFA' ? 'garde d\'enfant' : 'ménage + garde';
+    document.getElementById('modalFormatSub').textContent =
+        checked.length + ' intervenant(s) sélectionné(s) — Type : ' + label;
+    document.getElementById('modalFormat').classList.add('open');
+}
+function fermerModal() {
+    document.getElementById('modalFormat').classList.remove('open');
+}
+function telecharger(format) {
+    fermerModal();
+    const checked = document.querySelectorAll('.row-check:checked');
+    const params  = new URLSearchParams();
+    params.set('type', currentType);
+    params.set('mois', '{{ moisActuel }}');
+    checked.forEach(cb => params.append('ids[]', cb.dataset.id));
+
+    if (format === 'groupe') {
+        window.location.href = '/admin-mvc/releves-batch?' + params.toString();
+    } else {
+        // PDFs séparés : construire une liste de liens cliquables
+        // (window.open asynchrone = bloqué par le popup blocker des navigateurs)
+        const list = document.getElementById('modalIndividuelList');
+        list.innerHTML = '';
+        let count = 0;
+
+        checked.forEach(cb => {
+            const row = cb.closest('tr');
+            const nomEl = row.querySelector('td:nth-child(2)');
+            const nom   = nomEl ? nomEl.firstElementChild?.textContent.trim() || nomEl.textContent.trim() : '#' + cb.dataset.id;
+            const mena  = parseFloat(row.dataset.mena || 0);
+            const enfa  = parseFloat(row.dataset.enfa || 0);
+
+            const addLink = (url, label, color) => {
+                const a = document.createElement('a');
+                a.href   = url;
+                a.target = '_blank';
+                a.rel    = 'noopener';
+                a.style.cssText = `display:flex;align-items:center;gap:10px;padding:9px 14px;
+                    border-radius:8px;background:${color}10;border:1px solid ${color}40;
+                    color:#111;text-decoration:none;font-size:13px;font-weight:500;
+                    transition:opacity .2s;`;
+                a.innerHTML = `<i class="fas fa-file-arrow-down" style="color:${color};font-size:14px;flex-shrink:0;"></i>
+                    <span>${nom}</span>
+                    <span style="margin-left:auto;font-size:11px;color:${color};font-weight:600;white-space:nowrap;">${label}</span>`;
+                a.addEventListener('click', () => {
+                    setTimeout(() => { a.style.opacity = '0.45'; }, 100);
+                });
+                list.appendChild(a);
+                count++;
+            };
+
+            if ((currentType === 'MENA' || currentType === 'ALL') && mena > 0)
+                addLink(row.dataset.urlMena, 'Ménage', '#3b82f6');
+            if ((currentType === 'ENFA' || currentType === 'ALL') && enfa > 0)
+                addLink(row.dataset.urlEnfa, "Garde d'enfants", '#22c55e');
+        });
+
+        document.getElementById('modalIndividuelCount').textContent =
+            count + ' PDF' + (count > 1 ? 's' : '') + ' à ouvrir';
+        document.getElementById('modalIndividuel').style.display = 'flex';
+    }
+}
+
+/* Ouvre tous les liens du modal individuels en une fois (certains navigateurs l'autorisent) */
+function ouvrirTousLesPdfs() {
+    document.querySelectorAll('#modalIndividuelList a').forEach(a => {
+        window.open(a.href, '_blank', 'noopener');
+        a.style.opacity = '0.45';
+    });
+}
+
+/* Fermer modal en cliquant à l'extérieur */
+document.getElementById('modalFormat').addEventListener('click', e => {
+    if (e.target === document.getElementById('modalFormat')) fermerModal();
+});
+
+/* ── Tri ── */
+let sortDir = {};
+function sortTable(col) {
+    const tbody = document.getElementById('relevesBody');
+    const rows  = Array.from(tbody.querySelectorAll('tr'));
+    sortDir[col] = !sortDir[col];
+    const dir = sortDir[col] ? 1 : -1;
+    rows.sort((a, b) => {
+        const ta = a.querySelectorAll('td')[col]?.textContent.trim() ?? '';
+        const tb = b.querySelectorAll('td')[col]?.textContent.trim() ?? '';
+        const na = parseFloat(ta), nb = parseFloat(tb);
+        if (!isNaN(na) && !isNaN(nb)) return (na - nb) * dir;
+        return ta.localeCompare(tb, 'fr') * dir;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+}
+</script>
+{% endblock %}
