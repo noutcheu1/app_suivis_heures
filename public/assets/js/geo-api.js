@@ -1,67 +1,69 @@
-const GEOCODE_CACHE = new Map();
+const delay = ms => new Promise(res => setTimeout(res, ms));
 
 async function geocodeAddress(address) {
-    if (GEOCODE_CACHE.has(address)) {
-        return GEOCODE_CACHE.get(address);
-    }
+  await delay(200); 
 
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
+  const url = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(address)}&limit=1`;
 
-    try {
-        const response = await fetch(url, {
-            headers: { 'Accept-Language': 'fr' }
-        });
+  try {
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+          console.error(`Erreur API : ${response.status}`);
+          return null;
+      }
 
-        if (!response.ok) {
-            throw new Error(`Nominatim error: ${response.statusText}`);
-        }
+      const data = await response.json();
+      
+      if (data.features && data.features.length > 0) {
+          // L'API renvoie les coordonnées au format [longitude, latitude]
+          const [lon, lat] = data.features[0].geometry.coordinates;
+          return [lat, lon];
+      }
+  } catch (error) {
+      console.error('Erreur de géocodage :', error);
+  }
 
-        const data = await response.json();
-        if (data && data.length > 0) {
-            const coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-            GEOCODE_CACHE.set(address, coords);
-            return coords;
-        }
-    } catch (error) {
-        console.error('Geocode Error:', error);
-    }
-
-    return null;
+  return null;
 }
 
 async function getRoute(start, end) {
-    const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=false`;
+  const url = `http://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=false`;
 
-    try {
-        const response = await fetch(url);
+  try {
+      const response = await fetch(url);
 
-        if (!response.ok) {
-            throw new Error(`OSRM error: ${response.statusText}`);
-        }
+      if (!response.ok) {
+          throw new Error(`Error fetching route: ${response.statusText}`);
+      }
 
-        const data = await response.json();
-        if (data.routes && data.routes[0]?.legs[0]) {
-            return {
-                distance: (data.routes[0].legs[0].distance / 1000).toFixed(2),
-                duration: (data.routes[0].legs[0].duration / 60).toFixed(0),
-            };
-        }
-    } catch (error) {
-        console.error('Route Error:', error);
-    }
+      const data = await response.json();
+      if (data.routes && data.routes[0]?.legs[0]) {
+          const distance = (data.routes[0].legs[0].distance / 1000).toFixed(2); // Convert to kilometers
+          const duration = (data.routes[0].legs[0].duration / 60).toFixed(2); // Convert to minutes
+          return { distance, duration };
+      }
+  } catch (error) {
+      console.error('Route Error:', error);
+  }
 
-    return null;
+  return null;
 }
 
 export async function getDistance(addressStart, addressEnd) {
-    const [coordsStart, coordsEnd] = await Promise.all([
-        geocodeAddress(addressStart),
-        geocodeAddress(addressEnd),
-    ]);
+  const coordinatesStart = await geocodeAddress(addressStart);
+  const coordinatesEnd = await geocodeAddress(addressEnd);
 
-    if (!coordsStart || !coordsEnd) return null;
-
-    const route = await getRoute(coordsStart, coordsEnd);
-    return route ? route.distance : null;
+  if (coordinatesStart && coordinatesEnd) {
+      await delay(1000);
+      const route = await getRoute(coordinatesStart, coordinatesEnd);
+      if (route) {
+        return route.distance.toString().replace('.', ',');
+      } else {
+          return "Error";
+      }
+  } else {
+      return "Error";
+  }
 }
 

@@ -205,6 +205,43 @@
         </div>
     </div>
 
+    {# ── Récupération d'une intervention non terminée ──────── #}
+    <div id="recoverSection" style="display:none;margin-top:16px;">
+        <div class="result-card" style="border:2px solid #f59e0b;">
+            <div style="width:52px;height:52px;background:#fef3c7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+                <i class="fas fa-triangle-exclamation" style="font-size:22px;color:#d97706;"></i>
+            </div>
+            <p style="font-weight:600;text-align:center;margin-bottom:4px;">Intervention non terminée</p>
+            <p style="font-size:13px;color:var(--text-muted);text-align:center;margin-bottom:14px;">
+                Vous avez oublié de terminer une prestation. Indiquez l'heure de fin réelle.
+            </p>
+            <div style="background:var(--surface,#f8fafc);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:14px;font-size:14px;">
+                <div style="display:flex;justify-content:space-between;padding:4px 0;">
+                    <span style="color:var(--text-muted);">Famille</span><strong id="recFam">—</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:4px 0;">
+                    <span style="color:var(--text-muted);">Date</span><strong id="recDate">—</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:4px 0;">
+                    <span style="color:var(--text-muted);">Début</span><strong id="recDebut">—</strong>
+                </div>
+            </div>
+            <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);display:block;margin-bottom:6px;">
+                Heure de fin <span id="recPrevuNote" style="text-transform:none;font-weight:400;color:#d97706;"></span>
+            </label>
+            <input type="time" id="recHeureFin"
+                   style="width:100%;height:42px;padding:0 12px;border:1.5px solid var(--border);border-radius:var(--radius-md);font-size:16px;font-family:inherit;box-sizing:border-box;outline:none;margin-bottom:14px;">
+            <div style="display:flex;gap:10px;">
+                <button class="btn btn-success" style="flex:1;" onclick="validerRecuperation()">
+                    <i class="fas fa-check"></i> Enregistrer
+                </button>
+                <button class="btn btn-ghost" style="flex:1;" onclick="ignorerRecuperation()">
+                    Ignorer
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 {# Données familles — ge/mena basés sur les assignations proposer de cet intervenant #}
@@ -220,6 +257,14 @@ if (FAMILLES[{{ a.numeroFamille|json_encode|raw }}]) FAMILLES[{{ a.numeroFamille
 if (FAMILLES[{{ a.numeroFamille|json_encode|raw }}]) FAMILLES[{{ a.numeroFamille|json_encode|raw }}].mena = true;
 {% endif %}
 {% endfor %}
+// Heures de fin planifiées (proposer) : clé "numFam|jour|type" → "HH:MM"
+const PLANNING_FIN = {};
+{% for a in assignations %}
+{% if a.heureFin %}
+PLANNING_FIN[{{ a.numeroFamille|json_encode|raw }} + '|' + {{ a.jour|lower|json_encode|raw }} + '|' + {{ a.typePrestation|json_encode|raw }}] = {{ a.heureFin|date('H:i')|json_encode|raw }};
+{% endif %}
+{% endfor %}
+
 const INTERVENANT_ID = {{ user.id }};
 const QR_API_URL = "{{ path('intervenant_qr_api_mvc', {id: user.id}) }}";
 </script>
@@ -244,6 +289,16 @@ const status   = document.getElementById('scanStatus');
 
 // ── Démarrage caméra ─────────────────────────────────
 async function startCamera() {
+    // Contexte sécurisé requis : HTTPS ou http://localhost.
+    // Sur une IP en http:// (ex. mobile via le réseau local), l'API est indisponible.
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        status.textContent = location.protocol === 'https:'
+            ? 'Caméra non supportée par ce navigateur — utilisez la saisie manuelle'
+            : 'La caméra nécessite une connexion sécurisée (HTTPS). Sur mobile, utilisez la saisie manuelle.';
+        document.getElementById('manuelSection').style.display = 'block';
+        return;
+    }
+
     try {
         stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: { ideal: 'environment' } }
@@ -253,7 +308,14 @@ async function startCamera() {
         status.textContent = 'Pointez la caméra vers le QR code de la famille';
         scanInterval = setInterval(scanFrame, 300);
     } catch (e) {
-        status.textContent = 'Caméra non disponible — utilisez la saisie manuelle';
+        // Message selon la vraie cause du refus
+        let msg = 'Caméra non disponible — utilisez la saisie manuelle';
+        if (e && e.name === 'NotAllowedError') {
+            msg = 'Autorisation caméra refusée. Activez-la dans les réglages du navigateur, ou utilisez la saisie manuelle.';
+        } else if (e && e.name === 'NotFoundError') {
+            msg = 'Aucune caméra détectée — utilisez la saisie manuelle.';
+        }
+        status.textContent = msg;
         document.getElementById('manuelSection').style.display = 'block';
     }
 }
@@ -270,12 +332,21 @@ function scanFrame() {
     ctx.drawImage(video, 0, 0);
     const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(img.data, img.width, img.height);
-    if (code) handleScan(code.data.trim().toUpperCase());
+    if (code) handleScan(code.data.trim());
 }
 
 // ── Traitement du scan ───────────────────────────────
-function handleScan(code) {
+function handleScan(raw) {
     scanning = false;
+
+    // Supporte les deux formats de QR :
+    //  - URL  : http://host/declarer/M7156  → on extrait "M7156"
+    //  - brut : M7156
+    let code = (raw || '').trim();
+    const m = code.match(/\/declarer\/([^/?#]+)/i);
+    if (m) code = decodeURIComponent(m[1]);
+    code = code.toUpperCase();
+
     const fam = FAMILLES[code];
     if (!fam) {
         status.textContent = `Code "${code}" non reconnu — réessayez`;
@@ -382,7 +453,7 @@ async function terminer() {
                 km: km ? parseFloat(km) : null,
             })
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({ success: false, error: 'Réponse invalide du serveur' }));
         if (data.success) {
             clearEnCours(currentFam.code);
             clearInterval(timerInterval);
@@ -390,6 +461,9 @@ async function terminer() {
             document.getElementById('actionSaved').style.display = 'block';
             document.getElementById('savedSummary').textContent =
                 `${enCours.heure} → ${hFin} · ${enCours.type === 'ENFA' ? "Garde d'enfants" : 'Ménage'}`;
+        } else {
+            // Affiche la vraie raison renvoyée par le serveur (chevauchement, date, etc.)
+            alert(data.error || 'Enregistrement impossible — réessayez');
         }
     } catch {
         alert('Erreur réseau — réessayez');
@@ -437,6 +511,103 @@ function clearEnCours(code) {
     catch {}
 }
 
-startCamera();
+// ── Récupération d'une intervention non terminée ─────
+const JOURS_FR = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+let recoverCode = null;
+
+function trouverEnCoursOublie() {
+    let all = {};
+    try { all = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { return null; }
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const now = Date.now();
+    for (const [code, ec] of Object.entries(all)) {
+        if (!ec || !ec.ts) continue;
+        // Oublié = d'un autre jour, ou démarré il y a plus de 12h
+        const stale = (ec.date && ec.date !== todayStr) || (now - ec.ts > 12 * 3600 * 1000);
+        if (stale) return { code, ...ec };
+    }
+    return null;
+}
+
+function afficherRecuperation(ec) {
+    recoverCode = ec.code;
+    document.getElementById('scannerSection').style.display = 'none';
+    document.getElementById('resultSection').style.display  = 'none';
+    document.getElementById('recoverSection').style.display = 'block';
+
+    document.getElementById('recFam').textContent   = ec.nom || ec.code;
+    document.getElementById('recDate').textContent  = new Date(ec.date).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+    document.getElementById('recDebut').textContent = ec.heure;
+
+    // Pré-remplir avec l'heure prévue (proposer) si disponible
+    const jour = JOURS_FR[new Date(ec.date).getDay()];
+    const prevu = PLANNING_FIN[`${ec.code}|${jour}|${ec.type}`];
+    const input = document.getElementById('recHeureFin');
+    if (prevu) {
+        input.value = prevu;
+        document.getElementById('recPrevuNote').textContent = `(heure prévue : ${prevu})`;
+    } else {
+        input.value = ec.heure;
+        document.getElementById('recPrevuNote').textContent = '';
+    }
+}
+
+async function validerRecuperation() {
+    const ec = getEnCours(recoverCode);
+    if (!ec) { ignorerRecuperation(); return; }
+    const hFin = document.getElementById('recHeureFin').value;
+    if (!hFin) { alert('Veuillez indiquer l\'heure de fin.'); return; }
+
+    try {
+        const res = await fetch(QR_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'fin',
+                numFam: recoverCode,
+                nomFam: ec.nom,
+                heureDebut: ec.heure,
+                heureFin: hFin,
+                date: ec.date,
+                type: ec.type,
+                km: null,
+            })
+        });
+        const data = await res.json().catch(() => ({ success:false, error:'Réponse invalide du serveur' }));
+        if (data.success) {
+            clearEnCours(recoverCode);
+            document.getElementById('recoverSection').style.display = 'none';
+            // Y a-t-il un autre oubli ? sinon reprendre le scan normal
+            const autre = trouverEnCoursOublie();
+            if (autre) afficherRecuperation(autre);
+            else demarrerFlux();
+        } else {
+            alert(data.error || 'Enregistrement impossible.');
+        }
+    } catch {
+        alert('Erreur réseau — réessayez');
+    }
+}
+
+function ignorerRecuperation() {
+    if (recoverCode) clearEnCours(recoverCode);
+    document.getElementById('recoverSection').style.display = 'none';
+    const autre = trouverEnCoursOublie();
+    if (autre) afficherRecuperation(autre);
+    else demarrerFlux();
+}
+
+// Au chargement : récupérer un éventuel oubli, sinon démarrer le scan
+function demarrerFlux() {
+    document.getElementById('scannerSection').style.display = 'block';
+    startCamera();
+}
+
+const oubli = trouverEnCoursOublie();
+if (oubli) {
+    afficherRecuperation(oubli);
+} else {
+    demarrerFlux();
+}
 </script>
 {% endblock %}

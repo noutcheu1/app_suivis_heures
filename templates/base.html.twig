@@ -38,12 +38,7 @@
             --info:           #0ea5e9;
             --info-bg:        #f0f9ff;
 
-            --sidebar-w:      240px;
-            --sidebar-bg:     #1e1b4b;
-            --sidebar-hover:  rgba(255,255,255,.08);
-            --sidebar-active: rgba(255,255,255,.15);
-
-            --topbar-h:       56px;
+            --navbar-h:       56px;
 
             --radius-sm:  5px;
             --radius:     8px;
@@ -54,7 +49,7 @@
             --shadow-xs:  0 1px 2px rgba(0,0,0,.05);
             --shadow-sm:  0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
             --shadow:     0 4px 12px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.05);
-            --shadow-lg:  0 10px 40px rgba(0,0,0,.08);
+            --shadow-lg:  0 10px 40px rgba(0,0,0,.12);
 
             --transition: all .15s ease;
         }
@@ -64,7 +59,7 @@
 
         body {
             font-family: 'Inter', system-ui, sans-serif;
-            font-size: 14px;
+            font-size: 15px;
             line-height: 1.6;
             color: var(--text);
             background: var(--bg);
@@ -77,229 +72,24 @@
         /* ─── App Shell ──────────────────────────────────────── */
         .app-shell {
             display: flex;
+            flex-direction: column;
             min-height: 100vh;
         }
 
-        /* ─── Sidebar ────────────────────────────────────────── */
-        .sidebar {
-            width: var(--sidebar-w);
-            background: var(--sidebar-bg);
-            position: fixed;
-            top: 0; left: 0; bottom: 0;
-            display: flex;
-            flex-direction: column;
-            z-index: 100;
-            transition: transform .25s ease;
-        }
-
-        .sidebar-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 16px 20px;
-            border-bottom: 1px solid rgba(255,255,255,.07);
-            text-decoration: none;
-        }
-
-        .sidebar-brand-icon {
-            width: 34px; height: 34px;
-            background: var(--primary);
-            border-radius: var(--radius);
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .sidebar-brand-icon i { color: #fff; font-size: 15px; }
-
-        .sidebar-brand-text {
-            font-size: 13px;
-            font-weight: 600;
-            color: #fff;
-            line-height: 1.3;
-        }
-
-        .sidebar-brand-text span {
-            display: block;
-            font-size: 10px;
-            font-weight: 400;
-            color: rgba(255,255,255,.5);
-            margin-top: 1px;
-        }
-
-        .sidebar-nav {
-            flex: 1;
-           
-        }
-
-        .sidebar-section-label {
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: .8px;
-            color: rgba(255,255,255,.35);
-            padding: 12px 10px 6px;
-        }
-
-        .sidebar-link {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 10px;
-            border-radius: var(--radius);
-            color: rgba(255,255,255,.7);
-            font-size: 13.5px;
-            font-weight: 500;
-            transition: var(--transition);
-            text-decoration: none;
-            margin-bottom: 2px;
-        }
-
-        .sidebar-link i {
-            width: 18px;
-            text-align: center;
-            font-size: 14px;
-            color: rgba(255,255,255,.5);
-            transition: var(--transition);
-        }
-
-        .sidebar-link:hover {
-            background: var(--sidebar-hover);
-            color: #fff;
-        }
-
-        .sidebar-link:hover i { color: rgba(255,255,255,.9); }
-
-        .sidebar-link.active {
-            background: var(--sidebar-active);
-            color: #fff;
-        }
-
-        .sidebar-link.active i { color: #fff; }
-
-        .sidebar-badge {
-            margin-left: auto;
-            background: var(--primary);
-            color: #fff;
-            font-size: 10px;
-            font-weight: 700;
-            padding: 1px 7px;
-            border-radius: 20px;
-            line-height: 1.6;
-        }
-
-        .sidebar-footer {
-            padding: 10px;
-            border-top: 1px solid rgba(255,255,255,.07);
-        }
-
-        .sidebar-user {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-            padding: 8px 10px;
-            border-radius: var(--radius);
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        .sidebar-user:hover { background: var(--sidebar-hover); }
-
-        .sidebar-avatar {
-            width: 30px; height: 30px;
-            border-radius: 50%;
-            background: rgba(79,70,229,.6);
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .sidebar-avatar i { color: #fff; font-size: 13px; }
-
-        .sidebar-user-info { flex: 1; min-width: 0; }
-
-        .sidebar-user-name {
-            font-size: 12px;
-            font-weight: 600;
-            color: rgba(255,255,255,.9);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .sidebar-user-role {
-            font-size: 10px;
-            color: rgba(255,255,255,.4);
-        }
+        /* ─── Navbar Bootstrap overrides ────────────────────── */
+        .navbar { box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+        .navbar .nav-link { font-size: 13px; padding: 0.4rem 0.75rem !important; }
+        .navbar .dropdown-item { font-size: 13px; padding: 0.4rem 1rem; }
+        .navbar-brand { font-size: 14px; font-weight: 600; }
+        .navbar .btn-sm { font-size: 12px; }
 
         /* ─── Main wrapper ───────────────────────────────────── */
         .main-wrapper {
             flex: 1;
-            margin-left: var(--sidebar-w);
+            padding-top: var(--navbar-h);
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-        }
-
-        /* ─── Topbar ─────────────────────────────────────────── */
-        .topbar {
-            height: var(--topbar-h);
-            background: var(--white);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            padding: 0 24px;
-            gap: 16px;
-            position: sticky;
-            top: 0;
-            z-index: 50;
-        }
-
-        .topbar-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text);
-            flex: 1;
-        }
-
-        .topbar-actions { display: flex; align-items: center; gap: 8px; }
-
-        .btn-topbar {
-            height: 32px;
-            padding: 0 14px;
-            border-radius: var(--radius);
-            border: 1px solid var(--border);
-            background: var(--white);
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-muted);
-            cursor: pointer;
-            display: flex; align-items: center; gap: 6px;
-            transition: var(--transition);
-            font-family: inherit;
-        }
-
-        .btn-topbar:hover {
-            background: var(--bg);
-            color: var(--text);
-            border-color: var(--border-strong);
-        }
-
-        .topbar-avatar {
-            width: 30px; height: 30px;
-            border-radius: 50%;
-            background: var(--primary-light);
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-        }
-
-        .topbar-avatar i { font-size: 13px; color: var(--primary); }
-
-        .hamburger {
-            display: none;
-            background: none;
-            border: none;
-            padding: 4px 8px;
-            cursor: pointer;
-            color: var(--text-muted);
         }
 
         /* ─── Page Content ───────────────────────────────────── */
@@ -309,12 +99,10 @@
         }
 
         /* ─── Page Header ────────────────────────────────────── */
-        .page-header {
-            margin-bottom: 24px;
-        }
+        .page-header { margin-bottom: 24px; }
 
         .page-header h1 {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 700;
             color: var(--text);
             margin: 0 0 4px;
@@ -322,7 +110,7 @@
         }
 
         .page-header p {
-            font-size: 13.5px;
+            font-size: 14px;
             color: var(--text-muted);
             margin: 0;
         }
@@ -364,7 +152,7 @@
         }
 
         .kpi-label {
-            font-size: 11.5px;
+            font-size: 12px;
             font-weight: 500;
             text-transform: uppercase;
             letter-spacing: .5px;
@@ -372,14 +160,14 @@
         }
 
         .kpi-value {
-            font-size: 26px;
+            font-size: 28px;
             font-weight: 700;
             color: var(--text);
             line-height: 1;
         }
 
         .kpi-icon {
-            width: 36px; height: 36px;
+            width: 38px; height: 38px;
             border-radius: var(--radius);
             display: flex; align-items: center; justify-content: center;
             margin-bottom: 8px;
@@ -394,8 +182,8 @@
         }
 
         .nav-tabs-custom a {
-            padding: 8px 16px;
-            font-size: 13.5px;
+            padding: 9px 18px;
+            font-size: 14px;
             font-weight: 500;
             color: var(--text-muted);
             border-radius: var(--radius) var(--radius) 0 0;
@@ -441,22 +229,22 @@
         }
 
         .action-card-icon {
-            width: 38px; height: 38px;
+            width: 40px; height: 40px;
             border-radius: var(--radius);
             display: flex; align-items: center; justify-content: center;
         }
 
-        .action-card-icon i { font-size: 17px; }
+        .action-card-icon i { font-size: 18px; }
 
         .action-card-label {
-            font-size: 13.5px;
+            font-size: 14px;
             font-weight: 600;
             color: var(--text);
             margin: 0;
         }
 
         .action-card-desc {
-            font-size: 12px;
+            font-size: 12.5px;
             color: var(--text-muted);
             margin: 0;
         }
@@ -466,10 +254,10 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 0 14px;
-            height: 34px;
+            padding: 0 16px;
+            height: 36px;
             border-radius: var(--radius);
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 500;
             font-family: inherit;
             cursor: pointer;
@@ -478,64 +266,32 @@
             text-decoration: none;
         }
 
-        .btn-primary {
-            background: var(--primary);
-            color: #fff;
-            border-color: var(--primary);
-        }
+        .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff; }
 
-        .btn-primary:hover {
-            background: var(--primary-hover);
-            border-color: var(--primary-hover);
-            color: #fff;
-        }
+        .btn-secondary { background: var(--white); color: var(--text); border-color: var(--border); }
+        .btn-secondary:hover { background: var(--bg); border-color: var(--border-strong); }
 
-        .btn-secondary {
-            background: var(--white);
-            color: var(--text);
-            border-color: var(--border);
-        }
-
-        .btn-secondary:hover {
-            background: var(--bg);
-            border-color: var(--border-strong);
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: #fff;
-            border-color: var(--success);
-        }
-
+        .btn-success { background: var(--success); color: #fff; border-color: var(--success); }
         .btn-success:hover { filter: brightness(.92); }
 
-        .btn-danger {
-            background: var(--danger);
-            color: #fff;
-            border-color: var(--danger);
-        }
-
+        .btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
         .btn-danger:hover { filter: brightness(.92); }
 
-        .btn-ghost {
-            background: transparent;
-            color: var(--text-muted);
-            border-color: transparent;
-        }
-
+        .btn-ghost { background: transparent; color: var(--text-muted); border-color: transparent; }
         .btn-ghost:hover { background: var(--bg); color: var(--text); }
 
-        .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
-        .btn-lg { height: 40px; padding: 0 20px; font-size: 14px; }
+        .btn-sm { height: 30px; padding: 0 12px; font-size: 13px; }
+        .btn-lg { height: 44px; padding: 0 22px; font-size: 15px; }
 
         /* ─── Badges ─────────────────────────────────────────── */
         .badge {
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            padding: 2px 8px;
+            padding: 3px 9px;
             border-radius: 20px;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 500;
         }
 
@@ -565,13 +321,13 @@
 
         .table-search {
             flex: 1;
-            max-width: 280px;
+            max-width: 300px;
             position: relative;
         }
 
         .table-search i {
             position: absolute;
-            left: 10px;
+            left: 11px;
             top: 50%;
             transform: translateY(-50%);
             font-size: 13px;
@@ -580,11 +336,11 @@
 
         .table-search input {
             width: 100%;
-            height: 32px;
-            padding: 0 12px 0 32px;
+            height: 34px;
+            padding: 0 12px 0 34px;
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            font-size: 13px;
+            font-size: 14px;
             font-family: inherit;
             color: var(--text);
             background: var(--bg);
@@ -598,14 +354,11 @@
             box-shadow: 0 0 0 3px var(--primary-ring);
         }
 
-        table.data-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+        table.data-table { width: 100%; border-collapse: collapse; }
 
         table.data-table thead th {
-            padding: 10px 16px;
-            font-size: 11.5px;
+            padding: 11px 16px;
+            font-size: 12px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: .5px;
@@ -620,45 +373,31 @@
         table.data-table thead th:hover { color: var(--text); }
 
         table.data-table tbody td {
-            padding: 12px 16px;
-            font-size: 13.5px;
+            padding: 13px 16px;
+            font-size: 14px;
             color: var(--text);
             border-bottom: 1px solid var(--border);
             vertical-align: middle;
         }
 
         table.data-table tbody tr:last-child td { border-bottom: none; }
-
         table.data-table tbody tr:hover td { background: #fafbfc; }
 
         /* ─── Empty State ────────────────────────────────────── */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-        }
+        .empty-state { text-align: center; padding: 60px 20px; }
 
         .empty-state-icon {
-            width: 56px; height: 56px;
+            width: 60px; height: 60px;
             background: var(--bg);
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             margin: 0 auto 14px;
         }
 
-        .empty-state-icon i { font-size: 22px; color: var(--text-xmuted); }
+        .empty-state-icon i { font-size: 24px; color: var(--text-xmuted); }
 
-        .empty-state h3 {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text);
-            margin: 0 0 6px;
-        }
-
-        .empty-state p {
-            font-size: 13px;
-            color: var(--text-muted);
-            margin: 0;
-        }
+        .empty-state h3 { font-size: 16px; font-weight: 600; color: var(--text); margin: 0 0 6px; }
+        .empty-state p { font-size: 14px; color: var(--text-muted); margin: 0; }
 
         /* ─── Flash messages ─────────────────────────────────── */
         .flash-list { margin-bottom: 20px; }
@@ -667,9 +406,9 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 12px 16px;
+            padding: 13px 16px;
             border-radius: var(--radius);
-            font-size: 13.5px;
+            font-size: 14px;
             font-weight: 500;
             margin-bottom: 8px;
         }
@@ -691,92 +430,17 @@
             gap: 16px;
         }
 
-        .prestation-date {
-            text-align: center;
-            min-width: 52px;
-        }
+        .prestation-date { text-align: center; min-width: 52px; }
 
-        .prestation-date .day {
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--text);
-            line-height: 1;
-        }
+        .prestation-date .day { font-size: 24px; font-weight: 700; color: var(--text); line-height: 1; }
+        .prestation-date .month { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 500; }
 
-        .prestation-date .month {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            font-weight: 500;
-        }
-
-        .prestation-sep {
-            width: 1px;
-            height: 40px;
-            background: var(--border);
-        }
+        .prestation-sep { width: 1px; height: 40px; background: var(--border); }
 
         .prestation-info { flex: 1; min-width: 0; }
 
-        .prestation-title {
-            font-size: 13.5px;
-            font-weight: 600;
-            color: var(--text);
-            margin: 0 0 3px;
-        }
-
-        .prestation-meta {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        /* ─── Sidebar overlay (mobile) ───────────────────────── */
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,.4);
-            z-index: 99;
-        }
-
-        /* ─── Mobile ─────────────────────────────────────────── */
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .sidebar.open {
-                transform: translateX(0);
-            }
-
-            .sidebar-overlay.open { display: block; }
-
-            .main-wrapper { margin-left: 0; }
-
-            .hamburger { display: flex; }
-
-            .page-content { padding: 20px 16px; }
-
-            .action-grid { grid-template-columns: 1fr 1fr; }
-
-            table.data-table { min-width: 480px; }
-
-            .card-body { padding: 16px; }
-
-            .kpi-value { font-size: 22px; }
-
-            .topbar-title { font-size: 13px; }
-        }
-
-        @media (max-width: 480px) {
-            .action-grid { grid-template-columns: 1fr; }
-
-            .page-content { padding: 16px 12px; }
-
-            .kpi-value { font-size: 20px; }
-
-            .page-header h1 { font-size: 17px; }
-        }
+        .prestation-title { font-size: 14px; font-weight: 600; color: var(--text); margin: 0 0 3px; }
+        .prestation-meta { font-size: 12.5px; color: var(--text-muted); }
 
         /* ─── Auth layout ────────────────────────────────────── */
         .auth-shell {
@@ -787,163 +451,190 @@
             background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4f46e5 100%);
             padding: 20px;
         }
+
+        /* ─── Mobile ─────────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .hamburger { display: flex; }
+
+            .topnav-menu {
+                display: none;
+                position: fixed;
+                top: var(--navbar-h);
+                left: 0; right: 0;
+                background: var(--navbar-bg);
+                flex-direction: column;
+                align-items: stretch;
+                padding: 12px;
+                gap: 2px;
+                box-shadow: 0 8px 30px rgba(0,0,0,.3);
+                max-height: calc(100vh - var(--navbar-h));
+                overflow-y: auto;
+            }
+
+            .topnav-menu.open { display: flex; }
+
+            .topnav-link { width: 100%; height: 50px; font-size: 16px; justify-content: flex-start; }
+
+            .topnav-dropdown-menu {
+                position: static;
+                box-shadow: none;
+                border: none;
+                background: rgba(255,255,255,.06);
+                margin: 2px 0;
+                padding: 4px;
+            }
+
+            .topnav-dropdown-menu a { color: rgba(255,255,255,.8); font-size: 15px; height: 44px; }
+            .topnav-dropdown-menu a:hover { background: rgba(255,255,255,.1); color: #fff; }
+            .topnav-dropdown-menu a i { color: rgba(255,255,255,.5); }
+
+            .topnav-end {
+                border-left: none;
+                border-top: 1px solid rgba(255,255,255,.12);
+                padding: 12px 0 0;
+                margin-top: 8px;
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .topnav-divider { background: rgba(255,255,255,.12); }
+
+            .topnav-brand-text small { display: none; }
+
+            .page-content { padding: 20px 16px; }
+            .action-grid { grid-template-columns: 1fr 1fr; }
+            table.data-table { min-width: 480px; }
+            .card-body { padding: 16px; }
+            .kpi-value { font-size: 24px; }
+        }
+
+        @media (max-width: 480px) {
+            .action-grid { grid-template-columns: 1fr; }
+            .page-content { padding: 16px 12px; }
+            .page-header h1 { font-size: 19px; }
+        }
     </style>
 
     {% block stylesheets %}{% endblock %}
 </head>
 
-{# ─────────────────────────────────────────────────────────
-   Conditional wrapper — block body appears ONLY ONCE below
-   ───────────────────────────────────────────────────────── #}
 {% if app.user %}
 <body>
 <div class="app-shell">
-    <aside class="sidebar" id="sidebar">
-        <a class="sidebar-brand" href="{{ path('dashboard') }}">
-            <div class="sidebar-brand-icon"><i class="fas fa-heart"></i></div>
-            <div class="sidebar-brand-text">
+
+    {# ── Navbar Bootstrap standard ──────────────────────────── #}
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top" style="background:#ffffff;border-bottom:1px solid #e2e8f0;">
+        <div class="container-fluid">
+
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{{ path('dashboard') }}">
+                <span style="width:28px;height:28px;background:var(--primary);border-radius:6px;display:inline-flex;align-items:center;justify-content:center;">
+                    <i class="fas fa-heart" style="font-size:13px;color:#fff;"></i>
+                </span>
                 Chaudoudoux
-                <span>Suivi des heures</span>
-            </div>
-        </a>
+            </a>
 
-        <nav class="sidebar-nav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain" aria-expanded="false" aria-label="Menu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
 
-            {# ── Admin ── #}
-            {% if is_granted('ROLE_ADMIN') %}
-                <div class="sidebar-section-label">Administration</div>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
 
-                <a class="sidebar-link" href="{{ path('admin_dashboard_mvc') }}">
-                    <i class="fas fa-gauge-high"></i> Tableau de bord
-                </a>
-                <a class="sidebar-link" href="{{ path('admin_intervenants_mvc') }}">
-                    <i class="fas fa-id-card"></i> Intervenants
-                </a>
-                <a class="sidebar-link" href="{{ path('admin_familles_mvc') }}">
-                    <i class="fas fa-users"></i> Familles
-                </a>
-                <a class="sidebar-link" href="{{ path('admin_familles_mvc') }}">
-                    <i class="fas fa-users"></i> Familles
-                </a>
-                <a class="sidebar-link" href="{{ path('admin_familles_mvc') }}">
-                    <i class="fas fa-users"></i> Familles
-                </a>
-                <a class="sidebar-link" href="{{ path('admin_signalements_mvc') }}">
-                    <i class="fas fa-balance-scale"></i> Écarts d'heures
-                </a>
+                    {# ── Admin ── #}
+                    {% if is_granted('ROLE_ADMIN') %}
+                        
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ path('admin_intervenants_mvc') }}"><i class="fas fa-id-card me-1"></i>Intervenants</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="fas fa-users me-1"></i>Familles</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ path('admin_familles_mvc') }}"><i class="fas fa-list me-2 text-muted"></i>Toutes les familles</a></li>
+                                <li><a class="dropdown-item" href="{{ path('liste_Familles_type_mvc', {type: 'prestMenage'}) }}"><i class="fas fa-broom me-2 text-muted"></i>Ménage</a></li>
+                                <li><a class="dropdown-item" href="{{ path('liste_Familles_type_mvc', {type: 'prestGardeEnfants'}) }}"><i class="fas fa-child me-2 text-muted"></i>Garde d'enfant</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ path('admin_signalements_mvc') }}"><i class="fas fa-balance-scale me-1"></i>Écarts</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="fas fa-coins me-1"></i>Paie & Export</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ path('admin_prepare_paie_mvc') }}"><i class="fas fa-coins me-2 text-muted"></i>Préparation paie</a></li>
+                                <li><a class="dropdown-item" href="{{ path('admin_recapitulatif_mvc') }}"><i class="fas fa-table-list me-2 text-muted"></i>Récapitulatif</a></li>
+                                <li><a class="dropdown-item" href="{{ path('admin_fiches_vierges_mvc') }}"><i class="fas fa-file-lines me-2 text-muted"></i>Fiches vierges</a></li>
+                                <li><a class="dropdown-item" href="{{ path('admin_releves_intervenants_mvc') }}"><i class="fas fa-file-pdf me-2 text-muted"></i>Relevés intervenants</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="fas fa-gear me-1"></i>Configuration</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ path('admin_exceptions_facturation_mvc') }}"><i class="fas fa-sliders me-2 text-muted"></i>Exceptions tarifs</a></li>
+                                <li><a class="dropdown-item" href="{{ path('admin_vacances_mvc') }}"><i class="fas fa-umbrella-beach me-2 text-muted"></i>Formulaires vacances</a></li>
+                                <li><a class="dropdown-item" href="{{ path('admin_tarifs_mvc') }}"><i class="fas fa-tags me-2 text-muted"></i>Tarifs</a></li>
+                                <li><a class="dropdown-item" href="{{ path('admin_import_mvc') }}"><i class="fas fa-file-import me-2 text-muted"></i>Import Access</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ path('admin_config_mvc') }}"><i class="fas fa-gear me-2 text-muted"></i>Paramètres généraux</a></li>
+                            </ul>
+                        </li>
 
-                <div class="sidebar-section-label">Paie & Export</div>
+                    {# ── Intervenant ── #}
+                    {% elseif is_granted('ROLE_INTERVENANT') %}
+                        {% set iid = auth_intervenant_id() %}
+                        <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_panel_mvc', {id: iid}) }}"><i class="fas fa-house me-1"></i>Accueil</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_suivie_mvc', {id: iid}) }}"><i class="fas fa-plus-circle me-1"></i>Saisir mes heures</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_qr_mvc', {id: iid}) }}"><i class="fas fa-qrcode me-1"></i>Scanner QR</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_planning_mvc', {id: iid}) }}"><i class="fas fa-calendar-days me-1"></i>Planning</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_heures_mvc', {id: iid}) }}"><i class="fas fa-clock me-1"></i>Mes heures</a></li>
+                        {% if iid %}<li class="nav-item"><a class="nav-link" href="{{ path('releves_intervenant_mvc', {intervenantId: iid}) }}"><i class="fas fa-file-invoice me-1"></i>Mes relevés</a></li>{% endif %}
+                        <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_profile_mvc', {id: iid}) }}"><i class="fas fa-user-circle me-1"></i>Mon profil</a></li>
 
-                <a class="sidebar-link" href="{{ path('admin_prepare_paie_mvc') }}">
-                    <i class="fas fa-coins"></i> Préparation paie
-                </a>
-                <a class="sidebar-link" href="{{ path('admin_recapitulatif_mvc') }}">
-                    <i class="fas fa-table-list"></i> Récapitulatif
-                </a>
-                <a class="sidebar-link" href="{{ path('admin_fiches_vierges_mvc') }}">
-                    <i class="fas fa-file-lines"></i> Fiches vierges
-                </a>
+                    {# ── Famille ── #}
+                    {% elseif is_granted('ROLE_FAMILLE') %}
+                        {% set fid = auth_famille_id() %}
+                        <li class="nav-item"><a class="nav-link" href="{{ path('famille_panel_mvc') }}"><i class="fas fa-house me-1"></i>Accueil</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ path('famille_detail_mvc', {numFam: fid}) }}"><i class="fas fa-pen me-1"></i>Saisir mes heures</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ path('famille_qr_mvc') }}"><i class="fas fa-qrcode me-1"></i>Mon QR code</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ path('famille_releves_mvc', {numFam: fid}) }}"><i class="fas fa-file-invoice me-1"></i>Mes relevés</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ path('famille_ma_facture_mvc') }}"><i class="fas fa-file-invoice-dollar me-1"></i>Ma facture</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ path('famille_estimation_facture_mvc', {numFam: fid}) }}"><i class="fas fa-calculator me-1"></i>Estimation</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ path('famille_profile_mvc') }}"><i class="fas fa-user-circle me-1"></i>Mon profil</a></li>
+                    {% endif %}
 
-                <div class="sidebar-section-label">Configuration</div>
+                </ul>
 
-                <a class="sidebar-link" href="{{ path('admin_exceptions_facturation_mvc') }}">
-                    <i class="fas fa-sliders"></i> Exceptions tarifs
-                </a>
-                <a class="sidebar-link" href="{{ path('admin_import_mvc') }}">
-                    <i class="fas fa-file-import"></i> Import Access
-                </a>
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center gap-2 py-1" href="#" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span style="width:30px;height:30px;border-radius:50%;background:var(--primary);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <i class="fas fa-user" style="font-size:12px;color:#fff;"></i>
+                            </span>
+                            <span style="font-size:13px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ app.user.username }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <span class="dropdown-item-text text-muted" style="font-size:11px;">
+                                    {% if is_granted('ROLE_ADMIN') %}Administrateur
+                                    {% elseif is_granted('ROLE_INTERVENANT') %}Intervenant
+                                    {% else %}Famille{% endif %}
+                                </span>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{{ path('app_logout') }}">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
 
-            {# ── Intervenant ── #}
-            {% elseif is_granted('ROLE_INTERVENANT') %}
-                {% set iid = auth_intervenant_id() %}
-                <div class="sidebar-section-label">Mon espace</div>
-
-                <a class="sidebar-link" href="{{ path('intervenant_panel_mvc', {id: iid}) }}">
-                    <i class="fas fa-house"></i> Accueil
-                </a>
-                <a class="sidebar-link" href="{{ path('intervenant_suivie_mvc',  {id: iid}) }}">
-                    <i class="fas fa-plus-circle"></i> Saisir mes heures
-                </a>
-                <a class="sidebar-link" href="{{ path('intervenant_qr_mvc',  {id: iid}) }}">
-                    <i class="fas fa-qrcode"></i> Scanner QR
-                </a>
-                <a class="sidebar-link" href="{{ path('intervenant_planning_mvc',  {id: iid}) }}">
-                    <i class="fas fa-calendar-days"></i> Mes familles
-                </a>
-                <a class="sidebar-link" href="{{ path('intervenant_heures_mvc',  {id: iid}) }}">
-                    <i class="fas fa-clock"></i> Mes heures
-                </a>
-                {% if iid %}<a class="sidebar-link" href="{{ path('releves_intervenant_mvc', {intervenantId: iid}) }}">
-                    <i class="fas fa-file-invoice"></i> Mes relevés
-                </a>{% endif %}
-                <a class="sidebar-link" href="{{ path('intervenant_profile_mvc',  {id: iid}) }}">
-                    <i class="fas fa-user-circle"></i> Mon profil
-                </a>
-
-            {# ── Famille ── #}
-            {% elseif is_granted('ROLE_FAMILLE') %}
-                {% set fid = auth_famille_id() %}
-                <div class="sidebar-section-label">Mon espace</div>
-
-                <a class="sidebar-link" href="{{ path('famille_panel_mvc') }}">
-                    <i class="fas fa-house"></i> Accueil
-                </a>
-                <a class="sidebar-link" href="{{ path('famille_detail_mvc', {numFam: fid}) }}">
-                    <i class="fas fa-pen"></i> Saisir mes heures
-                </a>
-                <a class="sidebar-link" href="{{ path('famille_qr_mvc') }}">
-                    <i class="fas fa-qrcode"></i> Mon QR code
-                </a>
-                <a class="sidebar-link" href="{{ path('famille_releves_mvc', {numFam: fid}) }}">
-                    <i class="fas fa-file-invoice"></i> Mes relevés
-                </a>
-                <a class="sidebar-link" href="{{ path('famille_ma_facture_mvc') }}">
-                    <i class="fas fa-file-invoice-dollar"></i> Ma facture
-                </a>
-                <a class="sidebar-link" href="{{ path('famille_estimation_facture_mvc', {numFam: fid}) }}">
-                    <i class="fas fa-calculator"></i> Estimation facture
-                </a>
-                <a class="sidebar-link" href="{{ path('famille_profile_mvc') }}">
-                    <i class="fas fa-user-circle"></i> Mon profil
-                </a>
-            {% endif %}
-
-        </nav>
-
-        {# User footer #}
-        <div class="sidebar-footer">
-            <div class="sidebar-user" onclick="window.location='{{ path('app_logout') }}'">
-                <div class="sidebar-avatar"><i class="fas fa-user"></i></div>
-                <div class="sidebar-user-info">
-                    <div class="sidebar-user-name">{{ app.user.username }}</div>
-                    <div class="sidebar-user-role">
-                        {% if is_granted('ROLE_ADMIN') %}Administrateur
-                        {% elseif is_granted('ROLE_INTERVENANT') %}Intervenant
-                        {% else %}Famille{% endif %}
-                    </div>
-                </div>
-                <i class="fas fa-arrow-right-from-bracket" style="color:rgba(255,255,255,.3);font-size:12px;"></i>
             </div>
         </div>
-    </aside>
-
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    </nav>
 
     {# Main #}
     <div class="main-wrapper">
-        <header class="topbar">
-            <button class="hamburger" onclick="openSidebar()">
-                <i class="fas fa-bars"></i>
-            </button>
-            <div class="topbar-title">{% block page_title %}{% endblock %}</div>
-            <div class="topbar-actions">
-                <a href="{{ path('app_logout') }}" class="btn-topbar">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span class="d-none d-md-inline">Déconnexion</span>
-                </a>
-            </div>
-        </header>
-
         <main class="page-content">
             {# Flash messages #}
             {% set flashes = app.flashes %}
@@ -960,7 +651,6 @@
             </div>
             {% endif %}
 
-{# single block body — defined exactly once #}
 {% else %}
 <body>
 <div class="auth-shell">
@@ -996,19 +686,12 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 {% block javascripts %}
 <script>
-    function openSidebar() {
-        document.getElementById('sidebar').classList.add('open');
-        document.getElementById('sidebarOverlay').classList.add('open');
-    }
-    function closeSidebar() {
-        document.getElementById('sidebar').classList.remove('open');
-        document.getElementById('sidebarOverlay').classList.remove('open');
-    }
-
-    // Mark active sidebar link
-    const path = window.location.pathname;
-    document.querySelectorAll('.sidebar-link').forEach(link => {
-        if (link.getAttribute('href') === path) link.classList.add('active');
+    // Mark active nav link
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.navbar .nav-link, .navbar .dropdown-item').forEach(link => {
+        if (link.getAttribute('href') === currentPath) {
+            link.classList.add('active');
+        }
     });
 
     // Auto-close success flashes

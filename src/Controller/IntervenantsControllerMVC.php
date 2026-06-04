@@ -163,6 +163,7 @@ final class IntervenantsControllerMVC extends AbstractController
         return $this->render('intervenants/hours/followup.html.twig', [
             'auth'              => $this->authService->check(),
             'user'              => $user,
+            'intervenantId'     => $id,
             'isAdmin'           => $this->authService->isAdmin(),
             'familles'          => $familles,
             'assignations'      => $assignations,
@@ -313,20 +314,67 @@ final class IntervenantsControllerMVC extends AbstractController
         }
 
         if ($action === 'fin' && $heureDebut && $heureFin) {
-            $this->horaireService->ajouterPrestation([
-                'numFam'           => $numFam,
-                'nomFam'           => $nomFam,
-                'numInter'         => $id,
-                'datePresta'       => $date,
-                'heureDebutPresta' => $heureDebut,
-                'heureFinPresta'   => $heureFin,
-                'typePresta'       => $type,
-                'kmAvecEnfant'     => $km,
-            ]);
+            try {
+                $this->horaireService->ajouterPrestation([
+                    'numFam'           => $numFam,
+                    'nomFam'           => $nomFam,
+                    'numInter'         => $id,
+                    'datePresta'       => $date,
+                    'heureDebutPresta' => $heureDebut,
+                    'heureFinPresta'   => $heureFin,
+                    'typePresta'       => $type,
+                    'kmAvecEnfant'     => $km,
+                ]);
+            } catch (\Throwable $e) {
+                return $this->json(['success' => false, 'error' => $e->getMessage()], 422);
+            }
             return $this->json(['success' => true, 'action' => 'saved']);
         }
 
         return $this->json(['success' => true, 'action' => 'debut_recorded']);
+    }
+
+    // ── Déclaration via QR famille (scan appareil photo natif) ─────────────────
+    // Le QR de la famille encode l'URL absolue de cette route. L'intervenant scanne
+    // avec l'appareil photo de son téléphone → la page s'ouvre → on le redirige vers
+    // son formulaire de saisie pré-rempli avec la famille (pas besoin de la caméra
+    // de l'app, donc pas de contrainte HTTPS pour getUserMedia).
+    #[Route('/declarer/{numFam}', name: 'declarer_qr_mvc', methods: ['GET'])]
+    public function declarerViaQr(string $numFam, Request $request): Response
+    {
+        // Non connecté → on mémorise l'URL demandée (TargetPath standard Symfony)
+        // pour y revenir automatiquement après le login.
+        if (!$this->authService->check()) {
+            $request->getSession()->set('_security.main.target_path', $request->getUri());
+            return $this->redirectToRoute('app_login');
+        }
+
+        $interId = $this->authService->intervenant_id();
+
+        // Un admin n'a pas de saisie personnelle : on l'informe simplement
+        if (!$interId) {
+            $this->addFlash('error', "Ce QR est destiné aux intervenants. Connectez-vous avec un compte intervenant.");
+            return $this->redirectToRoute('intervenants_mvc');
+        }
+
+        // Vérifier que la famille existe et que l'intervenant lui est assigné
+        $famille = $this->familleService->getFamilleParNumero($numFam);
+        if (!$famille) {
+            $this->addFlash('error', "Famille introuvable pour ce QR code.");
+            return $this->redirectToRoute('intervenant_panel_mvc', ['id' => $interId]);
+        }
+
+        if (!$this->familleIntervenantService->peutPointer((int) $interId, (string) $numFam)) {
+            $this->addFlash('error', "Vous n'êtes pas assigné à cette famille.");
+            return $this->redirectToRoute('intervenant_panel_mvc', ['id' => $interId]);
+        }
+
+        // Redirection vers le formulaire de saisie pré-rempli (famille + date du jour)
+        return $this->redirectToRoute('intervenant_suivie_mvc', [
+            'id'      => $interId,
+            'famille' => $numFam,
+            'date'    => (new \DateTime())->format('Y-m-d'),
+        ]);
     }
 
     // ── Admin : archiver ──────────────────────────────────────────────────────

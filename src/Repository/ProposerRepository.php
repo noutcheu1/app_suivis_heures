@@ -32,11 +32,44 @@ class ProposerRepository extends ServiceEntityRepository
     // ── Condition SQL partagée ────────────────────────────────────────────────
 
     private const ACTIF_SQL =
-        '(p.dateFin_Proposer IS NULL
-          OR p.dateFin_Proposer = "0000-00-00"
-          OR p.dateFin_Proposer >= CURDATE())';
+        "((p.idPresta_Prestations = 'MENA' OR p.idPresta_Prestations = 'ENFA')
+          AND p.idADH_TypeADH = 'PREST'
+          AND (p.dateFin_Proposer IS NULL
+               OR p.dateFin_Proposer = '0000-00-00'
+               OR p.dateFin_Proposer >= CURDATE()))";
 
     // ── Requêtes retournant des entités Proposer ──────────────────────────────
+
+    /**
+     * Retourne les numéros de famille (actifs ET expirés) où l'intervenant a un planning
+     * idADH_TypeADH = 'PREST' pour le type donné (MENA ou ENFA).
+     * Si $type est null, retourne pour les deux types.
+     * Utilisé pour filtrer les relevés : seules ces familles peuvent apparaître.
+     *
+     * @return string[]
+     */
+    public function findFamilleIdsPrestByIntervenant(int $numSalarie, ?string $type = null): array
+    {
+        if ($type !== null) {
+            return $this->conn->fetchFirstColumn(
+                "SELECT DISTINCT p.numero_Famille
+                 FROM proposer p
+                 WHERE p.numSalarie_Intervenants = ?
+                   AND p.idADH_TypeADH = 'PREST'
+                   AND p.idPresta_Prestations = ?",
+                [$numSalarie, strtoupper($type)]
+            );
+        }
+
+        return $this->conn->fetchFirstColumn(
+            "SELECT DISTINCT p.numero_Famille
+             FROM proposer p
+             WHERE p.numSalarie_Intervenants = ?
+               AND p.idADH_TypeADH = 'PREST'
+               AND (p.idPresta_Prestations = 'MENA' OR p.idPresta_Prestations = 'ENFA')",
+            [$numSalarie]
+        );
+    }
 
     /**
      * Assignations actives d'un intervenant.
@@ -85,21 +118,23 @@ class ProposerRepository extends ServiceEntityRepository
     public function findByFamillePourPeriode(string $numeroFamille, \DateTimeInterface $firstDay, \DateTimeInterface $lastDay): array
     {
         $rows = $this->conn->fetchAllAssociative(
-            'SELECT p.* FROM proposer p
+            "SELECT p.* FROM proposer p
              INNER JOIN intervenants i ON i.numSalarie_Intervenants = p.numSalarie_Intervenants
              INNER JOIN famille f ON f.numero_Famille = p.numero_Famille
              WHERE p.numero_Famille = ?
+               AND p.idADH_TypeADH = 'PREST'
+               AND (p.idPresta_Prestations = 'MENA' OR p.idPresta_Prestations = 'ENFA')
                AND p.dateDeb_Proposer <= ?
                AND (p.dateFin_Proposer IS NULL
-                    OR p.dateFin_Proposer = "0000-00-00"
+                    OR p.dateFin_Proposer = '0000-00-00'
                     OR p.dateFin_Proposer >= ?)
                AND (i.archive_Intervenants = 0 OR i.archive_Intervenants IS NULL)
                AND (i.dateEntree_Intervenants IS NULL OR i.dateEntree_Intervenants <= ?)
-               AND (i.dateSortie_Intervenants IS NULL OR i.dateSortie_Intervenants = "0000-00-00" OR i.dateSortie_Intervenants >= ?)
+               AND (i.dateSortie_Intervenants IS NULL OR i.dateSortie_Intervenants = '0000-00-00' OR i.dateSortie_Intervenants >= ?)
                AND (f.archive_Famille = 0 OR f.archive_Famille IS NULL)
                AND (f.dateEntree_Famille IS NULL OR f.dateEntree_Famille <= ?)
-               AND (f.dateSortie_Famille IS NULL OR f.dateSortie_Famille = "0000-00-00" OR f.dateSortie_Famille >= ?)
-             ORDER BY p.jour_Proposer, p.hDeb_Proposer',
+               AND (f.dateSortie_Famille IS NULL OR f.dateSortie_Famille = '0000-00-00' OR f.dateSortie_Famille >= ?)
+             ORDER BY p.jour_Proposer, p.hDeb_Proposer",
             [
                 $numeroFamille,
                 $lastDay->format('Y-m-d'),   // p.dateDeb_Proposer <= lastDay
@@ -126,6 +161,7 @@ class ProposerRepository extends ServiceEntityRepository
         return $this->conn->fetchFirstColumn(
             'SELECT DISTINCT p.numero_Famille FROM proposer p
              WHERE p.numSalarie_Intervenants = ?
+
                AND ' . self::ACTIF_SQL,
             [$numSalarie]
         );
@@ -141,6 +177,7 @@ class ProposerRepository extends ServiceEntityRepository
         $rows = $this->conn->fetchFirstColumn(
             'SELECT DISTINCT p.numSalarie_Intervenants FROM proposer p
              WHERE p.numero_Famille = ?
+             
                AND ' . self::ACTIF_SQL,
             [$numeroFamille]
         );
@@ -346,21 +383,24 @@ class ProposerRepository extends ServiceEntityRepository
     public function findByIntervenantPourPeriode(int $numSalarie, \DateTimeInterface $firstDay, \DateTimeInterface $lastDay): array
     {
         $rows = $this->conn->fetchAllAssociative(
-            'SELECT p.* FROM proposer p
+            "SELECT p.* FROM proposer p
              INNER JOIN intervenants i ON i.numSalarie_Intervenants = p.numSalarie_Intervenants
              INNER JOIN famille f ON f.numero_Famille = p.numero_Famille
              WHERE p.numSalarie_Intervenants = ?
+               AND p.idADH_TypeADH = 'PREST'
+               AND (p.idPresta_Prestations = 'MENA' OR p.idPresta_Prestations = 'ENFA')
                AND p.dateDeb_Proposer <= ?
                AND (p.dateFin_Proposer IS NULL
-                    OR p.dateFin_Proposer = "0000-00-00"
+                    OR p.dateFin_Proposer = '0000-00-00'
                     OR p.dateFin_Proposer >= ?)
                AND (i.archive_Intervenants = 0 OR i.archive_Intervenants IS NULL)
                AND (i.dateEntree_Intervenants IS NULL OR i.dateEntree_Intervenants <= ?)
-               AND (i.dateSortie_Intervenants IS NULL OR i.dateSortie_Intervenants = "0000-00-00" OR i.dateSortie_Intervenants >= ?)
+               AND (i.dateSortie_Intervenants IS NULL OR i.dateSortie_Intervenants = '0000-00-00' OR i.dateSortie_Intervenants >= ?)
                AND (f.archive_Famille = 0 OR f.archive_Famille IS NULL)
                AND (f.dateEntree_Famille IS NULL OR f.dateEntree_Famille <= ?)
-               AND (f.dateSortie_Famille IS NULL OR f.dateSortie_Famille = "0000-00-00" OR f.dateSortie_Famille >= ?)
-             ORDER BY p.jour_Proposer, p.hDeb_Proposer',
+               AND (f.dateSortie_Famille IS NULL OR f.dateSortie_Famille = '0000-00-00' OR f.dateSortie_Famille >= ?)
+               AND f.numero_Famille != '9999'
+             ORDER BY p.jour_Proposer, p.hDeb_Proposer",
             [
                 $numSalarie,
                 $lastDay->format('Y-m-d'),

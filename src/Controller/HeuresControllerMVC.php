@@ -111,6 +111,14 @@ final class HeuresControllerMVC extends AbstractController
         $isAdmin = $this->authService->isAdmin();
         $horaire = $this->horaireService->getPrestation($id);
 
+        if (!$horaire) {
+            return $this->json(['success' => false, 'error' => 'Prestation introuvable'], 404);
+        }
+
+        if (!$isAdmin && $horaire->getNumInter() !== $this->authService->intervenant_id()) {
+            return $this->json(['success' => false, 'error' => 'Non autorisé'], 403);
+        }
+
         if ($horaire && !$isAdmin && $this->horaireService->isVerrouille($horaire)) {
             return $this->json([
                 'success' => false,
@@ -196,9 +204,12 @@ final class HeuresControllerMVC extends AbstractController
 
         $data = $this->getData($request);
 
+        $numFam = $data['famille'] ?? $data['numFam'] ?? null;
+        $isFamilleOccasionnelle = ($numFam === null || $numFam === '' || $numFam === '0' || $numFam == 0);
+
         $donnees = [
-            'numFam' => null,
-            'nomFam' => 'HORS STRUCTURE',
+            'numFam' => $isFamilleOccasionnelle ? null : $numFam,
+            'nomFam' => $data['nomRemplacement'] ?? $data['nomFam'] ?? null,
             'numInter' => $intervenantId,
             'datePresta' => $data['date'] ?? $data['datePresta'] ?? null,
             'heureDebutPresta' => ($data['heureDebut'] ?? '') . ':' . ($data['minuteDebut'] ?? ''),
@@ -235,15 +246,20 @@ final class HeuresControllerMVC extends AbstractController
             return $this->json(['success' => false, 'error' => 'Prestation introuvable'], 404);
         }
 
+        $isAdmin = $this->authService->isAdmin();
+        if (!$isAdmin && $horaire->getNumInter() !== $this->authService->intervenant_id()) {
+            return $this->json(['success' => false, 'error' => 'Non autorisé'], 403);
+        }
+
         return $this->json([
             'success' => true,
             'data' => [
                 'id'               => $horaire->getId(),
                 'numFam'           => $horaire->getNumFam(),
                 'nomFam'           => $horaire->getNomFam(),
-                'datePresta'       => $horaire->getDatePresta()->format('Y-m-d'),
-                'heureDebutPresta' => $horaire->getHeureDebutPresta()->format('H:i'),
-                'heureFinPresta'   => $horaire->getHeureFinPresta()->format('H:i'),
+                'datePresta'       => $horaire->getDatePresta()?->format('Y-m-d'),
+                'heureDebutPresta' => $horaire->getHeureDebutPresta()?->format('H:i'),
+                'heureFinPresta'   => $horaire->getHeureFinPresta()?->format('H:i'),
                 'typePresta'       => $horaire->getTypePresta(),
                 'kmAvecEnfant'     => $horaire->getKmAvecEnfant(),
                 'verrouille'       => !$this->authService->isAdmin() && $this->horaireService->isVerrouille($horaire),
@@ -268,14 +284,14 @@ final class HeuresControllerMVC extends AbstractController
             $donnees[] = [
                 'id' => $prestation->getId(),
                 'nomFam' => $prestation->getNomFam(),
-                'datePresta' => $prestation->getDatePresta()->format('Y-m-d'),
-                'heureDebutPresta' => $prestation->getHeureDebutPresta()->format('H:i'),
-                'heureFinPresta' => $prestation->getHeureFinPresta()->format('H:i'),
+                'datePresta' => $prestation->getDatePresta()?->format('Y-m-d'),
+                'heureDebutPresta' => $prestation->getHeureDebutPresta()?->format('H:i'),
+                'heureFinPresta' => $prestation->getHeureFinPresta()?->format('H:i'),
                 'typePresta' => $prestation->getTypePresta(),
                 'kmAvecEnfant' => $prestation->getKmAvecEnfant(),
                 'declarerLeFam' => $prestation->getDeclarerLeFam()?->format('d/m/Y H:i'),
                 'desactiver' => $prestation->isDesactiver(),
-                'ajouterLe' => $prestation->getAjouterLe()->format('d/m/Y H:i'),
+                'ajouterLe' => $prestation->getAjouterLe()?->format('d/m/Y H:i'),
             ];
         }
 

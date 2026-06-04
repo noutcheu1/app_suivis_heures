@@ -48,7 +48,7 @@
         </tr>
         <tr class="cell-position-right bold">
             <td rowspan="2" class="title">Nom :</td>
-            <td rowspan="2">{{ intervenant.nom }} {{ intervenant.prenom }}</td>
+            <td rowspan="2" class="nom-intervenant">{{ intervenant.nom }} {{ intervenant.prenom }}{% if intervenant.numSalarie is defined and intervenant.numSalarie %}<br><span style="font-size:9px;font-weight:normal;color:#555;">{{ intervenant.numSalarie }}</span>{% endif %}</td>
             <td>Tel :</td>
             <td>{{ intervenant['Téléhone'] }}</td>
         </tr>
@@ -124,7 +124,7 @@
         </tr>
         <tr>
             <td class="no-borders"></td>
-            <th colspan="2"></th>
+            <th colspan="2"> {% if isAdmin %} TRAJET X Nombre de Km {% endif %}  </th>
             {% for i in 0..4 %}
                 <td style="font-size:10px;">
                     
@@ -149,7 +149,7 @@
         {% if afficherKm %}
         <tr>
             <td class="no-borders"></td>
-            <th colspan="2">Km avec enfants</th>
+            <th colspan="2">Total Km (avec enfants)</th>
             {% for i in 0..4 %}
                 <td style="font-size:10px;">
                     {%- if familles[i] is defined and familles[i].totalKmEnfants > 0 -%}
@@ -174,21 +174,36 @@
             <td class="no-borders"></td>
             <td colspan="2" class="no-borders">TOTAL MENSUEL DES HEURES</td>
             <td>{{ totalHeures }}</td>
-            <th class="no-borders"></th>
-            <td></td>
-            {% if totaux.kmMois > 0 or totaux.kmEnfantsMois > 0 %}
+            {% if isAdmin %}
+                <th class="no-borders">  TOTAL KM TRAJET SANS ENFANTS</th>
+                <td>{{ totaux.kmMois|number_format(1, ',', ' ') }} Km X ........ € 
+                (
+                    {{ familles|slice(0, 5)|reduce((total, f) => total + f.nbPrestations, 0) }} prestations
+                    )
+                </td>
+            {% else %}
+                    <th class="no-borders"> </th>
+                <td></td>
+            {% endif %}    
+            {% set totalKmAffichage = totaux.kmMois %}
+            {% if totalKmAffichage == 0 %}
+                {% for page in famillesPages %}{% for fam in page %}
+                    {% if fam.distanceAller > 0 %}
+                        {% set totalKmAffichage = totalKmAffichage + fam.distanceAller * fam.nbPrestations %}
+                    {% endif %}
+                {% endfor %}{% endfor %}
+            {% endif %}
+            {% if totalKmAffichage > 0 or totaux.kmEnfantsMois > 0 %}
                 <th class="no-borders">
-                    TOTAL KM TRAJET{% if afficherKm %} / AVEC ENFANTS{% endif %}
+                    TOTAL KM TRAJET {% if afficherKm %} / AVEC ENFANTS{% endif %}
                 </th>
                 <td>
-                    {{ totaux.kmMois|number_format(1, ',', ' ') }} km
-                    {% if afficherKm and totaux.kmEnfantsMois > 0 %}
-                        / {{ totaux.kmEnfantsMois|number_format(1, ',', ' ') }} km
-                    {% endif %}
+                    {{ totaux.kmEnfantsMois|number_format(1, ',', ' ') }} km X ........ €
                 </td>
             {% else %}
                 <td class="no-borders" colspan="2"></td>
             {% endif %}
+        
         </tr>
         <tr>
             <td class="no-borders" colspan="4"></td>

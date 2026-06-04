@@ -74,6 +74,15 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
             $this->logger->debug('Redirection vers le tableau de bord admin', ['username' => $username]);
             return new RedirectResponse($this->router->generate('admin_dashboard_mvc'));
         }
+        // Reprise de la page demandée avant le login (ex. scan QR → /declarer/...).
+        // Mécanisme TargetPath standard : vaut pour n'importe quelle page protégée.
+        $targetPath = $this->getTargetPath($request->getSession(), $firewallName);
+        if ($targetPath) {
+            $this->removeTargetPath($request->getSession(), $firewallName);
+            $this->logger->debug('Reprise de la page demandée après login', ['target' => $targetPath]);
+            return new RedirectResponse($targetPath);
+        }
+
         if (in_array('ROLE_INTERVENANT', $roles)) {
             $this->logger->debug('Redirection vers le tableau de bord intervenant', ['username' => $username]);
             return new RedirectResponse(
