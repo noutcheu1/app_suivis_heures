@@ -74,17 +74,16 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
             $this->logger->debug('Redirection vers le tableau de bord admin', ['username' => $username]);
             return new RedirectResponse($this->router->generate('admin_dashboard_mvc'));
         }
-        if (in_array('ROLE_INTERVENANT', $roles)) {
-            // Retour après scan d'un QR famille (l'utilisateur n'était pas connecté)
-            $qrFam = $request->getSession()->get('_qr_target_fam');
-            if ($qrFam) {
-                $request->getSession()->remove('_qr_target_fam');
-                $this->logger->debug('Redirection vers la déclaration QR', ['numFam' => $qrFam]);
-                return new RedirectResponse(
-                    $this->router->generate('declarer_qr_mvc', ['numFam' => $qrFam])
-                );
-            }
+        // Reprise de la page demandée avant le login (ex. scan QR → /declarer/...).
+        // Mécanisme TargetPath standard : vaut pour n'importe quelle page protégée.
+        $targetPath = $this->getTargetPath($request->getSession(), $firewallName);
+        if ($targetPath) {
+            $this->removeTargetPath($request->getSession(), $firewallName);
+            $this->logger->debug('Reprise de la page demandée après login', ['target' => $targetPath]);
+            return new RedirectResponse($targetPath);
+        }
 
+        if (in_array('ROLE_INTERVENANT', $roles)) {
             $this->logger->debug('Redirection vers le tableau de bord intervenant', ['username' => $username]);
             return new RedirectResponse(
                 $this->router->generate('intervenant_panel_mvc', [

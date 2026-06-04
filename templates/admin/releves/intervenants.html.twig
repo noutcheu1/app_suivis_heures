@@ -248,10 +248,7 @@ tr.selected-row:hover td { background:#eef2ff !important; }
                         style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--text-xmuted);padding:0 3px;"
                         title="Filtrer">▼</button>
                 </th>
-                <th style="text-align:center;padding-right:16px;" colspan="3">
-                    <i class="fas fa-file-pdf" style="color:#dc2626;"></i> PDF individuel
-                </th>
-            </tr>
+             </tr>
         </thead>
         <tbody id="relevesBody">
         {% for intervenant in intervenants %}
@@ -395,27 +392,6 @@ tr.selected-row:hover td { background:#eef2ff !important; }
                 {% endif %}
             </td>
 
-            {# PDF individuel + Consulter #}
-            <td style="text-align:center;padding-right:16px;">
-                <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">
-                    {% if hM > 0 %}
-                    <a href="{{ urlM }}" target="_blank"
-                       style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:500;text-decoration:none;border:1px solid #bfdbfe;">
-                        <i class="fas fa-file-arrow-down"></i> Ménage
-                    </a>
-                    {% endif %}
-                </div>
-            </td>
-            {% if hE > 0 %}
-            <td style="text-align:center;">
-                <a href="{{ urlE }}" target="_blank"
-                       style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;background:#f0fdf4;color:#15803d;font-size:12px;font-weight:500;text-decoration:none;border:1px solid #bbf7d0;">
-                        <i class="fas fa-file-arrow-down"></i> Garde
-                    </a>
-                  
-                    
-            </td>
-              {% endif %}
         </tr>
         {% endfor %}
         </tbody>
@@ -506,6 +482,34 @@ tr.selected-row:hover td { background:#eef2ff !important; }
 {{ parent() }}
 <script>
 let currentType = 'ALL';
+
+// Ordre de sélection des intervenants (pour générer les PDF dans l'ordre coché)
+const selectionOrder = [];
+
+function trackSelection(id, checked) {
+    const i = selectionOrder.indexOf(id);
+    if (checked && i === -1) selectionOrder.push(id);
+    else if (!checked && i !== -1) selectionOrder.splice(i, 1);
+}
+
+// Retourne les lignes cochées dans l'ORDRE DE SÉLECTION.
+// Les cases cochées en masse (sans clic individuel tracé) sont ajoutées
+// ensuite dans l'ordre du tableau.
+function getCheckedRowsOrdered() {
+    const checkedById = {};
+    document.querySelectorAll('.row-check:checked').forEach(cb => {
+        checkedById[cb.dataset.id] = cb.closest('tr');
+    });
+    const result = [];
+    const seen = new Set();
+    selectionOrder.forEach(id => {
+        if (checkedById[id]) { result.push(checkedById[id]); seen.add(id); }
+    });
+    document.querySelectorAll('.row-check:checked').forEach(cb => {
+        if (!seen.has(cb.dataset.id)) { result.push(cb.closest('tr')); seen.add(cb.dataset.id); }
+    });
+    return result;
+}
 
 // Filtres actifs par groupe — combinables
 const activeFilters = { heures: '', type: '', statut: '', pdf: '', progression: '', dlDate: '', volume: '' };
@@ -670,6 +674,7 @@ function presetASigner() {
 function deselectAll() {
     document.querySelectorAll('.row-check').forEach(cb => cb.checked = false);
     document.getElementById('checkAll').checked = false;
+    selectionOrder.length = 0;
     updateCount();
 }
 function updateCount() {
@@ -697,11 +702,12 @@ function fermerModal() {
 }
 function telecharger(format) {
     fermerModal();
-    const checked = document.querySelectorAll('.row-check:checked');
+    // Lignes cochées DANS L'ORDRE DE SÉLECTION
+    const rows    = getCheckedRowsOrdered();
     const params  = new URLSearchParams();
     params.set('type', currentType);
     params.set('mois', '{{ moisActuel }}');
-    checked.forEach(cb => params.append('ids[]', cb.dataset.id));
+    rows.forEach(row => params.append('ids[]', row.dataset.id));
 
     if (format === 'groupe') {
         window.location.href = '/admin-mvc/releves-batch?' + params.toString();
@@ -712,10 +718,9 @@ function telecharger(format) {
         list.innerHTML = '';
         let count = 0;
 
-        checked.forEach(cb => {
-            const row = cb.closest('tr');
+        rows.forEach(row => {
             const nomEl = row.querySelector('td:nth-child(2)');
-            const nom   = nomEl ? nomEl.firstElementChild?.textContent.trim() || nomEl.textContent.trim() : '#' + cb.dataset.id;
+            const nom   = nomEl ? nomEl.firstElementChild?.textContent.trim() || nomEl.textContent.trim() : '#' + row.dataset.id;
             const mena  = parseFloat(row.dataset.mena || 0);
             const enfa  = parseFloat(row.dataset.enfa || 0);
 
@@ -761,6 +766,11 @@ function ouvrirTousLesPdfs() {
 /* Fermer modal en cliquant à l'extérieur */
 document.getElementById('modalFormat').addEventListener('click', e => {
     if (e.target === document.getElementById('modalFormat')) fermerModal();
+});
+
+/* Suivi de l'ordre de sélection (clics individuels sur les cases) */
+document.querySelectorAll('.row-check').forEach(cb => {
+    cb.addEventListener('change', () => trackSelection(cb.dataset.id, cb.checked));
 });
 
 /* ── Tri ── */

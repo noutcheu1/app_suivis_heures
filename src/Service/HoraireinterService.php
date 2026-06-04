@@ -6,6 +6,7 @@ use App\Entity\Horaire\Horaireinter;
 use App\Repository\AppConfigRepository;
 use App\Repository\FamilleRepository;
 use App\Repository\HoraireinterRepository;
+use App\Repository\IntervenantRepository;
 use App\Repository\ProposerRepository;
 use App\Repository\RelevemensuelinterRepository;
 use App\Repository\TarifFamilleRepository;
@@ -21,6 +22,7 @@ class HoraireinterService
         private FamilleRepository            $familleRepository,
         private AppConfigRepository          $appConfigRepository,
         private TarifFamilleRepository       $tarifFamilleRepository,
+        private IntervenantRepository        $intervenantRepository,
     ) {}
 
     /**
@@ -84,6 +86,13 @@ class HoraireinterService
         $horaire->setAjouterLe(new \DateTime());
         $horaire->setDesactiver(false);
         $horaire->setDeclarerLeFam(null);
+
+        // Distance trajet intervenant → famille, calculée UNE fois et figée
+        // (familles non occasionnelles uniquement). Null si calcul impossible.
+        if ($numFam && $numFam !== '0') {
+            $km = $this->calculerKmTrajet($numInter, (string) $numFam);
+            $horaire->setKmTrajet($km !== null ? (string) $km : null);
+        }
         
         // Calculer les heures totales
         $heures = $this->calculerHeures(
@@ -497,64 +506,25 @@ class HoraireinterService
                 || in_array($numFam, $validFamIds, true);
         }));
 
-            // ── Pré-calcul des distances trajet (ENFA et MENA, familles hors Rennes) ────
-            // Règle : famille À Rennes → distanceAller = 0 (pas de km trajet)
-            //         famille HORS Rennes → distance routière intervenant → famille via API
-            // Toutes les requêtes HTTP sont envoyées en parallèle (curl_multi).
-            $distancesParFamille = [];
-            $exoneresKm          = [];
-            if ($intervenant?->getAdresse()) {
-                $adresseIntervenant = trim(
-                    ($intervenant->getAdresse() ?? '') . ', ' .
-                    ($intervenant->getCodePostal() ?? '') . ' ' .
-                    ($intervenant->getVille() ?? '')
-                );
-
-                // Identifier les familles hors Rennes qui ont une adresse
-                $adressesFamillesHorsRennes = [];
-                foreach ($prestations as $p) {
-                    $numFam = $p->getNumFam() ?? '';
-                    if (!$numFam || isset($adressesFamillesHorsRennes[$numFam]) || isset($distancesParFamille[$numFam])) {
-                        continue;
-                }
-                $famille = $this->familleRepository->findByNumero($numFam);
-                if (!$famille) {
-                    $distancesParFamille[$numFam] = 0.0;
-                    continue;
-                }
-                if ($this->tarifFamilleRepository->isExonereKm($numFam, $type)) {
-                    $exoneresKm[$numFam] = true;
-                }
-                // Famille à Rennes → 0 km (distance réelle nulle)
-                // Famille exonérée → on calcule quand même la vraie distance pour affichage
-                if (!isset($exoneresKm[$numFam]) && $this->estARennes($famille->getVille(), $famille->getCodePostal())) {
-                    $distancesParFamille[$numFam] = 0.0;
-                } elseif ($famille->getAdresse()) {
-                    $adressesFamillesHorsRennes[$numFam] = trim(
-                        $famille->getAdresse() . ', ' .
-                        ($famille->getCodePostal() ?? '') . ' ' .
-                        ($famille->getVille() ?? '')
-                    );
-                }
+        // ── Distances trajet : lues depuis kmTrajet figé sur chaque prestation ──────
+        // (calculé et stocké à la déclaration). Plus AUCUN appel API ici → relevé
+        // instantané et fiable. Les prestations d'une même famille partagent la
+        // même distance ; on prend la valeur figée (max non nulle par sécurité).
+        $distancesParFamille = [];
+        $exoneresKm          = [];
+        foreach ($prestations as $p) {
+            $numFam = $p->getNumFam() ?? '';
+            if (!$numFam) {
+                continue;
             }
-
-            if ($adressesFamillesHorsRennes) {
-                // Géocoder toutes les adresses en parallèle (intervenant + familles hors Rennes)
-                $allAddresses = array_merge([$adresseIntervenant], array_values($adressesFamillesHorsRennes));
-                $geoResults   = $this->geocodeAddressesBatch($allAddresses);
-                $coordsInter  = $geoResults[$adresseIntervenant] ?? null;
-
-                // Calculer toutes les distances en parallèle
-                $pairs = [];
-                foreach ($adressesFamillesHorsRennes as $numFam => $adresseFam) {
-                    $coordsFam = $geoResults[$adresseFam] ?? null;
-                    if ($coordsInter && $coordsFam) {
-                        $pairs[$numFam] = ['start' => $coordsInter, 'end' => $coordsFam];
-                    }
-                }
-                foreach ($this->getDistancesBatch($pairs) as $numFam => $km) {
-                    $distancesParFamille[$numFam] = $km ?? 0.0;
-                }
+            $km = $p->getKmTrajet();
+            if ($km !== null) {
+                $distancesParFamille[$numFam] = max($distancesParFamille[$numFam] ?? 0.0, (float) $km);
+            } elseif (!isset($distancesParFamille[$numFam])) {
+                $distancesParFamille[$numFam] = 0.0;
+            }
+            if (!isset($exoneresKm[$numFam]) && $this->tarifFamilleRepository->isExonereKm($numFam, $type)) {
+                $exoneresKm[$numFam] = true;
             }
         }
 
@@ -565,12 +535,22 @@ class HoraireinterService
             if (!isset($famillesMap[$nom])) {
                 $numFam  = $p->getNumFam() ?? '';
                 $famille = $numFam ? $this->familleRepository->findByNumero($numFam) : null;
+
+                // Distance facturable : règle métier
+                //   - hors Rennes              → distance réelle
+                //   - Rennes + exonéré (payé)  → distance réelle
+                //   - Rennes + NON exonéré     → 0
+                $distReelle = $distancesParFamille[$numFam] ?? 0.0;
+                $estExonere = isset($exoneresKm[$numFam]);
+                $estRennes  = $famille && $this->estARennes($famille->getVille(), $famille->getCodePostal());
+                $distanceAller = ($estRennes && !$estExonere) ? 0.0 : $distReelle;
+
                 $famillesMap[$nom] = [
                     'nomFam'         => $nom,
                     'numFam'         => $numFam,
                     'ville_Famille'  => $famille?->getVille() ?? '',
-                    'distanceAller'  => $distancesParFamille[$numFam] ?? 0.0,
-                    'exonereKm'      => isset($exoneresKm[$numFam]),
+                    'distanceAller'  => $distanceAller,
+                    'exonereKm'      => $estExonere,
                     'prestations'    => [],
                     'totalSecondes'  => 0,
                     'totalKm'        => 0.0,
@@ -592,10 +572,11 @@ class HoraireinterService
 
             $famillesMap[$nom]['totalSecondes']  += $dureeSec;
             $famillesMap[$nom]['nbPrestations']++;
-            // Ne pas cumuler le km si famille exonérée
-            if ($famillesMap[$nom]['exonereKm']) {
-                $famillesMap[$nom]['totalKm'] += $famillesMap[$nom]['distanceAller'] > 15 ? 15.0 : $famillesMap[$nom]['distanceAller'] ;
-            }
+            // Km facturable, plafonné à 15/trajet. distanceAller encode déjà la règle :
+            // Rennes non exonéré = 0 ; hors Rennes et Rennes-exonéré = distance réelle.
+            $famillesMap[$nom]['totalKm'] += $famillesMap[$nom]['distanceAller'] > 15
+                ? 15.0
+                : $famillesMap[$nom]['distanceAller'];
             
             $famillesMap[$nom]['totalKmEnfants'] += $type === 'ENFA'
                 ? (float)($p->getKmAvecEnfant() ?? 0)
@@ -966,6 +947,46 @@ class HoraireinterService
      * On se base sur le nom de ville exact ET les codes postaux officiels de Rennes.
      * Bruz (35170), Cesson (35510), etc. → false → km calculé.
      */
+    /**
+     * Calcule la distance routière (km) entre l'adresse d'un intervenant et une famille.
+     * Retourne 0.0 si la famille est à Rennes, et null si le calcul échoue
+     * (adresse manquante, géocodage ou routage indisponible).
+     */
+    public function calculerKmTrajet(int $numInter, string $numFam): ?float
+    {
+        $intervenant = $this->intervenantRepository->find($numInter);
+        $famille     = $this->familleRepository->findByNumero($numFam);
+
+        if (!$intervenant || !$intervenant->getAdresse() || !$famille || !$famille->getAdresse()) {
+            return null;
+        }
+
+        // On stocke TOUJOURS la distance réelle (même à Rennes). La règle
+        // "Rennes non exonéré → 0" est appliquée à l'affichage du relevé,
+        // car une famille à Rennes peut être exonérée (= km payé quand même).
+
+        $adresseInter = trim(
+            ($intervenant->getAdresse() ?? '') . ', ' .
+            ($intervenant->getCodePostal() ?? '') . ' ' .
+            ($intervenant->getVille() ?? '')
+        );
+        $adresseFam = trim(
+            $famille->getAdresse() . ', ' .
+            ($famille->getCodePostal() ?? '') . ' ' .
+            ($famille->getVille() ?? '')
+        );
+
+        $geo         = $this->geocodeAddressesBatch([$adresseInter, $adresseFam]);
+        $coordsInter = $geo[$adresseInter] ?? null;
+        $coordsFam   = $geo[$adresseFam]   ?? null;
+        if (!$coordsInter || !$coordsFam) {
+            return null; // géocodage échoué → on ne fige pas une fausse valeur
+        }
+
+        $distances = $this->getDistancesBatch(['x' => ['start' => $coordsInter, 'end' => $coordsFam]]);
+        return $distances['x'] ?? null;
+    }
+
     private function estARennes(?string $ville, ?string $cp): bool
     {
         $cpRennes   = ['35000', '35200', '35700'];

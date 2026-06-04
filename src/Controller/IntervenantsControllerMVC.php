@@ -342,9 +342,10 @@ final class IntervenantsControllerMVC extends AbstractController
     #[Route('/declarer/{numFam}', name: 'declarer_qr_mvc', methods: ['GET'])]
     public function declarerViaQr(string $numFam, Request $request): Response
     {
-        // Non connecté → on mémorise la cible et on envoie vers le login
+        // Non connecté → on mémorise l'URL demandée (TargetPath standard Symfony)
+        // pour y revenir automatiquement après le login.
         if (!$this->authService->check()) {
-            $request->getSession()->set('_qr_target_fam', $numFam);
+            $request->getSession()->set('_security.main.target_path', $request->getUri());
             return $this->redirectToRoute('app_login');
         }
 
