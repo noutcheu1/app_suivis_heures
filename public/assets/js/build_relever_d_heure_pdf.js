@@ -271,11 +271,34 @@ function genererFichesPDF(filename) {
                     doc.setFont(undefined, 'normal');
                     doc.text(numText, cx, cy + 2.5 * sc, { align: 'center' });
 
-                    // Nom famille (milieu, bold)
-                    doc.setFontSize(7 * sc);
                     doc.setFont(undefined, 'bold');
-                    doc.text(nameText, cx, cy + ch / 2, { align: 'center' });
 
+                    const mots = nameText.split(/[\s/\-]+/).filter(Boolean);
+
+                    let nameLines;
+
+                    if (mots.length > 3) {
+                        nameLines = [
+                            mots.slice(0, 3).join(' '), // 3 premiers mots
+                            mots.slice(3).join(' ')     // reste
+                        ];
+                    } else {
+                        nameLines = [nameText];
+                    }
+
+                    const nameSize = nameLines.length > 1 ? 6 : 7;
+
+                    doc.setFontSize(nameSize * sc);
+
+                    const lineH = (nameSize - 1) * 0.4 * sc;
+                    const blockH = (nameLines.length - 1) * lineH;
+                    const startY = cy + ch / 2 - blockH / 2;
+
+                    nameLines.forEach((line, li) => {
+                        doc.text(line, cx, startY + li * lineH, {
+                            align: 'center'
+                        });
+                    });
                     // Ville (bas, italic petit)
                     doc.setFontSize(5 * sc);
                     doc.setFont(undefined, 'italic');

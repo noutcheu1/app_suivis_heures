@@ -398,68 +398,10 @@ function updateVisibility() {
 document.getElementById("famille").addEventListener("change", handleFamilleChange);
 document.getElementById("type").addEventListener("change", filterFamillesByType);
 
-// ── Autocomplete famille occasionnelle ─────────────────────────────────────
+// ── Famille occasionnelle : saisie libre du nom (sans suggestions) ──────────
 familleOccaSearch.addEventListener('input', function () {
-    const query = this.value.trim().toLowerCase();
-    nomRemplacementInput.value = this.value.trim(); // autorise aussi la saisie libre
-
-    if (!query) {
-        familleOccaSuggestions.style.display = 'none';
-        return;
-    }
-
-    const matches = (typeof FAMILLES_OCC !== 'undefined' ? FAMILLES_OCC : [])
-        .filter(f => f.toLowerCase().includes(query))
-        .slice(0, 10);
-
-    if (matches.length === 0) {
-        familleOccaSuggestions.style.display = 'none';
-        return;
-    }
-
-    familleOccaSuggestions.innerHTML = '';
-    matches.forEach(label => {
-        const item = document.createElement('div');
-        item.textContent = label;
-        item.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border);transition:background .15s;';
-        item.addEventListener('mouseenter', () => { item.style.background = 'var(--bg-secondary)'; });
-        item.addEventListener('mouseleave', () => { item.style.background = ''; });
-        item.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // évite le blur avant la sélection
-            familleOccaSearch.value = label;
-            nomRemplacementInput.value = label;
-            familleOccaSuggestions.style.display = 'none';
-        });
-        familleOccaSuggestions.appendChild(item);
-    });
-    familleOccaSuggestions.style.display = 'block';
-});
-
-familleOccaSearch.addEventListener('blur', () => {
-    setTimeout(() => { familleOccaSuggestions.style.display = 'none'; }, 150);
-});
-
-familleOccaSearch.addEventListener('keydown', (e) => {
-    const items = familleOccaSuggestions.querySelectorAll('div');
-    const active = familleOccaSuggestions.querySelector('.occ-active');
-    if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        const next = active ? active.nextElementSibling : items[0];
-        if (active) active.classList.remove('occ-active');
-        if (next) { next.classList.add('occ-active'); next.style.background = 'var(--bg-secondary)'; }
-    } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        const prev = active ? active.previousElementSibling : items[items.length - 1];
-        if (active) active.classList.remove('occ-active');
-        if (prev) { prev.classList.add('occ-active'); prev.style.background = 'var(--bg-secondary)'; }
-    } else if (e.key === 'Enter' && active) {
-        e.preventDefault();
-        familleOccaSearch.value = active.textContent;
-        nomRemplacementInput.value = active.textContent;
-        familleOccaSuggestions.style.display = 'none';
-    } else if (e.key === 'Escape') {
-        familleOccaSuggestions.style.display = 'none';
-    }
+    nomRemplacementInput.value = this.value.trim();
+    if (familleOccaSuggestions) familleOccaSuggestions.style.display = 'none';
 });
 
 // Initialisation
