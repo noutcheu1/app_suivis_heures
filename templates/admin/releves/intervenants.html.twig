@@ -101,7 +101,7 @@ tr.selected-row:hover td { background:#eef2ff !important; }
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
         <div class="table-search" style="max-width:200px;">
             <i class="fas fa-search"></i>
-            <input type="text" id="searchInput" placeholder="Nom, code..." oninput="filterRows()">
+            <input type="text" id="searchInput" placeholder="NOM, CODE..." oninput="filterRows()">
         </div>
 
         <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Heures :</span>
@@ -113,13 +113,13 @@ tr.selected-row:hover td { background:#eef2ff !important; }
         <div style="width:1px;height:22px;background:var(--border);"></div>
         <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Type :</span>
         <div style="display:flex;gap:4px;">
-            <button class="flt-btn flt-mena" data-groupe="type" data-filter="mena"      onclick="setFilter('type','mena')"><i class="fas fa-broom"></i> Ménage</button>
-            <button class="flt-btn flt-enfa" data-groupe="type" data-filter="enfa"      onclick="setFilter('type','enfa')"><i class="fas fa-child"></i> Garde</button>
-            <button class="flt-btn"          data-groupe="type" data-filter="deuxTypes" onclick="setFilter('type','deuxTypes')"><i class="fas fa-layer-group"></i> Les deux</button>
+            <button class="flt-btn flt-mena" data-groupe="type" data-filter="mena"      onclick="setFilter('type','mena')"><i class="fas fa-broom"></i> MENAGES</button>
+            <button class="flt-btn flt-enfa" data-groupe="type" data-filter="enfa"      onclick="setFilter('type','enfa')"><i class="fas fa-child"></i> GARDES</button>
+            <button class="flt-btn"          data-groupe="type" data-filter="deuxTypes" onclick="setFilter('type','deuxTypes')"><i class="fas fa-layer-group"></i> LES DEUX</button>
         </div>
 
         <div style="width:1px;height:22px;background:var(--border);"></div>
-        <span style="font-size:12px;color:var(--text-muted);font-weight:500;">Statut :</span>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:500;">RELEVES :</span>
         <div style="display:flex;gap:4px;">
             <button class="flt-btn" data-groupe="statut" data-filter="signe"    onclick="setFilter('statut','signe')"><i class="fas fa-circle-check" style="color:#22c55e;"></i> Signé</button>
             <button class="flt-btn" data-groupe="statut" data-filter="nonsigne" onclick="setFilter('statut','nonsigne')"><i class="fas fa-circle-xmark" style="color:#f59e0b;"></i> Non signé</button>

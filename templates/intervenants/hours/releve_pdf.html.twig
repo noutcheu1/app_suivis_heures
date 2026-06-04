@@ -43,7 +43,7 @@
         </tr>
         <tr>
             <td class="no-borders" colspan="4" style="font-size:10px;">
-                LES FEUILLES D'HEURES DOIVENT ÊTRE SIGNÉES AU PLUS TARD LE 30/31 DU MOIS
+                LES FEUILLES D'HEURES DOIVENT ÊTRE SIGNÉES AU PLUS TARD LE {{ afficherKm ? '30/31' : '25/26' }} DU MOIS
             </td>
         </tr>
         <tr class="cell-position-right bold">
@@ -176,10 +176,8 @@
             <td>{{ totalHeures }}</td>
             {% if isAdmin %}
                 <th class="no-borders">  TOTAL KM TRAJET SANS ENFANTS</th>
-                <td>{{ totaux.kmMois|number_format(1, ',', ' ') }} Km X ........ € 
-                (
-                    {{ familles|slice(0, 5)|reduce((total, f) => total + f.nbPrestations, 0) }} prestations
-                    )
+                <td>{{ totaux.kmMois|number_format(1, ',', ' ') }} Km X ........ € <br>
+                ( {{ familles|slice(0, 5)|reduce((total, f) => total + f.nbPrestations, 0) }} TRAJETS )
                 </td>
             {% else %}
                     <th class="no-borders"> </th>
