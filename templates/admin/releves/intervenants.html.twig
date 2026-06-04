@@ -248,7 +248,10 @@ tr.selected-row:hover td { background:#eef2ff !important; }
                         style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--text-xmuted);padding:0 3px;"
                         title="Filtrer">▼</button>
                 </th>
-             </tr>
+                <th style="text-align:center;padding-right:16px;" colspan="3">
+                    <i class="fas fa-file-pdf" style="color:#dc2626;"></i> PDF individuel
+                </th>
+            </tr>
         </thead>
         <tbody id="relevesBody">
         {% for intervenant in intervenants %}
@@ -392,6 +395,27 @@ tr.selected-row:hover td { background:#eef2ff !important; }
                 {% endif %}
             </td>
 
+            {# PDF individuel + Consulter #}
+            <td style="text-align:center;padding-right:16px;">
+                <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">
+                    {% if hM > 0 %}
+                    <a href="{{ urlM }}" target="_blank"
+                       style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:500;text-decoration:none;border:1px solid #bfdbfe;">
+                        <i class="fas fa-file-arrow-down"></i> Ménage
+                    </a>
+                    {% endif %}
+                </div>
+            </td>
+            {% if hE > 0 %}
+            <td style="text-align:center;">
+                <a href="{{ urlE }}" target="_blank"
+                       style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;background:#f0fdf4;color:#15803d;font-size:12px;font-weight:500;text-decoration:none;border:1px solid #bbf7d0;">
+                        <i class="fas fa-file-arrow-down"></i> Garde
+                    </a>
+                  
+                    
+            </td>
+              {% endif %}
         </tr>
         {% endfor %}
         </tbody>

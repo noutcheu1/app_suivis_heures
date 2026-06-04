@@ -176,7 +176,11 @@
             <td>{{ totalHeures }}</td>
             {% if isAdmin %}
                 <th class="no-borders">  TOTAL KM TRAJET SANS ENFANTS</th>
-                <td>{{ totaux.kmMois|number_format(1, ',', ' ') }} Km X ........ €</td>
+                <td>{{ totaux.kmMois|number_format(1, ',', ' ') }} Km X ........ € 
+                (
+                    {{ familles|slice(0, 5)|reduce((total, f) => total + f.nbPrestations, 0) }} prestations
+                    )
+                </td>
             {% else %}
                     <th class="no-borders"> </th>
                 <td></td>

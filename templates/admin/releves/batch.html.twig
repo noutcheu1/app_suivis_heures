@@ -132,12 +132,13 @@
                 <td>{% if familles[i] is defined %}{{ familles[i].totalHeures }}{% endif %}</td>
             {% endfor %}
         </tr>
-        <tr>
+        <tr>{% set totalprestation = 0  %}
             <td class="no-borders"></td><th colspan="2">TRAJET X Nombre de Km</th>
             {% for i in 0..4 %}
                 <td style="font-size:10px;">
                     {%- if familles[i] is defined and familles[i].distanceAller > 0 -%}
                         {% set distance = familles[i].distanceAller > 15 ? 15 : familles[i].distanceAller %}
+                        {% set totalprestation = totalprestation + familles[i].nbPrestations %}
                         {{ familles[i].nbPrestations }} x {{ distance|number_format(0, ',', ' ') }} km
                     {%- elseif familles[i] is defined -%}
                         {{ familles[i].nbPrestations }} x 0 km
@@ -166,11 +167,16 @@
             <td colspan="2" class="no-borders">TOTAL MENSUEL DES HEURES</td>
             <td>{{ fiche.totalHeures }}</td>
             <th class="no-borders"> TOTAL KM TRAJET SANS ENFANTS </th>
-            <td> {{  fiche.totaux.kmMois|number_format(1, ',', ' ') }} Km  X ..... €</td>
+            <td>
+                    {{ fiche.totaux.kmMois|number_format(1, ',', ' ') }} Km X ..... €
+                    (
+                    {{ familles|slice(0, 5)|reduce((total, f) => total + f.nbPrestations, 0) }} prestations
+                    )
+                </td>
             {% if fiche.totaux.kmMois > 0 or fiche.totaux.kmEnfantsMois > 0 %}
                 <th class="no-borders">TOTAL KM TRAJET{% if fiche.afficherKm %} / AVEC ENFANTS{% endif %}</th>
                 <td>
-                    {{ fiche.totaux.kmEnfantsMois|number_format(1, ',', ' ') }} km
+                    {{ fiche.totaux.kmEnfantsMois|number_format(1, ',', ' ') }} km X ..... €
                 </td>
             {% else %}
                 <td class="no-borders" colspan="2"></td>
