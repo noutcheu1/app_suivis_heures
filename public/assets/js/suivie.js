@@ -349,15 +349,21 @@ function filterFamillesByType() {
     const selectFamille = document.getElementById("famille");
 
     Array.from(selectFamille.options).forEach(o => {
-        if (!o.value || o.value === '0') { o.hidden = false; return; }
+        if (!o.value) { o.hidden = false; return; }   // placeholder « Choisir une famille »
+
+        // Aucun type choisi → on n'affiche AUCUNE famille (ni occasionnelle)
+        if (!type) { o.hidden = true; return; }
+
+        // Famille occasionnelle : disponible dès qu'un type est choisi
+        if (o.value === '0') { o.hidden = false; return; }
 
         // Exclure définitivement les familles mandataires ou sans PGE/PM
         if (!isPrestataire(o)) { o.hidden = true; o.disabled = true; return; }
 
-        // Filtre par type de prestation
-        if (!type) { o.hidden = false; return; }
+        // Filtre par type : la famille n'apparaît QUE si elle a ce type de prestation
+        // (data-prestations = tous les proposers PREST de l'intervenant pour cette famille)
         const prests = o.dataset.prestations ? o.dataset.prestations.split(',').filter(Boolean) : [];
-        o.hidden = prests.length > 0 && !prests.includes(type);
+        o.hidden = !prests.includes(type);
     });
 
     // Si la famille sélectionnée est maintenant masquée, réinitialiser
@@ -407,6 +413,7 @@ familleOccaSearch.addEventListener('input', function () {
 // Initialisation
 filterMandataireFamilles(); // masque les familles mandataires dès le chargement
 updateVisibility();
+filterFamillesByType();     // pas de type au départ → aucune famille affichée
 
 if (params.has('edite')) {
     getInfoData(params.get('edite'));
@@ -416,7 +423,8 @@ if (params.has('edite')) {
     const dateParam = params.get('date');
     const hdebParam = params.get('hdeb');
     const hfinParam = params.get('hfin');
-    console.log({famParam, typeParam, dateParam, hdebParam, hfinParam});
+    const nomDbg    = params.get('nom');
+    console.log('[suivie] params:', {famParam, typeParam, dateParam, hdebParam, hfinParam, nom: nomDbg});
     if (famParam || typeParam) {
         // Pré-remplissage depuis le planning — valeurs fixées directement,
         // sans déclencher les filtres en cascade.
@@ -436,6 +444,17 @@ if (params.has('edite')) {
         if (hfinParam) setTimeSelects('heureFin',   'minuteFin',   hfinParam);
 
         updateVisibility();
+
+        // Famille occasionnelle (famille=0) + nom pré-rempli — APRÈS updateVisibility
+        // (qui affiche le conteneur occasionnel) pour que la valeur ne soit pas écrasée.
+        const nomParam = params.get('nom');
+        if (famParam === '0' && nomParam) {
+            familleOccaContainer.hidden = false;
+            familleOccaSearch.value = nomParam;
+            familleOccaSearch.placeholder = nomParam;
+            nomRemplacementInput.value = nomParam;
+        }
+
         form.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
         handleFamilleChange();

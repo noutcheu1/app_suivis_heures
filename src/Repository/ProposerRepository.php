@@ -38,6 +38,31 @@ class ProposerRepository extends ServiceEntityRepository
                OR p.dateFin_Proposer = '0000-00-00'
                OR p.dateFin_Proposer >= CURDATE()))";
 
+    /**
+     * Types de prestation (MENA/ENFA) par famille pour un intervenant, depuis TOUS
+     * ses proposers PREST (actifs ou expirés). Sert à filtrer le select de saisie
+     * par type de façon fiable (cohérent avec findByIntervenantActif).
+     *
+     * @return array<string, string[]> ['numFam' => ['MENA', 'ENFA'], ...]
+     */
+    public function findTypesParFamilleForIntervenant(int $numSalarie): array
+    {
+        $rows = $this->conn->fetchAllAssociative(
+            "SELECT DISTINCT p.numero_Famille AS numFam, p.idPresta_Prestations AS type
+             FROM proposer p
+             WHERE p.numSalarie_Intervenants = ?
+               AND p.idADH_TypeADH = 'PREST'
+               AND (p.idPresta_Prestations = 'MENA' OR p.idPresta_Prestations = 'ENFA')",
+            [$numSalarie]
+        );
+
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(string) $r['numFam']][] = strtoupper((string) $r['type']);
+        }
+        return $map;
+    }
+
     // ── Requêtes retournant des entités Proposer ──────────────────────────────
 
     /**

@@ -80,7 +80,11 @@
                     <div style="display:flex; flex-direction:column; align-items:center; gap:4px; padding:4px 0;">
                         <span>{{ i + 1 }}</span>
                         {% if familles[i] is defined %}
-                            <span style="font-weight:bold;">{{ familles[i].nomFam }}</span>
+                            {% if familles[i].numFam %}
+                                <span style="font-weight:bold;">{{ famille_label(familles[i].numFam) }}</span>
+                            {% else %}
+                                <span style="font-weight:bold;">FAMILLE OCCASIONNELLE {{ familles[i].nomFam }}</span>
+                            {% endif %}
                             <i style="font-size:7px;" class="villes">{{ familles[i].ville_Famille }}</i>
                         {% endif %}
                     </div>

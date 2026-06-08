@@ -87,7 +87,8 @@
                     <option value="" disabled selected>Choisir une famille</option>
                     <option value="0" data-prestations="ENFA,MENA">Famille OCCASIONNELLE</option>
                     {% for famille in familles %}
-                        {% set types = proposerMap[famille.numeroFamille] is defined ? proposerMap[famille.numeroFamille] : [] %}
+                        {# types = tous les proposers PREST de l'intervenant pour cette famille #}
+                        {% set types = typesParFamille[famille.numeroFamille] is defined ? typesParFamille[famille.numeroFamille] : [] %}
                         <option data-num="{{ famille.numeroFamille }}"
                                 data-prestations="{{ types|join(',') }}"
                                 data-nom="{{ famille_label(famille) }}"
@@ -188,5 +189,5 @@ const FAMILLES_OCC = {{ familles_occ_data|json_encode|raw }}
 const PLANNING_URL = "{{ path('intervenant_planning_mvc', {id: intervenantId}) }}";
 
 </script>
-<script src="{{ asset('/assets/js/suivie.js') }}" defer></script>
+<script src="{{ asset('/assets/js/suivie.js') }}?v={{ 'now'|date('YmdHis') }}" defer></script>
 {% endblock %}

@@ -276,11 +276,10 @@ function genererFichesPDF(filename) {
                     const mots = nameText.split(/[\s/\-]+/).filter(Boolean);
 
                     let nameLines;
-
-                    if (mots.length > 3) {
+                    if (mots.length > 2) {
                         nameLines = [
-                            mots.slice(0, 3).join(' '), // 3 premiers mots
-                            mots.slice(3).join(' ')     // reste
+                            mots.slice(0, 2).join(' '),  // 2 premiers mots
+                            mots.slice(2).join(' ')      // le reste (aucun mot perdu)
                         ];
                     } else {
                         nameLines = [nameText];

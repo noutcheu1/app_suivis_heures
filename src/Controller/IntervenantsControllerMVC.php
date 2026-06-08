@@ -7,6 +7,7 @@ use App\Service\FamilleIntervenantService;
 use App\Service\FamilleService;
 use App\Service\HoraireinterService;
 use App\Service\IntervenantService;
+use App\Twig\FamilleExtension;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -22,6 +23,7 @@ final class IntervenantsControllerMVC extends AbstractController
         private HoraireinterService       $horaireService,
         private FamilleService            $familleService,
         private FamilleIntervenantService $familleIntervenantService,
+        private FamilleExtension          $familleExtension,
     ) {}
 
     // ── Admin : liste ─────────────────────────────────────────────────────────
@@ -150,6 +152,8 @@ final class IntervenantsControllerMVC extends AbstractController
 
         $familles     = $this->familleIntervenantService->getFamillesForIntervenant($id);
         $assignations = $this->familleIntervenantService->getAssignationsActives($id);
+        // Types (MENA/ENFA) par famille — tous les proposers PREST, pour filtrer le select
+        $typesParFamille = $this->familleIntervenantService->getTypesParFamille($id);
 
         // Plage de facturation courante : 25 du mois précédent → aujourd'hui
         $today = new \DateTime('today');
@@ -167,6 +171,7 @@ final class IntervenantsControllerMVC extends AbstractController
             'isAdmin'           => $this->authService->isAdmin(),
             'familles'          => $familles,
             'assignations'      => $assignations,
+            'typesParFamille'   => $typesParFamille,
             'periodeDebut'      => $billingStart,
             'editId'            => $request->query->get('edite'),
             'toutesLesFamilles' => $this->familleService->getToutesLesFamilles(),
@@ -357,23 +362,26 @@ final class IntervenantsControllerMVC extends AbstractController
             return $this->redirectToRoute('intervenants_mvc');
         }
 
-        // Vérifier que la famille existe et que l'intervenant lui est assigné
+        $today   = (new \DateTime())->format('Y-m-d');
         $famille = $this->familleService->getFamilleParNumero($numFam);
-        if (!$famille) {
-            $this->addFlash('error', "Famille introuvable pour ce QR code.");
-            return $this->redirectToRoute('intervenant_panel_mvc', ['id' => $interId]);
+
+        // Intervenant assigné à cette famille → saisie sur la vraie famille
+        if ($famille && $this->familleIntervenantService->peutPointer((int) $interId, (string) $numFam)) {
+            return $this->redirectToRoute('intervenant_suivie_mvc', [
+                'id'      => $interId,
+                'famille' => $numFam,
+                'date'    => $today,
+            ]);
         }
 
-        if (!$this->familleIntervenantService->peutPointer((int) $interId, (string) $numFam)) {
-            $this->addFlash('error', "Vous n'êtes pas assigné à cette famille.");
-            return $this->redirectToRoute('intervenant_panel_mvc', ['id' => $interId]);
-        }
-
-        // Redirection vers le formulaire de saisie pré-rempli (famille + date du jour)
+        // Non assigné (ou famille hors de sa liste) → saisie OCCASIONNELLE
+        // avec le VRAI nom de famille pré-rempli (via famille_label : parent/nom).
+        $nom = $this->familleExtension->familleLabel($famille ?? $numFam) ?: $numFam;
         return $this->redirectToRoute('intervenant_suivie_mvc', [
             'id'      => $interId,
-            'famille' => $numFam,
-            'date'    => (new \DateTime())->format('Y-m-d'),
+            'famille' => '0',
+            'nom'     => $nom,
+            'date'    => $today,
         ]);
     }
 

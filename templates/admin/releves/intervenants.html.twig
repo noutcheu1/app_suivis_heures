@@ -79,23 +79,31 @@ tr.selected-row:hover td { background:#eef2ff !important; }
 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
     <div>
         <h1 style="font-size:20px;font-weight:700;margin:0 0 4px;">Relevés des intervenants</h1>
-        <p style="font-size:13px;color:var(--text-muted);margin:0;">
+        <p style="text-transform:uppercase; font-size:13px;color:var(--text-muted);margin:0;">
             Du <strong>{{ periodeDebut|date('d/m/Y') }}</strong> au <strong>{{ periodeFin|date('d/m/Y') }}</strong>
             — {{ intervenants|length }} intervenants
         </p>
     </div>
-    <form method="get">
-        <select name="mois" onchange="this.form.submit()"
-            style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:500;background:var(--bg);cursor:pointer;font-family:inherit;">
-            {% for mois in moisDisponibles %}
-            <option value="{{ mois.value }}" {{ mois.value == moisActuel ? 'selected' : '' }}>{{ mois.label }}</option>
-            {% endfor %}
-        </select>
+    {% set moisLabelCourant = '' %}
+    {% for mois in moisDisponibles %}{% if mois.value == moisActuel %}{% set moisLabelCourant = mois.label %}{% endif %}{% endfor %}
+    <form method="get" style="flex:1;display:flex;flex-direction:row;align-items:center;gap:6px;">
+        <div style="font-size:20px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--primary);">
+                <span style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted); padding-right:10px;">Mois : {{ moisLabelCourant }} </span>   
+            </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+            
+            <select name="mois" onchange="this.form.submit()"
+                style="padding:11px 12px;border:2px solid var(--primary);border-radius:10px;font-size:16px;font-weight:700;background:var(--bg);color:var(--text);cursor:pointer;font-family:inherit;box-shadow:var(--shadow-sm);">
+                {% for mois in moisDisponibles %}
+                <option value="{{ mois.value }}" {{ mois.value == moisActuel ? 'selected' : '' }}>{{ mois.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
     </form>
 </div>
 
 {# ── Filtres ── #}
-<div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:14px;box-shadow:var(--shadow-xs);">
+<div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:14px;box-shadow:var(--shadow-xs);text-transform:uppercase;">
 
     {# Ligne 1 : recherche + filtres de base #}
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
@@ -236,8 +244,9 @@ tr.selected-row:hover td { background:#eef2ff !important; }
                 <th onclick="sortTable(4)" style="cursor:pointer;text-align:center;">
                     Total <i class="fas fa-sort" style="font-size:9px;opacity:.35;"></i>
                 </th>
-                <th class="col-sm-hide" style="text-align:center;">
+                <th class="col-sm-hide" onclick="sortTable(5)" style="cursor:pointer;text-align:center;">
                     <i class="fas fa-pen-to-square"></i> Dernière saisie
+                    <i class="fas fa-sort" style="font-size:9px;opacity:.35;"></i>
                 </th>
                 <th style="text-align:center;">
                     <i class="fas fa-circle-half-stroke"></i> Statut
@@ -319,7 +328,8 @@ tr.selected-row:hover td { background:#eef2ff !important; }
                 {% if hT > 0 %}<span class="h-badge h-total">{{ hT|number_format(1, 'h', '') }}</span>
                 {% else %}<span style="color:var(--border-strong);">—</span>{% endif %}
             </td>
-            <td class="col-sm-hide" style="font-size:12px;color:var(--text-muted);">
+            <td class="col-sm-hide" style="font-size:12px;color:var(--text-muted);"
+                data-sort="{{ (last and last != '0000-00-00 00:00:00') ? last|date('U') : '0' }}">
                 {% if last and last != '0000-00-00 00:00:00' %}
                     {{ last|date('d/m/Y') }}<br><span style="font-size:11px;color:var(--text-xmuted);">{{ last|date('H:i') }}</span>
                 {% else %}<span style="color:var(--border-strong);">—</span>{% endif %}
@@ -507,32 +517,20 @@ tr.selected-row:hover td { background:#eef2ff !important; }
 <script>
 let currentType = 'ALL';
 
-// Ordre de sélection des intervenants (pour générer les PDF dans l'ordre coché)
+// Conservé pour compatibilité (les sélections en masse l'utilisent)
 const selectionOrder = [];
-
 function trackSelection(id, checked) {
     const i = selectionOrder.indexOf(id);
     if (checked && i === -1) selectionOrder.push(id);
     else if (!checked && i !== -1) selectionOrder.splice(i, 1);
 }
 
-// Retourne les lignes cochées dans l'ORDRE DE SÉLECTION.
-// Les cases cochées en masse (sans clic individuel tracé) sont ajoutées
-// ensuite dans l'ordre du tableau.
+// Retourne les lignes cochées ET VISIBLES, dans l'ordre actuel du tableau.
+// → reflète le tri (DOM réordonné) ; une ligne cochée puis exclue par un
+//   filtre (masquée) n'est PAS téléchargée.
 function getCheckedRowsOrdered() {
-    const checkedById = {};
-    document.querySelectorAll('.row-check:checked').forEach(cb => {
-        checkedById[cb.dataset.id] = cb.closest('tr');
-    });
-    const result = [];
-    const seen = new Set();
-    selectionOrder.forEach(id => {
-        if (checkedById[id]) { result.push(checkedById[id]); seen.add(id); }
-    });
-    document.querySelectorAll('.row-check:checked').forEach(cb => {
-        if (!seen.has(cb.dataset.id)) { result.push(cb.closest('tr')); seen.add(cb.dataset.id); }
-    });
-    return result;
+    return Array.from(document.querySelectorAll('#relevesBody tr'))
+        .filter(tr => tr.style.display !== 'none' && tr.querySelector('.row-check')?.checked);
 }
 
 // Filtres actifs par groupe — combinables
@@ -593,10 +591,13 @@ function filterRows() {
             || (fHeures === 'actif' && tot > 0)
             || (fHeures === 'vide'  && tot === 0);
 
+        // Type = planning proposer OU heures réelles (inclut l'occasionnel sans planning)
+        const aMena = typeMena || mena > 0;
+        const aEnfa = typeEnfa || enfa > 0;
         const matchType = !fType
-            || (fType === 'mena'      && typeMena)
-            || (fType === 'enfa'      && typeEnfa)
-            || (fType === 'deuxTypes' && deuxTypes);
+            || (fType === 'mena'      && aMena)
+            || (fType === 'enfa'      && aEnfa)
+            || (fType === 'deuxTypes' && aMena && aEnfa);
 
         const matchStatut = !fStatut
             || (fStatut === 'signe'    && tot > 0 && signe)
@@ -630,8 +631,46 @@ function filterRows() {
 
     document.getElementById('emptyMsg').style.display = visible === 0 ? 'block' : 'none';
     document.getElementById('resultCount').textContent = visible + ' résultat' + (visible > 1 ? 's' : '');
+    saveFilterState();
     updateCount();
 }
+
+/* ── Persistance des filtres (survit au rechargement, ex. changement de mois) ── */
+const FILTER_LS_KEY = 'releves_filtres_v1';
+
+function saveFilterState() {
+    try {
+        localStorage.setItem(FILTER_LS_KEY, JSON.stringify({
+            mois:    '{{ moisActuel }}',
+            filters: { ...activeFilters },
+            search:  document.getElementById('searchInput').value,
+        }));
+    } catch (e) {}
+}
+
+function loadFilterState() {
+    try {
+        const raw = localStorage.getItem(FILTER_LS_KEY);
+        if (!raw) return;
+        const state = JSON.parse(raw);
+        if (state.mois !== '{{ moisActuel }}') return; // filtres propres à chaque mois
+
+        Object.keys(activeFilters).forEach(k => {
+            if (state.filters && state.filters[k]) {
+                activeFilters[k] = state.filters[k];
+                document.querySelectorAll(`.flt-btn[data-groupe="${k}"]`).forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.filter === activeFilters[k]);
+                });
+            }
+        });
+        if (state.search) document.getElementById('searchInput').value = state.search;
+
+        filterRows();
+    } catch (e) {}
+}
+
+// Restaurer au chargement
+loadFilterState();
 
 /* Filtre rapide depuis l'icône colonne téléchargé */
 function toggleFilterTelecharge() {
@@ -701,8 +740,9 @@ function deselectAll() {
     selectionOrder.length = 0;
     updateCount();
 }
+
 function updateCount() {
-    const n   = document.querySelectorAll('.row-check:checked').length;
+    const n   = getCheckedRowsOrdered().length; // cochés ET visibles
     const bar = document.getElementById('floatBar');
     document.getElementById('floatCount').textContent = n + ' intervenant' + (n > 1 ? 's' : '') + ' sélectionné' + (n > 1 ? 's' : '');
     bar.classList.toggle('visible', n > 0);
@@ -713,7 +753,7 @@ function updateCount() {
 
 /* ── Modal format ── */
 function ouvrirModal(type) {
-    const checked = document.querySelectorAll('.row-check:checked');
+    const checked = getCheckedRowsOrdered(); // cochés ET visibles
     if (!checked.length) return;
     currentType = type;
     const label = type === 'MENA' ? 'ménage' : type === 'ENFA' ? 'garde d\'enfant' : 'ménage + garde';
@@ -805,8 +845,15 @@ function sortTable(col) {
     sortDir[col] = !sortDir[col];
     const dir = sortDir[col] ? 1 : -1;
     rows.sort((a, b) => {
-        const ta = a.querySelectorAll('td')[col]?.textContent.trim() ?? '';
-        const tb = b.querySelectorAll('td')[col]?.textContent.trim() ?? '';
+        const ca = a.querySelectorAll('td')[col];
+        const cb = b.querySelectorAll('td')[col];
+        // Priorité au data-sort (ex. timestamp pour la date de dernière saisie)
+        const sa = ca?.dataset.sort, sb = cb?.dataset.sort;
+        if (sa !== undefined && sb !== undefined) {
+            return ((parseFloat(sa) || 0) - (parseFloat(sb) || 0)) * dir;
+        }
+        const ta = ca?.textContent.trim() ?? '';
+        const tb = cb?.textContent.trim() ?? '';
         const na = parseFloat(ta), nb = parseFloat(tb);
         if (!isNaN(na) && !isNaN(nb)) return (na - nb) * dir;
         return ta.localeCompare(tb, 'fr') * dir;

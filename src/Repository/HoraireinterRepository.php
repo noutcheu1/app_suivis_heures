@@ -410,18 +410,24 @@ class HoraireinterRepository extends ServiceEntityRepository
      * @param string[] $validFamIds IDs familles prestataires (fournis par FamilleRepository).
      *                              Si vide, aucun filtre famille (toutes les heures comptées).
      */
-    public function getStatsPeriodeParIntervenant(string $debut, string $fin, array $validFamIds = []): array
+    public function getStatsPeriodeParIntervenant(string $debut, string $fin, array $validFamIds = [], ?string $type = null): array
     {
         $conn = $this->getEntityManager()->getConnection();
 
         $params = ['debut' => $debut, 'fin' => $fin];
         $types  = [];
         $familleWhere = '';
+        $typeWhere    = '';
 
         if (!empty($validFamIds)) {
             $familleWhere = "AND (h.numFam IS NULL OR h.numFam = '0' OR h.numFam IN (:validFamIds))";
             $params['validFamIds'] = $validFamIds;
             $types['validFamIds']  = \Doctrine\DBAL\ArrayParameterType::STRING;
+        }
+
+        if ($type !== null) {
+            $typeWhere      = 'AND h.typePresta = :type';
+            $params['type'] = $type;
         }
 
         $sql  = "
@@ -435,6 +441,7 @@ class HoraireinterRepository extends ServiceEntityRepository
               AND h.heureDebutPresta IS NOT NULL
               AND h.heureFinPresta IS NOT NULL
               $familleWhere
+              $typeWhere
             GROUP BY h.numInter, h.typePresta
         ";
         $rows = $conn->executeQuery($sql, $params, $types)->fetchAllAssociative();

@@ -902,11 +902,50 @@ final class AdminControllerMVC extends AbstractController
         }
 
         $validFamIds  = $this->familleRepo->findAllValidFamilleIds();
-        $stats        = $this->horaireRepo->getStatsPeriodeParIntervenant(
-            $debut->format('Y-m-d'),
-            $fin->format('Y-m-d'),
-            $validFamIds
+
+        // Périodes par type :
+        //   - MENA : 25 du mois précédent → 24 du mois courant ($debut/$fin)
+        //   - ENFA : 1er → dernier jour du mois calendaire
+        $enfaDebut = new \DateTime(sprintf('%04d-%02d-01', $y, $m));
+        $enfaFin   = (clone $enfaDebut)->modify('last day of this month');
+
+        $statsMena = $this->horaireRepo->getStatsPeriodeParIntervenant(
+            $debut->format('Y-m-d'), $fin->format('Y-m-d'), $validFamIds, 'MENA'
         );
+        $statsEnfa = $this->horaireRepo->getStatsPeriodeParIntervenant(
+            $enfaDebut->format('Y-m-d'), $enfaFin->format('Y-m-d'), $validFamIds, 'ENFA'
+        );
+
+        // Fusion des deux jeux de stats par intervenant
+        $stats = [];
+        foreach ([$statsMena, $statsEnfa] as $part) {
+            foreach ($part as $id => $data) {
+                foreach (['MENA', 'ENFA'] as $t) {
+                    if (isset($data[$t])) {
+                        $stats[$id][$t] = $data[$t];
+                    }
+                }
+                $prevAjout = $stats[$id]['derniereAjout'] ?? '0000-00-00 00:00:00';
+                $newAjout  = $data['derniereAjout'] ?? '0000-00-00 00:00:00';
+                $stats[$id]['derniereAjout'] = $newAjout > $prevAjout ? $newAjout : $prevAjout;
+            }
+        }
+
+        // Inclure aussi les intervenants ayant des prestations déclarées (ex. occasionnel)
+        // mais sans planning PREST → absents de getTousLesIntervenants().
+        $presentIds = [];
+        foreach ($intervenants as $iv) {
+            $presentIds[(int) $iv->getId()] = true;
+        }
+        foreach (array_keys($stats) as $id) {
+            if (!isset($presentIds[$id])) {
+                $extra = $this->intervenantRepo->find($id);
+                if ($extra) {
+                    $intervenants[] = $extra;
+                    $presentIds[$id] = true;
+                }
+            }
+        }
 
         // Relevés depuis relevemensuelinter pour ce mois
         $relevesMois = $this->relevemensuelinterRepo->findBy(['moisannee' => $moisAnnee]);

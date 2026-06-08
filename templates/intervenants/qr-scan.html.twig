@@ -267,6 +267,7 @@ PLANNING_FIN[{{ a.numeroFamille|json_encode|raw }} + '|' + {{ a.jour|lower|json_
 
 const INTERVENANT_ID = {{ user.id }};
 const QR_API_URL = "{{ path('intervenant_qr_api_mvc', {id: user.id}) }}";
+const SAISIR_URL  = "{{ path('intervenant_suivie_mvc', {id: user.id}) }}";
 </script>
 
 {% endblock %}
@@ -345,15 +346,23 @@ function handleScan(raw) {
     let code = (raw || '').trim();
     const m = code.match(/\/declarer\/([^/?#]+)/i);
     if (m) code = decodeURIComponent(m[1]);
-    code = code.toUpperCase();
+    code = code.trim();
 
-    const fam = FAMILLES[code];
+    // Recherche insensible à la casse parmi les familles de l'intervenant
+    let key = FAMILLES[code] ? code
+            : Object.keys(FAMILLES).find(k => k.toUpperCase() === code.toUpperCase());
+
+    const fam = key ? FAMILLES[key] : null;
     if (!fam) {
-        status.textContent = `Code "${code}" non reconnu — réessayez`;
-        setTimeout(() => { scanning = true; }, 1500);
+        // Non reconnu → on bascule vers le formulaire de saisie avec la famille
+        // OCCASIONNELLE pré-sélectionnée (l'intervenant y saisit le nom).
+        // Le serveur connaît la famille (par son numéro) : il résout le nom et
+        // ouvre le formulaire pré-rempli (occasionnel avec le nom si non assigné).
+        status.textContent = `Famille "${code}" — ouverture de la saisie…`;
+        window.location.href = '/declarer/' + encodeURIComponent(code);
         return;
     }
-    currentFam = { code, ...fam };
+    currentFam = { code: key, ...fam };
     afficherResultat(currentFam);
 }
 
