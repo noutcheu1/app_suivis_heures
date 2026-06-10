@@ -157,6 +157,21 @@ final class IntervenantsControllerMVC extends AbstractController
             $groupesMois[$key]['nb']++;
         }
 
+        // Le mois en cours doit toujours apparaître, même sans aucune prestation.
+        $moisActuelKey = (new \DateTime('today'))->format('Y-m');
+        if (!isset($groupesMois[$moisActuelKey])) {
+            $now = new \DateTime('today');
+            $groupesMois[$moisActuelKey] = [
+                'key'         => $moisActuelKey,
+                'label'       => $moisFr[(int)$now->format('n')] . ' ' . $now->format('Y'),
+                'prestations' => [],
+                'totalHeures' => 0.0,
+                'nb'          => 0,
+            ];
+            // Réordonner par mois décroissant (le mois courant remonte en tête).
+            krsort($groupesMois);
+        }
+
         // Services proposés par le planning (PREST) de l'intervenant.
         $servicesPlanning = [];
         foreach ($this->familleIntervenantService->getTypesParFamille($id) as $types) {
