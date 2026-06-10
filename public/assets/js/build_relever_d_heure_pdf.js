@@ -312,6 +312,7 @@ function genererFichesPDF(filename) {
         return y;
     }
 
+    const total = fiches.length;
     fiches.forEach((fiche, i) => {
         if (i > 0) doc.addPage();
         const hdrEl  = fiche.querySelector('[id^="monTableau0"]');
@@ -320,6 +321,20 @@ function genererFichesPDF(filename) {
         const usedY  = renderFiche(probe, hdrEl, bodyEl, 1.0);
         const sc     = (pageH - 4) / usedY;
         renderFiche(doc, hdrEl, bodyEl, sc);
+
+        // Pagination en pied de page (uniquement s'il y a plusieurs pages)
+        if (total > 1) {
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text(
+                `Page ${i + 1} / ${total}`,
+                pageW - marginX,
+                8,
+                { align: 'right' }
+            );
+            doc.setTextColor(0, 0, 0);
+        }
     });
 
     doc.save(filename);

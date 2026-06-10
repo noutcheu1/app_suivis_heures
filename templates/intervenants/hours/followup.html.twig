@@ -127,7 +127,7 @@
                 <!-- Heure de début -->
                 <div>
                     <label class="tp-label">Heure de début</label>
-                    <div class="tp-box" onclick="this.querySelector('select').focus()">
+                    <div class="tp-box" onclick="if(event.target.tagName!=='SELECT'){this.querySelector('select').focus();}">
                         <i class="fas fa-clock tp-icon"></i>
                         <select id="heureDebut" name="heureDebut" required class="tp-sel">
                             <option value="" disabled selected>--</option>
@@ -143,7 +143,7 @@
                 <!-- Heure de fin -->
                 <div>
                     <label class="tp-label">Heure de fin</label>
-                    <div class="tp-box" onclick="this.querySelector('select').focus()">
+                    <div class="tp-box" onclick="if(event.target.tagName!=='SELECT'){this.querySelector('select').focus();}">
                         <i class="fas fa-clock tp-icon"></i>
                         <select id="heureFin" name="heureFin" required class="tp-sel">
                             <option value="" disabled selected>--</option>

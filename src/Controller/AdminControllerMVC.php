@@ -943,6 +943,8 @@ final class AdminControllerMVC extends AbstractController
                 if ($extra) {
                     $intervenants[] = $extra;
                     $presentIds[$id] = true;
+                }else{
+                   $presentIds[$id] = false;
                 }
             }
         }
@@ -998,6 +1000,7 @@ final class AdminControllerMVC extends AbstractController
         return $this->render('admin/releves/intervenants.html.twig', [
             'auth'            => $this->authService->check(),
             'intervenants'    => $intervenants,
+            'presentIds'    => $presentIds,
             'stats'           => $stats,
             'releves'         => $releves,
             'typesParInter'   => $typesParInter,

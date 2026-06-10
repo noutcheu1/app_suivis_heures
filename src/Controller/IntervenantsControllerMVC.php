@@ -126,12 +126,70 @@ final class IntervenantsControllerMVC extends AbstractController
         $nbrJours   = $this->horaireService->getNbrJourSaisie();
         $dateLimite = (new \DateTime('today'))->modify('-' . $nbrJours . ' days');
 
+        // Regroupement par mois (les prestations sont déjà triées par date DESC).
+        $moisFr = [
+            1 => 'Janvier', 2 => 'Février', 3 => 'Mars', 4 => 'Avril',
+            5 => 'Mai', 6 => 'Juin', 7 => 'Juillet', 8 => 'Août',
+            9 => 'Septembre', 10 => 'Octobre', 11 => 'Novembre', 12 => 'Décembre',
+        ];
+        $groupesMois = [];
+        foreach ($prestations as $p) {
+            $date = $p->getDatePresta();
+            $key  = $date->format('Y-m');
+            if (!isset($groupesMois[$key])) {
+                $groupesMois[$key] = [
+                    'key'         => $key,
+                    'label'       => $moisFr[(int)$date->format('n')] . ' ' . $date->format('Y'),
+                    'prestations' => [],
+                    'totalHeures' => 0.0,
+                    'nb'          => 0,
+                ];
+            }
+            $deb = $p->getHeureDebutPresta();
+            $fin = $p->getHeureFinPresta();
+            if ($deb && $fin) {
+                $h = ($fin->getTimestamp() - $deb->getTimestamp()) / 3600;
+                if ($h > 0) {
+                    $groupesMois[$key]['totalHeures'] += $h;
+                }
+            }
+            $groupesMois[$key]['prestations'][] = $p;
+            $groupesMois[$key]['nb']++;
+        }
+
+        // Services proposés par le planning (PREST) de l'intervenant.
+        $servicesPlanning = [];
+        foreach ($this->familleIntervenantService->getTypesParFamille($id) as $types) {
+            foreach ($types as $t) {
+                $servicesPlanning[strtoupper($t)] = true;
+            }
+        }
+        
+        // Services présents dans les heures réellement déclarées (inclut l'occasionnel).
+        $servicesDeclares = [];
+        foreach ($prestations as $p) {
+            $servicesDeclares[strtoupper((string) $p->getTypePresta())] = true;
+        }
+        // Services à proposer = planning ∪ déclarés, dans l'ordre MENA puis ENFA.
+        $servicesDispo = [];
+        foreach (['MENA', 'ENFA'] as $t) {
+            if (isset($servicesPlanning[$t]) || isset($servicesDeclares[$t])) {
+                $servicesDispo[] = $t;
+            }
+        }
+        // Service par défaut : celui du planning en priorité, sinon le premier disponible.
+        $serviceDefaut = array_key_first($servicesPlanning) ?: ($servicesDispo[0] ?? 'MENA');
+
         return $this->render('intervenants/hours/list.html.twig', [
-            'auth'        => $this->authService->check(),
-            'user'        => $user,
-            'prestations' => $prestations,
-            'isAdmin'     => $this->authService->isAdmin(),
-            'dateLimite'  => $dateLimite,
+            'auth'          => $this->authService->check(),
+            'user'          => $user,
+            'prestations'   => $prestations,
+            'groupesMois'   => array_values($groupesMois),
+            'moisActuel'    => (new \DateTime('today'))->format('Y-m'),
+            'servicesDispo' => $servicesDispo,
+            'serviceDefaut' => $serviceDefaut,
+            'isAdmin'       => $this->authService->isAdmin(),
+            'dateLimite'    => $dateLimite,
         ]);
     }
 

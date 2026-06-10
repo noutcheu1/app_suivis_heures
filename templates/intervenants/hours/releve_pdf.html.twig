@@ -121,14 +121,14 @@
 
         <tr>
             <td class="no-borders"></td>
-            <th colspan="2">TOTAL Heures</th>
+            <th colspan="2" class="bold">TOTAL Heures</th>
             {% for i in 0..4 %}
                 <td>{% if familles[i] is defined %}{{ familles[i].totalHeures }}{% endif %}</td>
             {% endfor %}
         </tr>
         <tr>
-            <td class="no-borders"></td>
-            <th colspan="2"> {% if isAdmin %} TRAJET X Nombre de Km {% endif %}  </th>
+            <td class="no-borders" ></td>
+            <th colspan="2" class="bold"> {% if isAdmin %} TRAJET X Nombre de Km {% endif %}  </th>
             {% for i in 0..4 %}
                 <td style="font-size:10px;">
                     
@@ -176,7 +176,7 @@
         </tr>
         <tr>
             <td class="no-borders"></td>
-            <td colspan="2" class="no-borders">TOTAL MENSUEL DES HEURES</td>
+            <td colspan="2" class="no-borders bold">TOTAL <div class="bold">MENSUEL</div> du OU des RELEVES HEURES</td>
             <td>{{ totalHeures }}</td>
             {% if isAdmin %}
                 <th class="no-borders">  TOTAL KM TRAJET SANS ENFANTS</th>
