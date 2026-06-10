@@ -44,6 +44,10 @@ class Horaireinter
     #[ORM\Column(name: 'kmAvecEnfant', type: Types::DECIMAL, precision: 5, scale: 1, nullable: true)]
     private ?string $kmAvecEnfant = null;
 
+    /** Distance routière intervenant → famille (km), calculée et figée à la déclaration. */
+    #[ORM\Column(name: 'kmTrajet', type: Types::DECIMAL, precision: 5, scale: 1, nullable: true)]
+    private ?string $kmTrajet = null;
+
     #[ORM\Column(name: 'ajouterLe', type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $ajouterLe = null;
 
@@ -159,6 +163,17 @@ class Horaireinter
     public function setKmAvecEnfant(?string $kmAvecEnfant): static
     {
         $this->kmAvecEnfant = $kmAvecEnfant;
+        return $this;
+    }
+
+    public function getKmTrajet(): ?string
+    {
+        return $this->kmTrajet;
+    }
+
+    public function setKmTrajet(?string $kmTrajet): static
+    {
+        $this->kmTrajet = $kmTrajet;
         return $this;
     }
 

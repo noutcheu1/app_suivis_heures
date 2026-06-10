@@ -27,6 +27,15 @@ class FamilleIntervenantService
         private HoraireinterRepository $horaireRepository,
     ) {}
 
+    /**
+     * Types de prestation par famille pour cet intervenant (tous PREST).
+     * @return array<string, string[]>
+     */
+    public function getTypesParFamille(int $numSalarie): array
+    {
+        return $this->proposerRepository->findTypesParFamilleForIntervenant($numSalarie);
+    }
+
     // ── Listes globales (filtrées sur le planning actif) ──────────────────────
 
     /**
@@ -230,13 +239,15 @@ class FamilleIntervenantService
             $key     = $date->format('Y-m-d');
             $numFamP = $item['proposer']->getNumeroFamille();
 
-            // Confirmé pour cette même famille sur cette même date ?
+            // Confirmé pour cette même famille ET ce même type de prestation sur cette même date ?
+            $typeP = $item['proposer']->getTypePrestation();
             $hasConfirmedForFam = false;
             if (isset($byDate[$key])) {
                 foreach ($byDate[$key] as $existing) {
                     if ($existing['type'] === 'confirmed'
                         && $existing['horaire'] !== null
-                        && $existing['horaire']->getNumFam() === $numFamP) {
+                        && trim((string)$existing['horaire']->getNumFam()) === trim($numFamP)
+                        && $existing['horaire']->getTypePresta() === $typeP) {
                         $hasConfirmedForFam = true;
                         break;
                     }

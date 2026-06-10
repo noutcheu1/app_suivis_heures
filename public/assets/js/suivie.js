@@ -1,4 +1,7 @@
 
+/* globals injected by Twig template */
+/* global ID, IS_ADMIN, FAMILLES_OCC, PLANNING_URL */
+
 /* ----- VERIFICATION DATE ----- */
 const dateInput = document.getElementById('date');
 const today = new Date();
@@ -41,21 +44,39 @@ function setEdit(data) {
     setTimeSelects('heureDebut', 'minuteDebut', data.heureDebutPresta ?? '');
     setTimeSelects('heureFin',   'minuteFin',   data.heureFinPresta   ?? '');
 
+    // Type d'abord (les familles sont filtrées selon le type)
+    if (data.typePresta) typeSelect.value = data.typePresta;
+
     if (data.numFam == 9998 || data.numFam == null) {
         familleSelect.value = 0;
         nomRemplacementInput.value = data.nomFam ?? "";
         familleOccaSearch.value = data.nomFam ?? "";
     } else {
-        familleSelect.value = data.numFam ?? '0';
+        // S'assurer que l'option de la famille éditée est sélectionnable
+        // (les filtres mandataire/type ont pu la masquer ou la désactiver).
+        const opt = Array.from(familleSelect.options)
+            .find(o => o.value == data.numFam || o.dataset.num == data.numFam);
+        if (opt) {
+            opt.hidden = false;
+            opt.disabled = false;
+            familleSelect.value = opt.value;
+        } else {
+            familleSelect.value = data.numFam ?? '0';
+        }
     }
     form.date.value = data.datePresta;
 
-    typeSelect.value = data.typePresta;
+    // S'assurer que toutes les options de type sont visibles (un filtre a pu en masquer)
+    Array.from(typeSelect.options).forEach(o => { o.hidden = false; });
+    if (data.typePresta) typeSelect.value = data.typePresta;
 
+    // Mettre à jour la visibilité (champ km/occasionnelle) SANS écraser le type chargé.
+    // On n'appelle pas handleFamilleChange() qui re-déduirait le type depuis la famille.
+    updateVisibility();
+
+    // Le km doit être rempli APRÈS updateVisibility (qui peut réinitialiser le champ)
     const trajetInput = document.getElementById('trajet');
     if (trajetInput) trajetInput.value = data.kmAvecEnfant ?? '';
-
-    handleFamilleChange();
 }
 
 async function getInfoData(id_edit) {
@@ -70,7 +91,7 @@ async function getInfoData(id_edit) {
         if (!result.success) {
             showModal({
                 title: "Erreur",
-                body: "Erreur  : " + result.message,
+                body: "Erreur  : " + (result.error || result.message),
                 buttons: [{text: "Ok", class: "btn btn-danger", dismiss: true}]
             });
         } else if (result.data.verrouille) {
@@ -149,9 +170,11 @@ form.addEventListener("submit", async (e) => {
     const famNum         = selectedOption?.dataset.num ?? null;
     const famPrests      = selectedOption?.dataset.prestations ?? '';
 
-    // Garde : famille non occasionnelle sans prestation proposer → bloqué
+    // Garde : famille non occasionnelle sans prestation proposer → bloqué.
+    // Ignoré en mode édition : la prestation existe déjà, on ne revérifie pas
+    // l'assignation (le planning a pu expirer depuis la saisie initiale).
     const isOccasionnelle = (famValue === '0' || famValue === '');
-    if (!isOccasionnelle && famNum && !famPrests) {
+    if (!params.has('edite') && !isOccasionnelle && famNum && !famPrests) {
         showModal({
             title: 'Non autorisé',
             body: 'Vous n\'êtes pas assigné à cette famille. Vous ne pouvez saisir des heures que pour vos familles ou en tant que famille occasionnelle.',
@@ -202,6 +225,33 @@ form.addEventListener("submit", async (e) => {
         return;
     }
 
+    // Vérifier que la date n'est pas dans le futur
+    const dateChoisie  = form.date.value;
+    const aujourdHui   = formatDate(new Date());
+    if (dateChoisie > aujourdHui) {
+        showModal({
+            title: 'Date invalide',
+            body: 'Vous ne pouvez pas déclarer des heures pour une date future. Veuillez choisir aujourd\'hui ou un jour passé.',
+            buttons: [{ text: 'Corriger', class: 'btn btn-danger', dismiss: true }]
+        });
+        return;
+    }
+
+    // Si c'est aujourd'hui, vérifier que l'heure de fin est passée
+    if (dateChoisie === aujourdHui) {
+        const maintenant = new Date();
+        const finEnMinutes = parseInt(heureFinH) * 60 + parseInt(heureFinM || '0');
+        const maintenantEnMinutes = maintenant.getHours() * 60 + maintenant.getMinutes();
+        if (finEnMinutes > maintenantEnMinutes) {
+            showModal({
+                title: 'Heure non encore passée',
+                body: `Il est actuellement ${String(maintenant.getHours()).padStart(2,'0')}h${String(maintenant.getMinutes()).padStart(2,'0')}. Vous ne pouvez pas déclarer une prestation dont l'heure de fin (${heureFinH}h${heureFinM}) n'est pas encore passée.\n\nRevenez déclarer ces heures une fois l'intervention terminée.`,
+                buttons: [{ text: 'Compris', class: 'btn btn-warning', dismiss: true }]
+            });
+            return;
+        }
+    }
+
     const trajetInput = document.getElementById('trajet');
     const data = {
         id: id,
@@ -232,13 +282,44 @@ form.addEventListener("submit", async (e) => {
         let route = "/heures-mvc/modifier/" + id;
         sendData(route, data);
     } else {
-        let route = "/heures-mvc/ajouter";
+        // Les admins utilisent toujours la route avec paramètre ID
+        let route = IS_ADMIN ? "/heures-mvc/ajouter-hors-structure/" + ID : "/heures-mvc/ajouter";
+        console.log('IS_ADMIN:', IS_ADMIN, 'ID:', ID, 'Route:', route);
         sendData(route, data);
     }
 
 });
 
 
+
+/**
+ * Vérifie qu'une option famille est prestataire (non mandataire, avec PGE ou PM).
+ * La famille occasionnelle (value=0) est toujours acceptée.
+ */
+function isPrestataire(option) {
+    if (!option.value || option.value === '0') return true;
+    const mand = option.dataset.mandataire;
+    const pge  = option.dataset.pge  ?? '';
+    const pm   = option.dataset.pm   ?? '';
+    return mand !== '1' && (pge !== '' || pm !== '');
+}
+
+/**
+ * Masque définitivement les options mandataires du select famille.
+ * Appelé à l'initialisation.
+ */
+function filterMandataireFamilles() {
+    const selectFamille = document.getElementById('famille');
+    Array.from(selectFamille.options).forEach(o => {
+        if (!o.value || o.value === '0') return;
+        if (!isPrestataire(o)) {
+            o.hidden   = true;
+            o.disabled = true;
+        }
+    });
+    const cur = selectFamille.selectedOptions[0];
+    if (cur && cur.hidden) selectFamille.value = '';
+}
 
 // Sélection d'une famille → pré-sélectionne le type selon proposer
 function handleFamilleChange() {
@@ -264,14 +345,25 @@ function handleFamilleChange() {
 
 // Sélection d'un type → filtre les familles qui ont ce type dans proposer
 function filterFamillesByType() {
-    const type         = document.getElementById("type").value;
+    const type          = document.getElementById("type").value;
     const selectFamille = document.getElementById("famille");
 
     Array.from(selectFamille.options).forEach(o => {
-        if (!o.value || o.value === '0') { o.hidden = false; return; }
-        if (!type) { o.hidden = false; return; }
+        if (!o.value) { o.hidden = false; return; }   // placeholder « Choisir une famille »
+
+        // Aucun type choisi → on n'affiche AUCUNE famille (ni occasionnelle)
+        if (!type) { o.hidden = true; return; }
+
+        // Famille occasionnelle : disponible dès qu'un type est choisi
+        if (o.value === '0') { o.hidden = false; return; }
+
+        // Exclure définitivement les familles mandataires ou sans PGE/PM
+        if (!isPrestataire(o)) { o.hidden = true; o.disabled = true; return; }
+
+        // Filtre par type : la famille n'apparaît QUE si elle a ce type de prestation
+        // (data-prestations = tous les proposers PREST de l'intervenant pour cette famille)
         const prests = o.dataset.prestations ? o.dataset.prestations.split(',').filter(Boolean) : [];
-        o.hidden = prests.length > 0 && !prests.includes(type);
+        o.hidden = !prests.includes(type);
     });
 
     // Si la famille sélectionnée est maintenant masquée, réinitialiser
@@ -312,72 +404,16 @@ function updateVisibility() {
 document.getElementById("famille").addEventListener("change", handleFamilleChange);
 document.getElementById("type").addEventListener("change", filterFamillesByType);
 
-// ── Autocomplete famille occasionnelle ─────────────────────────────────────
+// ── Famille occasionnelle : saisie libre du nom (sans suggestions) ──────────
 familleOccaSearch.addEventListener('input', function () {
-    const query = this.value.trim().toLowerCase();
-    nomRemplacementInput.value = this.value.trim(); // autorise aussi la saisie libre
-
-    if (!query) {
-        familleOccaSuggestions.style.display = 'none';
-        return;
-    }
-
-    const matches = (typeof FAMILLES_OCC !== 'undefined' ? FAMILLES_OCC : [])
-        .filter(f => f.toLowerCase().includes(query))
-        .slice(0, 10);
-
-    if (matches.length === 0) {
-        familleOccaSuggestions.style.display = 'none';
-        return;
-    }
-
-    familleOccaSuggestions.innerHTML = '';
-    matches.forEach(label => {
-        const item = document.createElement('div');
-        item.textContent = label;
-        item.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border);transition:background .15s;';
-        item.addEventListener('mouseenter', () => { item.style.background = 'var(--bg-secondary)'; });
-        item.addEventListener('mouseleave', () => { item.style.background = ''; });
-        item.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // évite le blur avant la sélection
-            familleOccaSearch.value = label;
-            nomRemplacementInput.value = label;
-            familleOccaSuggestions.style.display = 'none';
-        });
-        familleOccaSuggestions.appendChild(item);
-    });
-    familleOccaSuggestions.style.display = 'block';
-});
-
-familleOccaSearch.addEventListener('blur', () => {
-    setTimeout(() => { familleOccaSuggestions.style.display = 'none'; }, 150);
-});
-
-familleOccaSearch.addEventListener('keydown', (e) => {
-    const items = familleOccaSuggestions.querySelectorAll('div');
-    const active = familleOccaSuggestions.querySelector('.occ-active');
-    if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        const next = active ? active.nextElementSibling : items[0];
-        if (active) active.classList.remove('occ-active');
-        if (next) { next.classList.add('occ-active'); next.style.background = 'var(--bg-secondary)'; }
-    } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        const prev = active ? active.previousElementSibling : items[items.length - 1];
-        if (active) active.classList.remove('occ-active');
-        if (prev) { prev.classList.add('occ-active'); prev.style.background = 'var(--bg-secondary)'; }
-    } else if (e.key === 'Enter' && active) {
-        e.preventDefault();
-        familleOccaSearch.value = active.textContent;
-        nomRemplacementInput.value = active.textContent;
-        familleOccaSuggestions.style.display = 'none';
-    } else if (e.key === 'Escape') {
-        familleOccaSuggestions.style.display = 'none';
-    }
+    nomRemplacementInput.value = this.value.trim();
+    if (familleOccaSuggestions) familleOccaSuggestions.style.display = 'none';
 });
 
 // Initialisation
+filterMandataireFamilles(); // masque les familles mandataires dès le chargement
 updateVisibility();
+filterFamillesByType();     // pas de type au départ → aucune famille affichée
 
 if (params.has('edite')) {
     getInfoData(params.get('edite'));
@@ -387,7 +423,8 @@ if (params.has('edite')) {
     const dateParam = params.get('date');
     const hdebParam = params.get('hdeb');
     const hfinParam = params.get('hfin');
-    console.log({famParam, typeParam, dateParam, hdebParam, hfinParam});
+    const nomDbg    = params.get('nom');
+    console.log('[suivie] params:', {famParam, typeParam, dateParam, hdebParam, hfinParam, nom: nomDbg});
     if (famParam || typeParam) {
         // Pré-remplissage depuis le planning — valeurs fixées directement,
         // sans déclencher les filtres en cascade.
@@ -407,6 +444,17 @@ if (params.has('edite')) {
         if (hfinParam) setTimeSelects('heureFin',   'minuteFin',   hfinParam);
 
         updateVisibility();
+
+        // Famille occasionnelle (famille=0) + nom pré-rempli — APRÈS updateVisibility
+        // (qui affiche le conteneur occasionnel) pour que la valeur ne soit pas écrasée.
+        const nomParam = params.get('nom');
+        if (famParam === '0' && nomParam) {
+            familleOccaContainer.hidden = false;
+            familleOccaSearch.value = nomParam;
+            familleOccaSearch.placeholder = nomParam;
+            nomRemplacementInput.value = nomParam;
+        }
+
         form.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
         handleFamilleChange();

@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Repository\RelevemensuelinterRepository;
 use App\Repository\VacancesConfigRepository;
 use App\Service\AuthService;
 use App\Service\HoraireinterService;
@@ -18,11 +19,12 @@ use Symfony\Component\Routing\Attribute\Route;
 final class RelevesControllerMVC extends AbstractController
 {
     public function __construct(
-        private AuthService                 $authService,
-        private HoraireinterService         $horaireService,
-        private IntervenantService          $intervenantService,
-        private VacancesConfigRepository    $vacancesRepo,
-        private ReleveMensuelFamilleService $releveMensuelFamilleService,
+        private AuthService                     $authService,
+        private HoraireinterService             $horaireService,
+        private IntervenantService              $intervenantService,
+        private VacancesConfigRepository        $vacancesRepo,
+        private ReleveMensuelFamilleService     $releveMensuelFamilleService,
+        private RelevemensuelinterRepository    $relevemensuelinterRepo,
     ) {}
 
     #[Route('/releves-mvc/intervenant/{intervenantId}', name: 'releves_intervenant_mvc')]
@@ -124,6 +126,18 @@ final class RelevesControllerMVC extends AbstractController
 
         $releveData = $this->horaireService->getReleveData($intervenantId, $type, $moisOffset, $user);
 
+        // Bloquer le téléchargement si toutes les familles sont mandataires (aucune famille prestataire valide)
+        if (empty($releveData['familles'])) {
+            $releveData['familles'] = [];
+        }
+
+        // Marquer comme téléchargé uniquement s'il y a des données valides
+        if ($this->authService->isAdmin()) {
+            $refDate   = (new \DateTime('first day of this month'))->modify("$moisOffset month");
+            $moisAnnee = $refDate->format('m') . '/' . $refDate->format('Y');
+            $this->relevemensuelinterRepo->marquerTelecharge($moisAnnee, $intervenantId, $type);
+        }
+
         $joursFr = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
         $moisFr  = ['', 'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
 
@@ -160,16 +174,17 @@ final class RelevesControllerMVC extends AbstractController
             ];
         }
 
-        $fmt = static fn(int $sec): string => sprintf('%dh%02d', (int)($sec / 3600), (int)(($sec % 3600) / 60));
+        // Centièmes : 2h30 → "2,50"
+        $fmt = static fn(int $sec): string => number_format($sec / 3600, 2, ',', '');
 
         $familles = array_map(static function (array $fam) use ($fmt): array {
             $fam['totalHeures'] = $fmt($fam['totalSecondes'] ?? 0);
             return $fam;
         }, $releveData['familles']);
 
-        $totalSec    = array_sum(array_column($familles, 'totalSecondes'));
-        $typeLabel   = $type === 'MENA' ? 'Menage' : 'GardeEnfants';
-        $filename    = "Releve_{$typeLabel}_{$releveData['periode']['mois']}_{$releveData['periode']['anner']}.pdf";
+        $totalSec  = array_sum(array_column($familles, 'totalSecondes'));
+        $typeLabel = $type === 'MENA' ? 'Menage' : 'GardeEnfants';
+        $filename  = "Releve_{$typeLabel}_{$releveData['periode']['mois']}_{$releveData['periode']['anner']}.pdf";
 
         return $this->render('intervenants/hours/releve_pdf.html.twig', [
             'auth'          => $this->authService->check(),
@@ -180,7 +195,7 @@ final class RelevesControllerMVC extends AbstractController
             'jours'         => $jours,
             'famillesPages' => array_chunk($familles, 5),
             'totaux'        => $releveData['totaux'],
-            'totalHeures'   => $fmt($totalSec),
+            'totalHeures'   => $fmt((int)$totalSec),
             'signer'        => $releveData['signer'],
             'afficherKm'    => $type === 'ENFA',
             'isAdmin'       => $this->authService->isAdmin(),
@@ -200,13 +215,13 @@ final class RelevesControllerMVC extends AbstractController
         }
 
         $mois = $request->query->get('mois', date('m/Y'));
-        
+        $familles = $this->famillesservice->getFamilles($numFam);
         // TODO: Implémenter la génération PDF pour les relevés familles
-        $pdfContent = "PDF Relevé Famille {$numFam} - {$mois}";
+        $pdfContent = "PDF Relevé Famille {$familles} - {$numFam} - {$mois}";
         
         $response = new Response($pdfContent);
         $response->headers->set('Content-Type', 'application/pdf');
-        $response->headers->set('Content-Disposition', "attachment; filename=\"releve_famille_{$numFam}_{$mois}.pdf\"");
+        $response->headers->set('Content-Disposition', "attachment; filename=\"releve_famille_{$familles}_{$numFam}_{$mois}.pdf\"");
         
         return $response;
     }
@@ -283,10 +298,23 @@ final class RelevesControllerMVC extends AbstractController
             throw $this->createNotFoundException("Intervenant introuvable");
         }
 
-        $type = $request->query->get('type', 'ENFA');
+        $type       = strtoupper($request->query->get('type', 'ENFA'));
         $moisOffset = (int)$request->query->get('mois', 0);
-        $ua = $request->headers->get('User-Agent', '');
-        $isMobile = (bool)preg_match('/Mobile|Android|iPhone|iPad/i', $ua);
+        $ua         = $request->headers->get('User-Agent', '');
+        $isMobile   = (bool)preg_match('/Mobile|Android|iPhone|iPad/i', $ua);
+
+        // Bloquer l'accès si aucune famille prestataire valide sur cette période
+        $releveData = $this->horaireService->getReleveData($intervenantId, $type, $moisOffset, $user);
+        if (empty($releveData['familles'])) {
+            $releveData['familles'] = [];
+        }
+
+        // Marquer comme consulté uniquement s'il y a des données valides
+        if ($this->authService->isAdmin()) {
+            $refDate   = (new \DateTime('first day of this month'))->modify("$moisOffset month");
+            $moisAnnee = $refDate->format('m') . '/' . $refDate->format('Y');
+            $this->relevemensuelinterRepo->marquerTelecharge($moisAnnee, $intervenantId, $type);
+        }
 
         return $this->render('intervenants/hours/sheet.html.twig', [
             'auth'           => $this->authService->check(),

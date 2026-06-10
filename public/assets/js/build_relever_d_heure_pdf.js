@@ -271,11 +271,33 @@ function genererFichesPDF(filename) {
                     doc.setFont(undefined, 'normal');
                     doc.text(numText, cx, cy + 2.5 * sc, { align: 'center' });
 
-                    // Nom famille (milieu, bold)
-                    doc.setFontSize(7 * sc);
                     doc.setFont(undefined, 'bold');
-                    doc.text(nameText, cx, cy + ch / 2, { align: 'center' });
 
+                    const mots = nameText.split(/[\s/\-]+/).filter(Boolean);
+
+                    let nameLines;
+                    if (mots.length > 2) {
+                        nameLines = [
+                            mots.slice(0, 2).join(' '),  // 2 premiers mots
+                            mots.slice(2).join(' ')      // le reste (aucun mot perdu)
+                        ];
+                    } else {
+                        nameLines = [nameText];
+                    }
+
+                    const nameSize = nameLines.length > 1 ? 6 : 7;
+
+                    doc.setFontSize(nameSize * sc);
+
+                    const lineH = (nameSize - 1) * 0.4 * sc;
+                    const blockH = (nameLines.length - 1) * lineH;
+                    const startY = cy + ch / 2 - blockH / 2;
+
+                    nameLines.forEach((line, li) => {
+                        doc.text(line, cx, startY + li * lineH, {
+                            align: 'center'
+                        });
+                    });
                     // Ville (bas, italic petit)
                     doc.setFontSize(5 * sc);
                     doc.setFont(undefined, 'italic');
@@ -290,6 +312,7 @@ function genererFichesPDF(filename) {
         return y;
     }
 
+    const total = fiches.length;
     fiches.forEach((fiche, i) => {
         if (i > 0) doc.addPage();
         const hdrEl  = fiche.querySelector('[id^="monTableau0"]');
@@ -298,6 +321,20 @@ function genererFichesPDF(filename) {
         const usedY  = renderFiche(probe, hdrEl, bodyEl, 1.0);
         const sc     = (pageH - 4) / usedY;
         renderFiche(doc, hdrEl, bodyEl, sc);
+
+        // Pagination en pied de page (uniquement s'il y a plusieurs pages)
+        if (total > 1) {
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text(
+                `Page ${i + 1} / ${total}`,
+                pageW - marginX,
+                8,
+                { align: 'right' }
+            );
+            doc.setTextColor(0, 0, 0);
+        }
     });
 
     doc.save(filename);

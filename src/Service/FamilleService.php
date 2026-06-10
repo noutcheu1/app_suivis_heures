@@ -49,6 +49,16 @@ class FamilleService
         return $this->repository->findByVille($ville);
     }
 
+    public function getFamillebytype(string $type): array
+    {   switch (strtolower($type)) {
+            case strtolower('prestMenage'):
+                return $this->repository->findFamilleMenageNonArchive();
+            case strtolower('prestGardeEnfants'):
+                return $this->repository->findFamilleGardeNonArchive();
+        }
+        return [];
+    }
+
     /**
      * Compte les familles ayant un planning actif dans proposer.
      */

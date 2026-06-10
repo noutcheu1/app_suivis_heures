@@ -34,6 +34,9 @@ class Relevemensuelinter
     #[ORM\Column(name: 'signerLe', type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $signerLe = null;
 
+    #[ORM\Column(name: 'telechargerLe', type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $telechargerLe = null;
+
     public function getMoisannee(): ?string { return $this->moisannee; }
     public function setMoisannee(string $moisannee): static { $this->moisannee = $moisannee; return $this; }
 
@@ -54,6 +57,9 @@ class Relevemensuelinter
 
     public function getSignerLe(): ?\DateTimeInterface { return $this->signerLe; }
     public function setSignerLe(?\DateTimeInterface $signerLe): static { $this->signerLe = $signerLe; return $this; }
+
+    public function getTelechargerLe(): ?\DateTimeInterface { return $this->telechargerLe; }
+    public function setTelechargerLe(?\DateTimeInterface $telechargerLe): static { $this->telechargerLe = $telechargerLe; return $this; }
 
     public function __toString(): string
     {

@@ -129,6 +129,7 @@
     </div>
     <div class="card-body">
         <form method="POST" action="{{ path('admin_ajouter_planning_mvc', {numFam: famille.numeroFamille}) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('ajouter_planning') }}">
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;align-items:end;">
 
                 <div>
@@ -194,7 +195,7 @@
                     <label class="form-label" style="font-size:12px;font-weight:600;">Mode adhésion</label>
                     <select name="typeAdh" class="form-control" required>
                         {% for adh in typeAdhs %}
-                        <option value="{{ adh.idADH_TypeADH }}">{{ adh.intitule_TypeADH ?? adh.idADH_TypeADH }}</option>
+                        <option value="{{ adh.idADH_TypeADH }}" {{ adh.idADH_TypeADH == 'PREST' ? 'selected' : '' }}>{{ adh.intitule_TypeADH ?? adh.idADH_TypeADH }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -243,7 +244,7 @@
             <tbody>
             {% for pl in plannings %}
             <tr>
-                <td>{{ pl.numSalarie }}</td>
+                <td>{{ interMap[pl.numSalarie] ?? '#' ~ pl.numSalarie }}</td>
                 <td style="text-transform:capitalize;">{{ pl.jour }}</td>
                 <td>{{ pl.heureDebut|date('H:i') }}</td>
                 <td>{{ pl.heureFin ? pl.heureFin|date('H:i') : '—' }}</td>
@@ -299,7 +300,7 @@
             <tbody>
             {% for p in prestations %}
             <tr>
-                <td>{{ p.numInter }}</td>
+                <td>{{ interMap[p.numInter] }}</td>
                 <td>{{ p.datePresta|date('d/m/Y') }}</td>
                 <td>{{ p.heureDebutPresta ? p.heureDebutPresta|date('H:i') : '—' }}</td>
                 <td>{{ p.heureFinPresta ? p.heureFinPresta|date('H:i') : '—' }}</td>

@@ -21,10 +21,55 @@ class IntervenantRepository extends ServiceEntityRepository
         parent::__construct($registry, Intervenant::class);
     }
 
+    // -------------------------------------------------------------------------
+    // Méthode privée partagée
+    // -------------------------------------------------------------------------
+
+    /**
+     * Retourne les IDs (int[]) des intervenants ayant au moins une ligne active
+     * dans `proposer` avec idADH_TypeADH = 'PREST'.
+     *
+     * Toutes les méthodes publiques du repository passent par ici pour garantir
+     * qu'on ne manipule jamais un intervenant sans proposer PREST actif.
+     *
+     * @return int[]
+     */
+    private function getActiveProposerIds(): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $ids = $conn->fetchFirstColumn(
+            "SELECT DISTINCT p.numSalarie_Intervenants
+             FROM proposer p
+             INNER JOIN famille f ON f.numero_Famille = p.numero_Famille
+             WHERE p.idADH_TypeADH = 'PREST'
+               AND (p.idPresta_Prestations = 'MENA' OR p.idPresta_Prestations = 'ENFA')
+               AND (p.dateFin_Proposer IS NULL
+                    OR p.dateFin_Proposer = '0000-00-00'
+                    OR p.dateFin_Proposer >= CURDATE())
+               AND (f.mand_Famille = 0 OR f.mand_Famille IS NULL)
+               AND ((f.PGE_Famille IS NOT NULL AND f.PGE_Famille != '')
+                    OR (f.PM_Famille IS NOT NULL AND f.PM_Famille != ''))"
+        );
+
+        return array_map('intval', $ids);
+    }
+
+    // -------------------------------------------------------------------------
+    // Méthodes publiques
+    // -------------------------------------------------------------------------
+
     public function findAllNonArchived(): array
     {
+        $ids = $this->getActiveProposerIds();
+        if (empty($ids)) {
+            return [];
+        }
+
         return $this->createQueryBuilder('i')
-            ->where('i.archive = :archive')
+            ->where('i.numSalarie_Intervenants IN (:ids)')
+            ->andWhere('i.archive = :archive')
+            ->setParameter('ids', $ids)
             ->setParameter('archive', 0)
             ->orderBy('i.nom', 'ASC')
             ->addOrderBy('i.prenom', 'ASC')
@@ -34,27 +79,54 @@ class IntervenantRepository extends ServiceEntityRepository
 
     public function findInfosIntervenant(int $id): ?Intervenant
     {
-        return $this->find($id);
+        $ids = $this->getActiveProposerIds();
+        if (empty($ids) || !in_array($id, $ids, true)) {
+            return null;
+        }
+
+        return $this->createQueryBuilder('i')
+            ->where('i.numSalarie_Intervenants = :id')
+            ->andWhere('i.numSalarie_Intervenants IN (:ids)')
+            ->andWhere('i.archive = :archive')
+            ->setParameter('id', $id)
+            ->setParameter('ids', $ids)
+            ->setParameter('archive', 0)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     public function findByNumSs(string $numSs): ?Intervenant
     {
+        $ids = $this->getActiveProposerIds();
+        if (empty($ids)) {
+            return null;
+        }
+
         return $this->createQueryBuilder('i')
             ->where('i.numSs = :numSs')
             ->andWhere('i.archive = :archive')
+            ->andWhere('i.numSalarie_Intervenants IN (:ids)')
             ->setParameter('numSs', $numSs)
             ->setParameter('archive', 0)
+            ->setParameter('ids', $ids)
             ->getQuery()
             ->getOneOrNullResult();
     }
 
     public function findByNumSalarie(string $numSalarie): ?Intervenant
     {
+        $ids = $this->getActiveProposerIds();
+        if (empty($ids)) {
+            return null;
+        }
+
         return $this->createQueryBuilder('i')
             ->where('i.numSalarie = :numSalarie')
             ->andWhere('i.archive = :archive')
+            ->andWhere('i.numSalarie_Intervenants IN (:ids)')
             ->setParameter('numSalarie', $numSalarie)
             ->setParameter('archive', 0)
+            ->setParameter('ids', $ids)
             ->getQuery()
             ->getOneOrNullResult();
     }
@@ -64,11 +136,13 @@ class IntervenantRepository extends ServiceEntityRepository
      * intervenants.candidats_numcandidat_candidats = $candidatId.
      *
      * On interroge la table intervenants directement (pas la vue)
-     * pour obtenir le numSalarie_Intervenants, puis on charge l'entité.
+     * pour obtenir le numSalarie_Intervenants, puis on charge l'entité
+     * uniquement si elle possède un proposer PREST actif.
      */
     public function findByCandidatId(int $candidatId): ?Intervenant
     {
         $conn = $this->getEntityManager()->getConnection();
+
         $numSalarie = $conn->fetchOne(
             'SELECT numSalarie_Intervenants
              FROM intervenants
@@ -81,11 +155,23 @@ class IntervenantRepository extends ServiceEntityRepository
             return null;
         }
 
-        return $this->find((int)$numSalarie);
+        $ids = $this->getActiveProposerIds();
+        if (empty($ids) || !in_array((int) $numSalarie, $ids, true)) {
+            return null;
+        }
+
+        return $this->createQueryBuilder('i')
+            ->where('i.numSalarie_Intervenants = :id')
+            ->andWhere('i.archive = :archive')
+            ->setParameter('id', (int) $numSalarie)
+            ->setParameter('archive', 0)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     /**
-     * Lookup flexible : essaie toutes les variantes d'identifiant connues.
+     * Lookup flexible : essaie toutes les variantes d'identifiant connues,
+     * en se limitant aux intervenants ayant un proposer PREST actif.
      *
      * Essais dans l'ordre :
      *   1. exact (numSs ou numSalarie)
@@ -96,6 +182,11 @@ class IntervenantRepository extends ServiceEntityRepository
      */
     public function findByAnyIdentifier(string $identifier): ?Intervenant
     {
+        $ids = $this->getActiveProposerIds();
+        if (empty($ids)) {
+            return null;
+        }
+
         $candidates = array_unique(array_filter([
             $identifier,
             str_replace('.', ' ', $identifier),
@@ -112,17 +203,27 @@ class IntervenantRepository extends ServiceEntityRepository
             $result = $this->createQueryBuilder('i')
                 ->where('i.numSs = :v OR i.numSalarie = :v')
                 ->andWhere('i.archive = :archive')
+                ->andWhere('i.numSalarie_Intervenants IN (:ids)')
                 ->setParameter('v', $candidate)
                 ->setParameter('archive', 0)
+                ->setParameter('ids', $ids)
                 ->getQuery()
                 ->getOneOrNullResult();
 
-            if ($result) return $result;
+            if ($result) {
+                return $result;
+            }
         }
 
         // Dernier recours : clé primaire entière
-        if (ctype_digit($identifier)) {
-            return $this->find((int)$identifier);
+        if (ctype_digit($identifier) && in_array((int) $identifier, $ids, true)) {
+            return $this->createQueryBuilder('i')
+                ->where('i.numSalarie_Intervenants = :id')
+                ->andWhere('i.archive = :archive')
+                ->setParameter('id', (int) $identifier)
+                ->setParameter('archive', 0)
+                ->getQuery()
+                ->getOneOrNullResult();
         }
 
         return null;
@@ -130,12 +231,18 @@ class IntervenantRepository extends ServiceEntityRepository
 
     public function findByNomOrPrenom(string $search): array
     {
+        $ids = $this->getActiveProposerIds();
+        if (empty($ids)) {
+            return [];
+        }
+
         return $this->createQueryBuilder('i')
-            ->where('i.nom LIKE :search')
-            ->orWhere('i.prenom LIKE :search')
+            ->where('(i.nom LIKE :search OR i.prenom LIKE :search)')
             ->andWhere('i.archive = :archive')
+            ->andWhere('i.numSalarie_Intervenants IN (:ids)')
             ->setParameter('search', '%' . $search . '%')
             ->setParameter('archive', 0)
+            ->setParameter('ids', $ids)
             ->orderBy('i.nom', 'ASC')
             ->addOrderBy('i.prenom', 'ASC')
             ->getQuery()
@@ -144,9 +251,16 @@ class IntervenantRepository extends ServiceEntityRepository
 
     public function countActifs(): int
     {
+        $ids = $this->getActiveProposerIds();
+        if (empty($ids)) {
+            return 0;
+        }
+
         return (int) $this->createQueryBuilder('i')
             ->select('COUNT(i.numSalarie_Intervenants)')
-            ->where('i.archive = :archive')
+            ->where('i.numSalarie_Intervenants IN (:ids)')
+            ->andWhere('i.archive = :archive')
+            ->setParameter('ids', $ids)
             ->setParameter('archive', 0)
             ->getQuery()
             ->getSingleScalarResult();
@@ -154,28 +268,27 @@ class IntervenantRepository extends ServiceEntityRepository
 
     /**
      * Compte les intervenants ayant un planning actif dans proposer.
+     * (Identique à countActifs — conservé pour compatibilité sémantique.)
      */
     public function countAvecPlanningActif(): int
     {
-        $conn = $this->getEntityManager()->getConnection();
-        return (int) $conn->fetchOne(
-            'SELECT COUNT(DISTINCT p.numSalarie_Intervenants)
-             FROM proposer p
-             INNER JOIN vue_intervenants i ON i.numSalarie_Intervenants = p.numSalarie_Intervenants
-             WHERE i.archive_Intervenants = 0
-               AND (p.dateFin_Proposer IS NULL
-                    OR p.dateFin_Proposer = "0000-00-00"
-                    OR p.dateFin_Proposer >= CURDATE())'
-        );
+        return $this->countActifs();
     }
 
     public function findDisponiblesPourDate(\DateTimeInterface $date): array
     {
+        $ids = $this->getActiveProposerIds();
+        if (empty($ids)) {
+            return [];
+        }
+
         return $this->createQueryBuilder('i')
             ->where('i.archive = :archive')
+            ->andWhere('i.numSalarie_Intervenants IN (:ids)')
             ->andWhere('i.dateEntree <= :date OR i.dateEntree IS NULL')
             ->andWhere('(i.dateSortie >= :date OR i.dateSortie IS NULL)')
             ->setParameter('archive', 0)
+            ->setParameter('ids', $ids)
             ->setParameter('date', $date)
             ->orderBy('i.nom', 'ASC')
             ->addOrderBy('i.prenom', 'ASC')
@@ -191,16 +304,7 @@ class IntervenantRepository extends ServiceEntityRepository
      */
     public function findWithActivePlanning(): array
     {
-        $conn = $this->getEntityManager()->getConnection();
-
-        $ids = $conn->fetchFirstColumn(
-            'SELECT DISTINCT p.numSalarie_Intervenants
-             FROM proposer p
-             WHERE (p.dateFin_Proposer IS NULL
-                    OR p.dateFin_Proposer = "0000-00-00"
-                    OR p.dateFin_Proposer >= CURDATE())'
-        );
-
+        $ids = $this->getActiveProposerIds();
         if (empty($ids)) {
             return [];
         }
@@ -208,7 +312,7 @@ class IntervenantRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('i')
             ->where('i.numSalarie_Intervenants IN (:ids)')
             ->andWhere('i.archive = :archive')
-            ->setParameter('ids', array_map('intval', $ids))
+            ->setParameter('ids', $ids)
             ->setParameter('archive', 0)
             ->orderBy('i.nom', 'ASC')
             ->addOrderBy('i.prenom', 'ASC')
@@ -225,14 +329,27 @@ class IntervenantRepository extends ServiceEntityRepository
     {
         $conn = $this->getEntityManager()->getConnection();
 
-        $ids = $conn->fetchFirstColumn(
-            'SELECT DISTINCT p.numSalarie_Intervenants
+        // On affine les IDs actifs globaux en les croisant avec ceux de la famille
+        $familleIds = $conn->fetchFirstColumn(
+            "SELECT DISTINCT p.numSalarie_Intervenants
              FROM proposer p
+             INNER JOIN famille f ON f.numero_Famille = p.numero_Famille
              WHERE p.numero_Famille = ?
+               AND p.idADH_TypeADH = 'PREST'
+               AND (p.idPresta_Prestations = 'MENA' OR p.idPresta_Prestations = 'ENFA')
                AND (p.dateFin_Proposer IS NULL
-                    OR p.dateFin_Proposer = "0000-00-00"
-                    OR p.dateFin_Proposer >= CURDATE())',
+                    OR p.dateFin_Proposer = '0000-00-00'
+                    OR p.dateFin_Proposer >= CURDATE())
+               AND (f.mand_Famille = 0 OR f.mand_Famille IS NULL)
+               AND ((f.PGE_Famille IS NOT NULL AND f.PGE_Famille != '')
+                    OR (f.PM_Famille IS NOT NULL AND f.PM_Famille != ''))",
             [$numeroFamille]
+        );
+
+        // Intersection avec les IDs PREST actifs globaux (double sécurité)
+        $activeIds  = $this->getActiveProposerIds();
+        $ids        = array_values(
+            array_intersect(array_map('intval', $familleIds), $activeIds)
         );
 
         if (empty($ids)) {
@@ -242,7 +359,7 @@ class IntervenantRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('i')
             ->where('i.numSalarie_Intervenants IN (:ids)')
             ->andWhere('i.archive = :archive')
-            ->setParameter('ids', array_map('intval', $ids))
+            ->setParameter('ids', $ids)
             ->setParameter('archive', 0)
             ->orderBy('i.nom', 'ASC')
             ->addOrderBy('i.prenom', 'ASC')

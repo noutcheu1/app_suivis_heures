@@ -7,6 +7,7 @@ use App\Service\FamilleIntervenantService;
 use App\Service\FamilleService;
 use App\Service\HoraireinterService;
 use App\Service\IntervenantService;
+use App\Twig\FamilleExtension;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -22,6 +23,7 @@ final class IntervenantsControllerMVC extends AbstractController
         private HoraireinterService       $horaireService,
         private FamilleService            $familleService,
         private FamilleIntervenantService $familleIntervenantService,
+        private FamilleExtension          $familleExtension,
     ) {}
 
     // ── Admin : liste ─────────────────────────────────────────────────────────
@@ -121,11 +123,88 @@ final class IntervenantsControllerMVC extends AbstractController
 
         $prestations = $this->horaireService->getPrestationsParIntervenant($id);
 
+        $nbrJours   = $this->horaireService->getNbrJourSaisie();
+        $dateLimite = (new \DateTime('today'))->modify('-' . $nbrJours . ' days');
+
+        // Regroupement par mois (les prestations sont déjà triées par date DESC).
+        $moisFr = [
+            1 => 'Janvier', 2 => 'Février', 3 => 'Mars', 4 => 'Avril',
+            5 => 'Mai', 6 => 'Juin', 7 => 'Juillet', 8 => 'Août',
+            9 => 'Septembre', 10 => 'Octobre', 11 => 'Novembre', 12 => 'Décembre',
+        ];
+        $groupesMois = [];
+        foreach ($prestations as $p) {
+            $date = $p->getDatePresta();
+            $key  = $date->format('Y-m');
+            if (!isset($groupesMois[$key])) {
+                $groupesMois[$key] = [
+                    'key'         => $key,
+                    'label'       => $moisFr[(int)$date->format('n')] . ' ' . $date->format('Y'),
+                    'prestations' => [],
+                    'totalHeures' => 0.0,
+                    'nb'          => 0,
+                ];
+            }
+            $deb = $p->getHeureDebutPresta();
+            $fin = $p->getHeureFinPresta();
+            if ($deb && $fin) {
+                $h = ($fin->getTimestamp() - $deb->getTimestamp()) / 3600;
+                if ($h > 0) {
+                    $groupesMois[$key]['totalHeures'] += $h;
+                }
+            }
+            $groupesMois[$key]['prestations'][] = $p;
+            $groupesMois[$key]['nb']++;
+        }
+
+        // Le mois en cours doit toujours apparaître, même sans aucune prestation.
+        $moisActuelKey = (new \DateTime('today'))->format('Y-m');
+        if (!isset($groupesMois[$moisActuelKey])) {
+            $now = new \DateTime('today');
+            $groupesMois[$moisActuelKey] = [
+                'key'         => $moisActuelKey,
+                'label'       => $moisFr[(int)$now->format('n')] . ' ' . $now->format('Y'),
+                'prestations' => [],
+                'totalHeures' => 0.0,
+                'nb'          => 0,
+            ];
+            // Réordonner par mois décroissant (le mois courant remonte en tête).
+            krsort($groupesMois);
+        }
+
+        // Services proposés par le planning (PREST) de l'intervenant.
+        $servicesPlanning = [];
+        foreach ($this->familleIntervenantService->getTypesParFamille($id) as $types) {
+            foreach ($types as $t) {
+                $servicesPlanning[strtoupper($t)] = true;
+            }
+        }
+        
+        // Services présents dans les heures réellement déclarées (inclut l'occasionnel).
+        $servicesDeclares = [];
+        foreach ($prestations as $p) {
+            $servicesDeclares[strtoupper((string) $p->getTypePresta())] = true;
+        }
+        // Services à proposer = planning ∪ déclarés, dans l'ordre MENA puis ENFA.
+        $servicesDispo = [];
+        foreach (['MENA', 'ENFA'] as $t) {
+            if (isset($servicesPlanning[$t]) || isset($servicesDeclares[$t])) {
+                $servicesDispo[] = $t;
+            }
+        }
+        // Service par défaut : celui du planning en priorité, sinon le premier disponible.
+        $serviceDefaut = array_key_first($servicesPlanning) ?: ($servicesDispo[0] ?? 'MENA');
+
         return $this->render('intervenants/hours/list.html.twig', [
-            'auth'        => $this->authService->check(),
-            'user'        => $user,
-            'prestations' => $prestations,
-            'isAdmin'     => $this->authService->isAdmin(),
+            'auth'          => $this->authService->check(),
+            'user'          => $user,
+            'prestations'   => $prestations,
+            'groupesMois'   => array_values($groupesMois),
+            'moisActuel'    => (new \DateTime('today'))->format('Y-m'),
+            'servicesDispo' => $servicesDispo,
+            'serviceDefaut' => $serviceDefaut,
+            'isAdmin'       => $this->authService->isAdmin(),
+            'dateLimite'    => $dateLimite,
         ]);
     }
 
@@ -146,6 +225,8 @@ final class IntervenantsControllerMVC extends AbstractController
 
         $familles     = $this->familleIntervenantService->getFamillesForIntervenant($id);
         $assignations = $this->familleIntervenantService->getAssignationsActives($id);
+        // Types (MENA/ENFA) par famille — tous les proposers PREST, pour filtrer le select
+        $typesParFamille = $this->familleIntervenantService->getTypesParFamille($id);
 
         // Plage de facturation courante : 25 du mois précédent → aujourd'hui
         $today = new \DateTime('today');
@@ -159,9 +240,11 @@ final class IntervenantsControllerMVC extends AbstractController
         return $this->render('intervenants/hours/followup.html.twig', [
             'auth'              => $this->authService->check(),
             'user'              => $user,
+            'intervenantId'     => $id,
             'isAdmin'           => $this->authService->isAdmin(),
             'familles'          => $familles,
             'assignations'      => $assignations,
+            'typesParFamille'   => $typesParFamille,
             'periodeDebut'      => $billingStart,
             'editId'            => $request->query->get('edite'),
             'toutesLesFamilles' => $this->familleService->getToutesLesFamilles(),
@@ -309,20 +392,70 @@ final class IntervenantsControllerMVC extends AbstractController
         }
 
         if ($action === 'fin' && $heureDebut && $heureFin) {
-            $this->horaireService->ajouterPrestation([
-                'numFam'           => $numFam,
-                'nomFam'           => $nomFam,
-                'numInter'         => $id,
-                'datePresta'       => $date,
-                'heureDebutPresta' => $heureDebut,
-                'heureFinPresta'   => $heureFin,
-                'typePresta'       => $type,
-                'kmAvecEnfant'     => $km,
-            ]);
+            try {
+                $this->horaireService->ajouterPrestation([
+                    'numFam'           => $numFam,
+                    'nomFam'           => $nomFam,
+                    'numInter'         => $id,
+                    'datePresta'       => $date,
+                    'heureDebutPresta' => $heureDebut,
+                    'heureFinPresta'   => $heureFin,
+                    'typePresta'       => $type,
+                    'kmAvecEnfant'     => $km,
+                ]);
+            } catch (\Throwable $e) {
+                return $this->json(['success' => false, 'error' => $e->getMessage()], 422);
+            }
             return $this->json(['success' => true, 'action' => 'saved']);
         }
 
         return $this->json(['success' => true, 'action' => 'debut_recorded']);
+    }
+
+    // ── Déclaration via QR famille (scan appareil photo natif) ─────────────────
+    // Le QR de la famille encode l'URL absolue de cette route. L'intervenant scanne
+    // avec l'appareil photo de son téléphone → la page s'ouvre → on le redirige vers
+    // son formulaire de saisie pré-rempli avec la famille (pas besoin de la caméra
+    // de l'app, donc pas de contrainte HTTPS pour getUserMedia).
+    #[Route('/declarer/{numFam}', name: 'declarer_qr_mvc', methods: ['GET'])]
+    public function declarerViaQr(string $numFam, Request $request): Response
+    {
+        // Non connecté → on mémorise l'URL demandée (TargetPath standard Symfony)
+        // pour y revenir automatiquement après le login.
+        if (!$this->authService->check()) {
+            $request->getSession()->set('_security.main.target_path', $request->getUri());
+            return $this->redirectToRoute('app_login');
+        }
+
+        $interId = $this->authService->intervenant_id();
+
+        // Un admin n'a pas de saisie personnelle : on l'informe simplement
+        if (!$interId) {
+            $this->addFlash('error', "Ce QR est destiné aux intervenants. Connectez-vous avec un compte intervenant.");
+            return $this->redirectToRoute('intervenants_mvc');
+        }
+
+        $today   = (new \DateTime())->format('Y-m-d');
+        $famille = $this->familleService->getFamilleParNumero($numFam);
+
+        // Intervenant assigné à cette famille → saisie sur la vraie famille
+        if ($famille && $this->familleIntervenantService->peutPointer((int) $interId, (string) $numFam)) {
+            return $this->redirectToRoute('intervenant_suivie_mvc', [
+                'id'      => $interId,
+                'famille' => $numFam,
+                'date'    => $today,
+            ]);
+        }
+
+        // Non assigné (ou famille hors de sa liste) → saisie OCCASIONNELLE
+        // avec le VRAI nom de famille pré-rempli (via famille_label : parent/nom).
+        $nom = $this->familleExtension->familleLabel($famille ?? $numFam) ?: $numFam;
+        return $this->redirectToRoute('intervenant_suivie_mvc', [
+            'id'      => $interId,
+            'famille' => '0',
+            'nom'     => $nom,
+            'date'    => $today,
+        ]);
     }
 
     // ── Admin : archiver ──────────────────────────────────────────────────────

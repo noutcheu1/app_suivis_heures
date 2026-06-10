@@ -12,21 +12,22 @@ class HoursCalculator {
      */
     static calculerDuree(heureDebut, heureFin) {
         if (!heureDebut || !heureFin) return 0;
-        
-        // Parse les heures en minutes depuis minuit
+
         const [h1, m1, s1] = heureDebut.split(':').map(Number);
         const [h2, m2, s2] = heureFin.split(':').map(Number);
-        
+
         const debutMinutes = h1 * 60 + m1 + (s1 || 0) / 60;
         const finMinutes = h2 * 60 + m2 + (s2 || 0) / 60;
-        
-        // Gère le cas où la fin est le lendemain
+
         let dureeMinutes = finMinutes - debutMinutes;
         if (dureeMinutes < 0) {
-            dureeMinutes += 24 * 60; // Ajoute 24h
+            dureeMinutes += 24 * 60;
         }
-        
-        return dureeMinutes / 60; // Convertit en heures
+
+        const heures = dureeMinutes / 60;
+
+        // 👉 conversion en centièmes (base 100)
+        return Math.round(heures * 100) / 100;
     }
     
     /**
@@ -36,14 +37,15 @@ class HoursCalculator {
      * @returns {string} - Heures formatées
      */
     static formaterHeures(heures, showDecimals = true) {
-        if (heures === 0) return '0h';
-        
+        if (!heures) return '0h';
+
         const heuresEntieres = Math.floor(heures);
-        const minutes = Math.round((heures - heuresEntieres) * 60);
-        
-        if (showDecimals && minutes > 0) {
-            return `${heuresEntieres}h${minutes.toString().padStart(2, '0')}`;
+        const centiemes = Math.round((heures - heuresEntieres) * 100);
+
+        if (showDecimals && centiemes > 0) {
+            return `${heuresEntieres}h${centiemes.toString().padStart(2, '0')}`;
         }
+
         return `${heuresEntieres}h`;
     }
     
@@ -100,20 +102,21 @@ class HoursCalculator {
      */
     static calculerDureeEnCours(heureDebut) {
         if (!heureDebut) return 0;
-        
+
         const maintenant = new Date();
         const [h, m, s] = heureDebut.split(':').map(Number);
-        
+
         const debut = new Date();
         debut.setHours(h, m, s || 0, 0);
-        
-        // Si l'heure de début est après maintenant, c'est probablement hier
+
         if (debut > maintenant) {
             debut.setDate(debut.getDate() - 1);
         }
-        
+
         const diffMs = maintenant - debut;
-        return diffMs / (1000 * 60 * 60); // Convertit en heures
+        const heures = diffMs / (1000 * 60 * 60);
+
+        return Math.round(heures * 100) / 100;
     }
     
     /**

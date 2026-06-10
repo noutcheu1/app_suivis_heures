@@ -9,6 +9,7 @@ use App\Repository\FamilleRepository;
 use App\Repository\HoraireinterRepository;
 use App\Repository\ProposerRepository;
 use App\Repository\RelevemensuelinterRepository;
+use App\Repository\TarifFamilleRepository;
 use App\Service\HoraireinterService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -24,6 +25,7 @@ class HoraireinterServiceTest extends TestCase
     private ProposerRepository&MockObject           $proposerRepo;
     private FamilleRepository&MockObject            $familleRepo;
     private AppConfigRepository&MockObject          $appConfigRepo;
+    private TarifFamilleRepository&MockObject       $tarifFamilleRepo;
     private HoraireinterService $service;
 
     protected function setUp(): void
@@ -34,9 +36,11 @@ class HoraireinterServiceTest extends TestCase
         $this->proposerRepo     = $this->createMock(ProposerRepository::class);
         $this->familleRepo      = $this->createMock(FamilleRepository::class);
         $this->appConfigRepo    = $this->createMock(AppConfigRepository::class);
+        $this->tarifFamilleRepo = $this->createMock(TarifFamilleRepository::class);
 
         $defaultConfig = new AppConfig();
         $this->appConfigRepo->method('getConfig')->willReturn($defaultConfig);
+        $this->tarifFamilleRepo->method('isExonereKmFamille')->willReturn(false);
 
         $this->service = new HoraireinterService(
             $this->repository,
@@ -45,6 +49,7 @@ class HoraireinterServiceTest extends TestCase
             $this->proposerRepo,
             $this->familleRepo,
             $this->appConfigRepo,
+            $this->tarifFamilleRepo,
         );
     }
 
@@ -353,6 +358,111 @@ class HoraireinterServiceTest extends TestCase
         $result = $this->service->signerReleve(1, 'ENFA', $periodeFin);
 
         $this->assertFalse($result['success']);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Fonctionnalité 8 — Verrouillage basé sur nbrJourSaisie (non plus Y-m)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    public function testIsVerrouille_prestationAujourdHui_returnsFalse(): void
+    {
+        $h = new Horaireinter();
+        $h->setDatePresta(new \DateTime('today'));
+        $this->assertFalse($this->service->isVerrouille($h));
+    }
+
+    public function testIsVerrouille_prestationHier_returnsFalse(): void
+    {
+        // nbrJourSaisie = 10 par défaut — hier est dans la limite
+        $h = new Horaireinter();
+        $h->setDatePresta((new \DateTime())->modify('-1 day'));
+        $this->assertFalse($this->service->isVerrouille($h));
+    }
+
+    public function testIsVerrouille_prestationHorsLimite_returnsTrue(): void
+    {
+        // nbrJourSaisie = 10 par défaut — 30 jours dépasse la limite
+        $h = new Horaireinter();
+        $h->setDatePresta((new \DateTime())->modify('-30 days'));
+        $this->assertTrue($this->service->isVerrouille($h));
+    }
+
+    public function testIsVerrouille_exacteLimite_returnsFalse(): void
+    {
+        // À exactement J-10, la prestation n'est PAS verrouillée (< strict, pas <=)
+        $h = new Horaireinter();
+        $h->setDatePresta((new \DateTime('today'))->modify('-10 days'));
+        $this->assertFalse($this->service->isVerrouille($h));
+    }
+
+    public function testIsVerrouille_auDelaLimite_returnsTrue(): void
+    {
+        // À J-11, la prestation EST verrouillée
+        $h = new Horaireinter();
+        $h->setDatePresta((new \DateTime('today'))->modify('-11 days'));
+        $this->assertTrue($this->service->isVerrouille($h));
+    }
+
+    public function testIsVerrouille_utiliseLaConfigNbrJourSaisie(): void
+    {
+        // Avec nbrJourSaisie = 30, une prestation à -20 jours est accessible
+        $config = new AppConfig();
+        $config->setNbrJourSaisie(30);
+        $freshRepo = $this->createMock(AppConfigRepository::class);
+        $freshRepo->method('getConfig')->willReturn($config);
+        $freshTarifRepo = $this->createMock(TarifFamilleRepository::class);
+        $freshTarifRepo->method('isExonereKmFamille')->willReturn(false);
+
+        $service = new HoraireinterService(
+            $this->repository,
+            $this->releveRepository,
+            $this->em,
+            $this->proposerRepo,
+            $this->familleRepo,
+            $freshRepo,
+            $freshTarifRepo,
+        );
+
+        $h = new Horaireinter();
+        $h->setDatePresta((new \DateTime())->modify('-20 days'));
+        $this->assertFalse($service->isVerrouille($h));
+    }
+
+    public function testIsVerrouille_moisPrecedentDansLimite_returnsFalse(): void
+    {
+        // Avec nbrJourSaisie = 150, une prestation à -45 jours est toujours modifiable
+        $config = new AppConfig();
+        $config->setNbrJourSaisie(150);
+        $freshRepo = $this->createMock(AppConfigRepository::class);
+        $freshRepo->method('getConfig')->willReturn($config);
+        $freshTarifRepo = $this->createMock(TarifFamilleRepository::class);
+        $freshTarifRepo->method('isExonereKmFamille')->willReturn(false);
+
+        $service = new HoraireinterService(
+            $this->repository,
+            $this->releveRepository,
+            $this->em,
+            $this->proposerRepo,
+            $this->familleRepo,
+            $freshRepo,
+            $freshTarifRepo,
+        );
+
+        $h = new Horaireinter();
+        $h->setDatePresta((new \DateTime())->modify('-45 days'));
+        $this->assertFalse($service->isVerrouille($h));
+    }
+
+    public function testIsVerrouille_coherenceAvecPeutSaisirHeures(): void
+    {
+        // isVerrouille et peutSaisirHeures sont cohérents — même date → même résultat inversé
+        $dateAncienne = (new \DateTime())->modify('-30 days');
+
+        $h = new Horaireinter();
+        $h->setDatePresta($dateAncienne);
+
+        $this->assertTrue($this->service->isVerrouille($h));
+        $this->assertFalse($this->service->peutSaisirHeures($dateAncienne));
     }
 
     // ──────────────────────────────────────────────────────────────────────────

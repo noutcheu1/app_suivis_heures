@@ -14,7 +14,9 @@ use App\Service\HoraireinterService;
 use App\Service\IntervenantService;
 use App\Service\ReleveFamilleBuilder;
 use App\Service\ReleveMensuelFamilleService;
+use App\Repository\TarifFamilleRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -132,7 +134,9 @@ final class FamillesControllerMVC extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
-        $numFam = $this->authService->famille_id();
+        $numFam = $this->authService->isAdmin()
+            ? $request->query->get('numFam')
+            : $this->authService->famille_id();
         if (!$numFam) {
             throw $this->createNotFoundException(
                 'Aucun dossier famille trouvé pour votre identifiant. Contactez l\'administrateur.'
@@ -159,7 +163,11 @@ final class FamillesControllerMVC extends AbstractController
         if (!$this->authService->check()) {
             return $this->redirectToRoute('app_login');
         }
-        $numFam = $this->authService->famille_id();
+        // Admin : peut consulter le QR de n'importe quelle famille via ?numFam=.
+        // Famille : son propre numéro.
+        $numFam = $this->authService->isAdmin()
+            ? $request->query->get('numFam')
+            : $this->authService->famille_id();
         if (!$numFam) {
             throw $this->createNotFoundException(
                 'Aucun dossier famille trouvé pour votre identifiant. Contactez l\'administrateur.'
@@ -181,7 +189,9 @@ final class FamillesControllerMVC extends AbstractController
         if (!$this->authService->check()) {
             return $this->redirectToRoute('app_login');
         }
-        $numFam = $this->authService->famille_id();
+        $numFam = $this->authService->isAdmin()
+            ? $request->query->get('numFam')
+            : $this->authService->famille_id();
         if (!$numFam) {
             throw $this->createNotFoundException(
                 'Aucun dossier famille trouvé pour votre identifiant. Contactez l\'administrateur.'
@@ -431,6 +441,11 @@ final class FamillesControllerMVC extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
+        if (!$this->isCsrfTokenValid('tarif_famille_creer', $request->request->get('_csrf_token'))) {
+            $this->addFlash('error', 'Token de sécurité invalide.');
+            return $this->redirectToRoute('famille_tarif_mvc', ['numFam' => $numFam]);
+        }
+
         $typePresta = $request->request->get('typePresta', 'GE');
         $taux       = (float)$request->request->get('tauxHoraire', 0);
         $dateDebut  = $request->request->get('dateDebut', date('Y-m'));
@@ -443,6 +458,20 @@ final class FamillesControllerMVC extends AbstractController
         }
 
         return $this->redirectToRoute('famille_tarif_mvc', ['numFam' => $numFam]);
+    }
+
+    #[Route('/familles-mvc/{numFam}/toggle-km/{typePresta}', name: 'famille_toggle_km_mvc', methods: ['POST'])]
+    public function toggleKmExoneration(string $numFam, string $typePresta, Request $request, TarifFamilleRepository $tarifFamilleRepo): JsonResponse
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->json(['error' => 'Non autorisé'], 403);
+        }
+        if (!$this->isCsrfTokenValid('ajax', $request->headers->get('X-CSRF-Token', ''))) {
+            return $this->json(['error' => 'Token invalide'], 403);
+        }
+
+        $nouveau = $tarifFamilleRepo->toggleExonereKmType($numFam, $typePresta);
+        return $this->json(['exonereKm' => $nouveau, 'type' => strtoupper($typePresta)]);
     }
 
     // ── Admin : exceptions de facturation d'une famille ───────────────────────

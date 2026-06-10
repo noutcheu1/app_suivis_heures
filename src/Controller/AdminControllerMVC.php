@@ -7,10 +7,12 @@ use App\Entity\Horaire\VacancesConfig;
 use App\Entity\Principal\Proposer;
 use App\Repository\AppConfigRepository;
 use App\Repository\FamilleRepository;
+use App\Repository\TarifFamilleRepository;
 use App\Repository\HoraireinterRepository;
 use App\Repository\IntervenantRepository;
 use App\Repository\ParentFamilleRepository;
 use App\Repository\ProposerRepository;
+use App\Repository\RelevemensuelinterRepository;
 use App\Repository\VacancesConfigRepository;
 use App\Service\AuthService;
 use App\Service\FactureService;
@@ -43,7 +45,9 @@ final class AdminControllerMVC extends AbstractController
         private FamilleRepository           $familleRepo,
         private ParentFamilleRepository     $parentRepo,
         private IntervenantRepository       $intervenantRepo,
-        private EntityManagerInterface      $em,
+        private TarifFamilleRepository          $tarifFamilleRepo,
+        private RelevemensuelinterRepository    $relevemensuelinterRepo,
+        private EntityManagerInterface          $em,
     ) {}
 
     #[Route('/admin-mvc/dashboard', name: 'admin_dashboard_mvc')]
@@ -89,11 +93,50 @@ final class AdminControllerMVC extends AbstractController
 
         $familles = $this->familleService->getToutesLesFamilles();
 
+        $tarifsActifs = $this->tarifFamilleRepo->findTousActifs();
+        $kmExonerations = [];
+        foreach ($tarifsActifs as $t) {
+            $kmExonerations[$t->getNumFam()][$t->getTypePresta()] = $t->isExonereKm();
+        }
+
         return $this->render('admin/familles/list.html.twig', [
-            'auth' => $this->authService->check(),
-            'users' => $familles,
+            'auth'           => $this->authService->check(),
+            'users'          => $familles,
+            'kmExonerations' => $kmExonerations,
         ]);
     }
+
+
+      #[Route('/admin-mvc/familles/{type}', name: 'liste_Familles_type_mvc')]
+    public function listeFamillesBY(string $type, Request $request): Response
+    {
+
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $familles = $this->familleService->getFamillebytype($type);
+
+        $tarifsActifs = $this->tarifFamilleRepo->findTousActifs();
+        $kmExonerations = [];
+        foreach ($tarifsActifs as $t) {
+            $kmExonerations[$t->getNumFam()][$t->getTypePresta()] = $t->isExonereKm();
+        }
+
+        $kmType = match(strtolower($type)) {
+            'prestgardeenfants' => 'GE',
+            'prestmenage'       => 'M',
+            default             => null,
+        };
+
+        return $this->render('admin/familles/list_type.html.twig', [
+            'auth'           => $this->authService->check(),
+            'users'          => $familles,
+            'kmExonerations' => $kmExonerations,
+            'kmType'         => $kmType,
+        ]);
+    }
+
 
     #[Route('/admin-mvc/intervenant/{id}', name: 'admin_intervenant_detail_mvc')]
     public function detailIntervenant(int $id, Request $request): Response
@@ -136,12 +179,18 @@ final class AdminControllerMVC extends AbstractController
         $typeAdhs     = $this->proposerRepo->findAllTypeAdh();
         $plannings    = $this->proposerRepo->findActivesByFamille($numFam);
 
+        $interMap = [];
+        foreach ($intervenants as $i) {
+            $interMap[$i->getId()] = trim($i->getNom() . ' ' . $i->getPrenom());
+        }
+
         return $this->render('admin/famille_detail.html.twig', [
             'auth'         => $this->authService->check(),
             'famille'      => $famille,
             'prestations'  => $prestations,
             'parents'      => $parents,
             'intervenants' => $intervenants,
+            'interMap'     => $interMap,
             'typeAdhs'     => $typeAdhs,
             'plannings'    => $plannings,
         ]);
@@ -157,6 +206,11 @@ final class AdminControllerMVC extends AbstractController
         $famille = $this->familleService->getFamilleParNumero($numFam);
         if (!$famille) {
             throw $this->createNotFoundException('Famille introuvable');
+        }
+
+        if (!$this->isCsrfTokenValid('ajouter_planning', $request->request->get('_csrf_token'))) {
+            $this->addFlash('error', 'Token de sécurité invalide.');
+            return $this->redirectToRoute('admin_famille_detail_mvc', ['numFam' => $numFam]);
         }
 
         $numInter       = (int) $request->request->get('numInter');
@@ -682,6 +736,11 @@ final class AdminControllerMVC extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
+        if (!$this->isCsrfTokenValid('vacances_creer', $request->request->get('_csrf_token'))) {
+            $this->addFlash('error', 'Token de sécurité invalide.');
+            return $this->redirectToRoute('admin_vacances_mvc');
+        }
+
         $titre        = trim($request->request->get('titre', ''));
         $periode      = trim($request->request->get('periodeTexte', ''));
         $message      = trim($request->request->get('message', ''));
@@ -711,10 +770,15 @@ final class AdminControllerMVC extends AbstractController
     }
 
     #[Route('/admin-mvc/vacances/{id}/toggle', name: 'admin_vacances_toggle_mvc', methods: ['POST'])]
-    public function toggleVacances(int $id): Response
+    public function toggleVacances(int $id, Request $request): Response
     {
         if (!$this->authService->check() || !$this->authService->isAdmin()) {
             return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->isCsrfTokenValid('vacances_toggle_' . $id, $request->request->get('_csrf_token'))) {
+            $this->addFlash('error', 'Token de sécurité invalide.');
+            return $this->redirectToRoute('admin_vacances_mvc');
         }
 
         $config = $this->vacancesRepo->find($id);
@@ -740,10 +804,15 @@ final class AdminControllerMVC extends AbstractController
     }
 
     #[Route('/admin-mvc/vacances/{id}/supprimer', name: 'admin_vacances_supprimer_mvc', methods: ['POST'])]
-    public function supprimerVacances(int $id): Response
+    public function supprimerVacances(int $id, Request $request): Response
     {
         if (!$this->authService->check() || !$this->authService->isAdmin()) {
             return $this->redirectToRoute('app_login');
+        }
+
+        if (!$this->isCsrfTokenValid('vacances_supprimer_' . $id, $request->request->get('_csrf_token'))) {
+            $this->addFlash('error', 'Token de sécurité invalide.');
+            return $this->redirectToRoute('admin_vacances_mvc');
         }
 
         $config = $this->vacancesRepo->find($id);
@@ -768,6 +837,10 @@ final class AdminControllerMVC extends AbstractController
         $config = $this->appConfigRepo->getConfig();
 
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('admin_config', $request->request->get('_csrf_token'))) {
+                $this->addFlash('error', 'Token de sécurité invalide.');
+                return $this->redirectToRoute('admin_config_mvc');
+            }
             $config->setNbrJourSaisie((int)$request->request->get('nbrJourSaisie', 10));
             $config->setNbrPalierTarifGE((int)$request->request->get('nbrPalierTarifGE', 4));
             $config->setNbrPalierTarifM((int)$request->request->get('nbrPalierTarifM', 0));
@@ -780,6 +853,274 @@ final class AdminControllerMVC extends AbstractController
         return $this->render('admin/configuration.html.twig', [
             'auth'   => $this->authService->check(),
             'config' => $config,
+        ]);
+    }
+
+    #[Route('/admin-mvc/releves-intervenants', name: 'admin_releves_intervenants_mvc')]
+    public function relevesIntervenants(Request $request): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        // Mois sélectionné (format YYYY-MM) ou mois courant par défaut
+        $moisParam = $request->query->get('mois');
+        if ($moisParam && preg_match('/^\d{4}-\d{2}$/', $moisParam)) {
+            [$y, $m] = array_map('intval', explode('-', $moisParam));
+        } else {
+            $today = new \DateTime('today');
+            $d     = (int)$today->format('d');
+            // Si on est après le 24, le mois de facturation courant est le mois suivant
+            $ref   = $d >= 25 ? (clone $today)->modify('+1 month') : $today;
+            $y     = (int)$ref->format('Y');
+            $m     = (int)$ref->format('m');
+        }
+
+        // Période : 25 du mois précédent → 24 du mois $m/$y
+        $prev  = (new \DateTime(sprintf('%04d-%02d-01', $y, $m)))->modify('-1 month');
+        $debut = new \DateTime(sprintf('%04d-%02d-25', (int)$prev->format('Y'), (int)$prev->format('m')));
+        $fin   = new \DateTime(sprintf('%04d-%02d-24', $y, $m));
+
+        $moisAnnee    = sprintf('%02d/%04d', $m, $y);
+        $intervenants = $this->intervenantService->getTousLesIntervenants();
+
+        // Types de prestation par intervenant (depuis proposer actifs — connexion principal)
+        $typesParInter = [];
+        $connPrincipal = $this->em->getConnection();
+        // Utiliser la connexion principal via le registry
+        $rows = $this->proposerRepo->getEntityManager()->getConnection()->executeQuery(
+            "SELECT DISTINCT numSalarie_Intervenants AS numInter, idPresta_Prestations AS typePresta
+             FROM proposer
+             WHERE idADH_TypeADH = 'PREST'
+               AND (idPresta_Prestations = 'MENA' OR idPresta_Prestations = 'ENFA')
+               AND (dateFin_Proposer IS NULL
+                    OR dateFin_Proposer = '0000-00-00'
+                    OR dateFin_Proposer >= CURDATE())"
+        )->fetchAllAssociative();
+        foreach ($rows as $row) {
+            $typesParInter[(int)$row['numInter']][strtoupper($row['typePresta'])] = true;
+        }
+
+        $validFamIds  = $this->familleRepo->findAllValidFamilleIds();
+
+        // Périodes par type :
+        //   - MENA : 25 du mois précédent → 24 du mois courant ($debut/$fin)
+        //   - ENFA : 1er → dernier jour du mois calendaire
+        $enfaDebut = new \DateTime(sprintf('%04d-%02d-01', $y, $m));
+        $enfaFin   = (clone $enfaDebut)->modify('last day of this month');
+
+        $statsMena = $this->horaireRepo->getStatsPeriodeParIntervenant(
+            $debut->format('Y-m-d'), $fin->format('Y-m-d'), $validFamIds, 'MENA'
+        );
+        $statsEnfa = $this->horaireRepo->getStatsPeriodeParIntervenant(
+            $enfaDebut->format('Y-m-d'), $enfaFin->format('Y-m-d'), $validFamIds, 'ENFA'
+        );
+
+        // Fusion des deux jeux de stats par intervenant
+        $stats = [];
+        foreach ([$statsMena, $statsEnfa] as $part) {
+            foreach ($part as $id => $data) {
+                foreach (['MENA', 'ENFA'] as $t) {
+                    if (isset($data[$t])) {
+                        $stats[$id][$t] = $data[$t];
+                    }
+                }
+                $prevAjout = $stats[$id]['derniereAjout'] ?? '0000-00-00 00:00:00';
+                $newAjout  = $data['derniereAjout'] ?? '0000-00-00 00:00:00';
+                $stats[$id]['derniereAjout'] = $newAjout > $prevAjout ? $newAjout : $prevAjout;
+            }
+        }
+
+        // Inclure aussi les intervenants ayant des prestations déclarées (ex. occasionnel)
+        // mais sans planning PREST → absents de getTousLesIntervenants().
+        $presentIds = [];
+        foreach ($intervenants as $iv) {
+            $presentIds[(int) $iv->getId()] = true;
+        }
+        foreach (array_keys($stats) as $id) {
+            if (!isset($presentIds[$id])) {
+                $extra = $this->intervenantRepo->find($id);
+                if ($extra) {
+                    $intervenants[] = $extra;
+                    $presentIds[$id] = true;
+                }else{
+                   $presentIds[$id] = false;
+                }
+            }
+        }
+
+        // Relevés depuis relevemensuelinter pour ce mois
+        $relevesMois = $this->relevemensuelinterRepo->findBy(['moisannee' => $moisAnnee]);
+        $releves = [];
+        foreach ($relevesMois as $r) {
+            $releves[$r->getNumInter()][$r->getTypePresta()] = [
+                'signer'        => $r->isSigner(),
+                'signerLe'      => $r->getSignerLe(),
+                'telechargerLe' => $r->getTelechargerLe(),
+            ];
+        }
+
+        // Trier : ceux qui ont des heures en premier
+        usort($intervenants, function($a, $b) use ($stats) {
+            $idA  = $a->getId() ?? 0;
+            $idB  = $b->getId() ?? 0;
+            $totA = ($stats[$idA]['MENA'] ?? 0) + ($stats[$idA]['ENFA'] ?? 0);
+            $totB = ($stats[$idB]['MENA'] ?? 0) + ($stats[$idB]['ENFA'] ?? 0);
+            return $totB <=> $totA;
+        });
+
+        // Générer les mois disponibles pour le sélecteur (12 mois + mois suivant si après le 24)
+        $moisDisponibles = [];
+        $moisFr   = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+        $todayDay = (int)(new \DateTime())->format('d');
+
+        // Après le 24 : la période de facturation du mois suivant a commencé → l'ajouter en tête
+        if ($todayDay >= 25) {
+            $next = (new \DateTime('first day of this month'))->modify('+1 month');
+            $moisDisponibles[] = [
+                'value' => $next->format('Y-m'),
+                'label' => $moisFr[(int)$next->format('m')] . ' ' . $next->format('Y'),
+            ];
+        }
+
+        // Toujours inclure le mois courant et les 11 mois précédents
+        for ($i = 0; $i < 12; $i++) {
+            $dt = (new \DateTime('first day of this month'))->modify("-$i month");
+            $moisDisponibles[] = [
+                'value' => $dt->format('Y-m'),
+                'label' => $moisFr[(int)$dt->format('m')] . ' ' . $dt->format('Y'),
+            ];
+        }
+
+        // moisOffset pour les liens PDF individuels
+        $now        = new \DateTime('first day of this month');
+        $ref        = new \DateTime(sprintf('%04d-%02d-01', $y, $m));
+        $diffMonths = (($y - (int)$now->format('Y')) * 12) + ($m - (int)$now->format('m'));
+
+        return $this->render('admin/releves/intervenants.html.twig', [
+            'auth'            => $this->authService->check(),
+            'intervenants'    => $intervenants,
+            'presentIds'    => $presentIds,
+            'stats'           => $stats,
+            'releves'         => $releves,
+            'typesParInter'   => $typesParInter,
+            'periodeDebut'    => $debut,
+            'periodeFin'      => $fin,
+            'moisActuel'      => sprintf('%04d-%02d', $y, $m),
+            'moisOffset'      => $diffMonths,
+            'moisDisponibles' => $moisDisponibles,
+        ]);
+    }
+
+    #[Route('/admin-mvc/releves-batch', name: 'admin_releves_batch_mvc')]
+    public function relevesBatch(Request $request): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $ids    = $request->query->all('ids');
+        $type   = strtoupper($request->query->get('type', 'MENA'));
+        $types  = $type === 'ALL' ? ['MENA', 'ENFA'] : [$type];
+
+        // Mois sélectionné transmis depuis la page admin (format YYYY-MM)
+        $moisParam = $request->query->get('mois');
+        if ($moisParam && preg_match('/^\d{4}-\d{2}$/', $moisParam)) {
+            [$yBatch, $mBatch] = array_map('intval', explode('-', $moisParam));
+        } else {
+            $today  = new \DateTime('today');
+            $yBatch = (int)$today->format('Y');
+            $mBatch = (int)$today->format('m');
+        }
+        $moisAnneeBatch = sprintf('%02d/%04d', $mBatch, $yBatch);
+
+        // Calcul du moisOffset par rapport au mois courant
+        $now        = new \DateTime('first day of this month');
+        $ref        = new \DateTime(sprintf('%04d-%02d-01', $yBatch, $mBatch));
+        $moisOffset = (int)$now->diff($ref)->m * ($ref < $now ? -1 : 1)
+                    + (int)$now->diff($ref)->y * 12 * ($ref < $now ? -1 : 1);
+
+        $joursFr = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+        $moisFr  = ['', 'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+        $fmt     = static fn(int $sec): string => number_format($sec / 3600, 2, ',', '');
+
+        $fiches = [];
+
+        foreach ($ids as $rawId) {
+            $id   = (int)$rawId;
+            if (!$id) continue;
+            $user = $this->intervenantService->getInfosIntervenant($id);
+            if (!$user) continue;
+
+            foreach ($types as $t) {
+                $releveData = $this->horaireService->getReleveData($id, $t, $moisOffset, $user);
+
+                // skip si pas d'heures
+                if (empty($releveData['familles'])) continue;
+
+                // Marquer téléchargé avec le bon mois
+                $this->relevemensuelinterRepo->marquerTelecharge($moisAnneeBatch, $id, $t);
+
+                // Préparer jours
+                $rowspanMap = [];
+                foreach ($releveData['jours'] as $j) {
+                    $d = new \DateTimeImmutable($j['date']);
+                    if ((int)$d->format('N') !== 7) {
+                        $w = (int)$d->format('W');
+                        $rowspanMap[$w] = ($rowspanMap[$w] ?? 0) + 1;
+                    }
+                }
+
+                $prevWeek = null;
+                $jours    = [];
+                foreach ($releveData['jours'] as $j) {
+                    $d = new \DateTimeImmutable($j['date']);
+                    $dow = (int)$d->format('N');
+                    $week = (int)$d->format('W');
+                    $isDim = $dow === 7;
+                    $newW  = !$isDim && $week !== $prevWeek;
+                    if ($newW) $prevWeek = $week;
+                    $jours[] = [
+                        'date' => $j['date'], 'isDimanche' => $isDim,
+                        'nouvelleSemaine' => $newW,
+                        'rowspan'         => $newW ? ($rowspanMap[$week] ?? 1) : 0,
+                        'numeroSemaine'   => $week,
+                        'nomJourCourt'    => $joursFr[$dow],
+                        'numeroJour'      => (int)$d->format('j'),
+                        'afficherMois'    => (int)$d->format('j') === 1,
+                        'nomMois'         => $moisFr[(int)$d->format('m')],
+                    ];
+                }
+
+                $familles  = array_map(static fn($f) => array_merge($f, ['totalHeures' => $fmt($f['totalSecondes'] ?? 0)]), $releveData['familles']);
+                $totalSec  = array_sum(array_column($familles, 'totalSecondes'));
+                $typeLabel = $t === 'MENA' ? 'Menage' : 'GardeEnfants';
+
+                $fiches[] = [
+                    'intervenant'   => $releveData['intervenant'],
+                    'type'          => $t,
+                    'typeLibelle'   => $t === 'ENFA' ? "GARDES D'ENFANTS" : 'MÉNAGES',
+                    'periode'       => $releveData['periode'],
+                    'jours'         => $jours,
+                    'famillesPages' => array_chunk($familles, 5),
+                    'totaux'        => $releveData['totaux'],
+                    'totalHeures'   => $fmt($totalSec),
+                    'signer'        => $releveData['signer'],
+                    'afficherKm'    => $t === 'ENFA',
+                    'heureDehors'   => $releveData['heureDehors'] ?? null,
+                    'filename'      => "Releve_{$typeLabel}_{$releveData['periode']['mois']}_{$releveData['periode']['anner']}.pdf",
+                ];
+            }
+        }
+
+        $filename = count($fiches) === 1
+            ? $fiches[0]['filename']
+            : 'Releves_' . date('m_Y') . '.pdf';
+
+        return $this->render('admin/releves/batch.html.twig', [
+            'fiches'   => $fiches,
+            'filename' => $filename,
+            'type'     => $type,
         ]);
     }
 

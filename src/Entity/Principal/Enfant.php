@@ -21,7 +21,7 @@ class Enfant
     #[ORM\Column(name: 'prenom_Enfants', length: 50, nullable: true)]
     private ?string $prenom = null;
 
-    #[ORM\Column(name: 'dateNaiss_Enfants', type: Types::DATE_MUTABLE, nullable: true)]
+    #[ORM\Column(name: 'dateNaiss_Enfants', type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $dateNaiss = null;
 
     #[ORM\Column(name: 'numero_Famille', length: 10)]

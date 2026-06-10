@@ -143,7 +143,7 @@ class FactureService
 
         if ($valeur === 'V') {
             $tarifFam = $this->tarifFamilleRepo->findActif($numFam, $type, $moisAnnee);
-            if ($tarifFam) {
+            if ($tarifFam && (float)$tarifFam->getTauxHoraire() > 0) {
                 return [(float)$tarifFam->getTauxHoraire(), 'famille'];
             }
             return [0.0, 'V_non_défini'];

@@ -1,0 +1,234 @@
+{% extends 'base.html.twig' %}
+{% block title %}Génération PDF en cours…{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    [id^="monTableau0"] { font-size:13px; margin-bottom:6px; }
+    table { width:100%; border-collapse:collapse; text-align:center; }
+    th, td { border:1px solid #333; padding:10px; word-break:break-word; overflow-wrap:break-word; }
+    th { background-color:transparent; }
+    .no-borders { border:none; }
+    .title { text-decoration:underline; }
+    .cell-position-left  { text-align:left; }
+    .cell-position-right { text-align:right; }
+    tr.dimanche { background-color:#e0e0e0; color:#333; }
+    th:nth-child(n+4):nth-child(-n+8) { width:15%; }
+    .fiche-page { page-break-after: always; }
+    #progressBar { transition: width .3s; }
+    .nom-famille { display:block; word-break:break-word; overflow-wrap:break-word; hyphens:auto; max-width:100%; text-align:center; }
+    .nom-intervenant { word-break:break-word; overflow-wrap:break-word; hyphens:auto; }
+</style>
+{% endblock %}
+
+{% block body %}
+{% if fiches is empty %}
+<div style="text-align:center;padding:60px 20px;">
+    <i class="fas fa-file-pdf" style="font-size:40px;color:var(--text-xmuted);margin-bottom:16px;display:block;"></i>
+    <h2 style="color:var(--text-muted);">Aucune fiche avec des heures</h2>
+    <a href="{{ path('admin_releves_intervenants_mvc') }}" class="btn btn-secondary" style="margin-top:16px;">
+        <i class="fas fa-arrow-left"></i> Retour
+    </a>
+</div>
+{% else %}
+
+<div style="text-align:center;padding:40px 20px;" id="statusBlock">
+    <i class="fas fa-file-pdf" style="font-size:36px;color:var(--primary);margin-bottom:12px;display:block;"></i>
+    <h2 style="margin:0 0 8px;">Génération du PDF…</h2>
+    <p style="color:var(--text-muted);margin:0 0 20px;">
+        {{ fiches|length }} fiche(s) — {{ filename }}
+    </p>
+    <div style="max-width:320px;margin:0 auto;background:var(--border);border-radius:20px;height:8px;overflow:hidden;">
+        <div id="progressBar" style="height:100%;background:var(--primary);width:0%;border-radius:20px;"></div>
+    </div>
+    <p id="statusText" style="font-size:13px;color:var(--text-muted);margin-top:12px;">Initialisation…</p>
+    <a href="{{ path('admin_releves_intervenants_mvc') }}" class="btn btn-ghost btn-sm" style="margin-top:20px;">
+        <i class="fas fa-arrow-left"></i> Retour à la liste
+    </a>
+</div>
+
+{# Toutes les fiches rendues en HTML — invisibles, lues par jsPDF #}
+<div id="allFiches" style="position:absolute;left:-9999px;top:0;width:800px;visibility:hidden;">
+
+{% for fiche in fiches %}
+{% for familles in fiche.famillesPages %}
+{% set p = loop.index %}
+<div class="fiche-page">
+
+    <table id="monTableau0_{{ loop.parent.loop.index }}_{{ p }}">
+        <tr>
+            <th class="no-borders title" colspan="4">
+                {{ fiche.typeLibelle }} - RELEVÉ D'HEURES - {{ fiche.periode.mois|upper }} {{ fiche.periode.anner }}
+            </th>
+        </tr>
+        <tr>
+            <td class="no-borders" colspan="4" style="font-size:10px;">
+                LES FEUILLES D'HEURES DOIVENT ÊTRE SIGNÉES AU PLUS TARD LE {{ fiche.afficherKm ? '30/31' : '25/26' }} DU MOIS
+            </td>
+        </tr>
+        <tr class="cell-position-right bold">
+            <td rowspan="2"  class="title">Nom :</td>
+            <td rowspan="2" class="nom-intervenant">{{ fiche.intervenant.nom }} {{ fiche.intervenant.prenom }} <br> {{ fiche.intervenant.numSalarie }}</td>
+            <td>Tel :</td>
+            <td>{{ fiche.intervenant['Téléhone'] }}</td>
+        </tr>
+        <tr class="cell-position-right bold">
+            <td>Adresse :</td>
+            <td>{{ fiche.intervenant.adresse }}{% if fiche.intervenant['ville de résidence'] %}, {{ fiche.intervenant['ville de résidence'] }}{% endif %}</td>
+        </tr>
+        <tr class="cell-position-right">
+            <td colspan="4" class="no-borders" style="font-size:10px;">Toute absence doit être justifiée</td>
+        </tr>
+    </table>
+
+    <table id="monTableau1_{{ loop.parent.loop.index }}_{{ p }}">
+        <tr>
+            <td class="no-borders"></td><td class="no-borders"></td><td class="no-borders"></td>
+            <th colspan="5" class="bold">FAMILLES</th>
+        </tr>
+        <tr>
+            <td class="no-borders" colspan="3"></td>
+            {% for i in 0..4 %}
+                <th style="width:15%;" class="bold">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 0;">
+                        <span>{{ i + 1 }}</span>
+                        {% if familles[i] is defined %}
+                            {% set famLabel = familles[i].numFam ? famille_label(familles[i].numFam) : 'FAMILLE OCCASIONNELLE' ~ familles[i].nomFam %}
+                            {% set famFs = famLabel|length > 20 ? '7px' : (famLabel|length > 13 ? '8px' : '9px') %}
+                            <span class="nom-famille" style="font-weight:bold; font-size:{{ famFs }};">{{ famLabel }}</span>
+                            <i style="font-size:7px;" class="villes">{{ familles[i].ville_Famille }}</i>
+                        {% endif %}
+                    </div>
+                </th>
+            {% endfor %}
+        </tr>
+        <tr>
+            <td class="no-borders"></td>
+            <th colspan="2" class="bold">Date</th>
+            {% for i in 1..5 %}<th style="width:15%;"><br></th>{% endfor %}
+        </tr>
+
+        {% for jour in fiche.jours %}
+        <tr{% if jour.isDimanche %} class="dimanche"{% endif %}>
+            {% if jour.isDimanche %}<td></td>
+            {% elseif jour.nouvelleSemaine %}<td class="bold" rowspan="{{ jour.rowspan }}">S{{ jour.numeroSemaine }}</td>
+            {% endif %}
+            <td class="bold">{{ jour.nomJourCourt }}</td>
+            <td>{{ jour.numeroJour }}{% if jour.afficherMois %}-{{ jour.nomMois }}{% endif %}</td>
+            {% for i in 0..4 %}
+                <td style="font-size:10px;">
+                    {%- if familles[i] is defined and familles[i].prestations[jour.date] is defined -%}
+                        {{ familles[i].prestations[jour.date]|join('<br>')|raw }}
+                    {%- endif -%}
+                </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+
+        <tr>
+            <td class="no-borders"></td>
+            <th colspan="2">TOTAL Heures</th>
+            {% for i in 0..4 %}
+                <td>{% if familles[i] is defined %}{{ familles[i].totalHeures }}{% endif %}</td>
+            {% endfor %}
+        </tr>
+        <tr>
+            <td class="no-borders"></td><th colspan="2">TRAJET X Nombre de Km</th>
+            {% for i in 0..4 %}
+                <td style="font-size:10px;">
+                    {%- if familles[i] is defined and familles[i].distanceAller > 0 -%}
+                        {% set distance = familles[i].distanceAller > 15 ? 15 : familles[i].distanceAller %}
+                        {{ familles[i].nbPrestations }} x {{ distance|number_format(0, ',', ' ') }} km
+                    {%- elseif familles[i] is defined -%}
+                        {{ familles[i].nbPrestations }} x 0 km
+                    {%- endif -%}
+                </td>
+            {% endfor %}
+        </tr>
+
+        {% if fiche.afficherKm %}
+        <tr>
+            <td class="no-borders"></td>
+            <th colspan="2">Km avec enfants</th>
+            {% for i in 0..4 %}
+                <td style="font-size:10px;">
+                    {%- if familles[i] is defined and familles[i].totalKmEnfants > 0 -%}
+                        {{ familles[i].totalKmEnfants|number_format(1, ',', ' ') }} km
+                    {%- endif -%}
+                </td>
+            {% endfor %}
+        </tr>
+        {% endif %}
+
+        <tr><td class="no-borders" colspan="8"><br></td></tr>
+        <tr>
+            <td class="no-borders"></td>
+            <td colspan="2" class="no-borders bold">TOTAL <strong class="bold">MENSUEL</strong> du OU des RELEVES HEURES</td>
+            <td>{{ fiche.totalHeures }}</td>
+            <th class="no-borders"> TOTAL KM TRAJET SANS ENFANTS </th>
+            <td>
+                    {{ fiche.totaux.kmMois|number_format(1, ',', ' ') }} Km X ..... € <br>
+                    ( {{ familles|slice(0, 5)|reduce((total, f) => total + f.nbPrestations, 0) }} TRAJETS )
+                </td>
+            {% if fiche.totaux.kmMois > 0 or fiche.totaux.kmEnfantsMois > 0 %}
+                <th class="no-borders">TOTAL KM TRAJET{% if fiche.afficherKm %} / AVEC ENFANTS{% endif %}</th>
+                <td>
+                    {{ fiche.totaux.kmEnfantsMois|number_format(1, ',', ' ') }} km X ..... €
+                </td>
+            {% else %}
+                <td class="no-borders" colspan="2"></td>
+            {% endif %}
+        </tr>
+        <tr>
+            <td class="no-borders" colspan="4"></td>
+            <td class="no-borders" colspan="2" style="text-align:left;">Date :{% if fiche.signer.etat %} {{ fiche.signer.date }}{% endif %}</td>
+            <td class="no-borders bold" colspan="2" style="text-align:left;">Signature :{% if fiche.signer.etat %} {{ fiche.signer.nom }}{% endif %}</td>
+        </tr>
+        <tr><td class="no-borders" colspan="8"><br></td></tr>
+        <tr>
+            <th colspan="8">
+                VOUS DEVEZ NOUS INDIQUER LE NOMBRE TOTAL D'HEURES QUE VOUS AVEZ EFFECTUÉES
+                DANS LE MOIS POUR TOUT VOS EMPLOYEURS QUI VOUS PAYENT DIRECTEMENT
+                SOIT TOTAL DE VOTRE MOIS : {{ fiche.heureDehors ? fiche.heureDehors|date('H:i') : '_ _ _ h _ _' }} ***
+            </th>
+        </tr>
+    </table>
+
+</div>
+{% endfor %}
+{% endfor %}
+
+</div>{# /allFiches #}
+{% endif %}
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+{% if fiches is not empty %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="{{ asset('assets/js/build_relever_d_heure_pdf.js') }}"></script>
+<script>
+window.addEventListener('load', () => {
+    const total    = {{ fiches|length }};
+    const filename = {{ filename|json_encode|raw }};
+
+    document.getElementById('statusText').textContent = `Génération de ${total} fiche(s)…`;
+    document.getElementById('progressBar').style.width = '20%';
+
+    // Laisser le DOM se rendre avant de générer
+    setTimeout(() => {
+        document.getElementById('progressBar').style.width = '60%';
+        document.getElementById('statusText').textContent  = 'Construction du PDF…';
+
+        setTimeout(() => {
+            genererFichesPDF(filename);
+            document.getElementById('progressBar').style.width = '100%';
+            document.getElementById('statusText').textContent  = 'Téléchargement lancé !';
+            document.getElementById('statusBlock').querySelector('h2').textContent = 'PDF généré ✓';
+        }, 500);
+    }, 300);
+});
+</script>
+{% endif %}
+{% endblock %}
