@@ -84,6 +84,44 @@ final class AdminControllerMVC extends AbstractController
         ]);
     }
 
+    #[Route('/admin-mvc/intervenants-familles', name: 'admin_intervenants_familles_mvc')]
+    public function intervenantsFamilles(Request $request): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $intervenants = $this->intervenantService->getTousLesIntervenants();
+
+        // Pour chaque intervenant : les familles pour lesquelles il a un planning PREST,
+        // avec le(s) type(s) de prestation (Ménage / Garde).
+        $lignes = [];
+        foreach ($intervenants as $inter) {
+            $typesMap = $this->proposerRepo->findTypesParFamilleForIntervenant((int) $inter->getId());
+            if (empty($typesMap)) {
+                continue; // pas de famille → on n'affiche pas l'intervenant
+            }
+            $familles = [];
+            foreach ($typesMap as $numFam => $types) {
+                $familles[] = [
+                    'numFam' => (string) $numFam,
+                    'mena'   => in_array('MENA', $types, true),
+                    'enfa'   => in_array('ENFA', $types, true),
+                ];
+            }
+            $lignes[] = [
+                'intervenant' => $inter,
+                'familles'    => $familles,
+                'nbFamilles'  => count($familles),
+            ];
+        }
+
+        return $this->render('admin/intervenants/familles.html.twig', [
+            'auth'   => $this->authService->check(),
+            'lignes' => $lignes,
+        ]);
+    }
+
     #[Route('/admin-mvc/familles', name: 'admin_familles_mvc')]
     public function listeFamilles(Request $request): Response
     {

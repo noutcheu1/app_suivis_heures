@@ -11,6 +11,7 @@ use App\Repository\ProposerRepository;
 use App\Repository\RelevemensuelinterRepository;
 use App\Repository\TarifFamilleRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 class HoraireinterService
 {
@@ -23,6 +24,8 @@ class HoraireinterService
         private AppConfigRepository          $appConfigRepository,
         private TarifFamilleRepository       $tarifFamilleRepository,
         private IntervenantRepository        $intervenantRepository,
+        // true en dev/test, false en prod → permet de lever la limite de période en test.
+        #[Autowire('%kernel.debug%')] private bool $isDebug = false,
     ) {}
 
     /**
@@ -53,13 +56,9 @@ class HoraireinterService
             throw new \LogicException('Impossible de déclarer des heures pour une date future.');
         }
 
-        // Si c'est aujourd'hui, l'heure de fin doit être passée
-        if ($datePresta->format('Y-m-d') === (new \DateTime('today'))->format('Y-m-d')) {
-            $heureFin = \DateTime::createFromFormat('H:i', $donnees['heureFinPresta']);
-            if ($heureFin && $heureFin > new \DateTime()) {
-                throw new \LogicException('L\'heure de fin n\'est pas encore passée. Vous pourrez déclarer cette prestation une fois terminée.');
-            }
-        }
+        // NB : on n'exige plus que l'heure de fin soit déjà passée pour une prestation
+        // du jour — l'intervenant peut déclarer son créneau (planifié) même s'il finit
+        // plus tôt que prévu. Les contrôles durée/10h/chevauchement restent appliqués.
 
         if ($this->repository->existsDoublon($numInter, $datePresta, $heureDebut, $typePresta)) {
             throw new \LogicException('Une prestation avec cette heure de début existe déjà pour ce jour.');
@@ -260,6 +259,27 @@ class HoraireinterService
         }
         $limite = (new \DateTime('today'))->modify('-' . $this->getNbrJourSaisie() . ' days');
         return $presta < $limite;
+    }
+
+    /**
+     * Mois/année (m/Y) du relevé auquel appartient une prestation, selon le service :
+     *  - ENFA : mois calendaire.
+     *  - MENA : période 25 (mois-1) → 24 (mois) ; une date au-delà du 24 appartient au mois suivant.
+     */
+    public function getMoisAnneePourPrestation(\DateTimeInterface $date, string $type): string
+    {
+        if (strtoupper($type) === 'MENA' && (int) $date->format('d') >= 25) {
+            return (new \DateTime($date->format('Y-m-d')))->modify('first day of next month')->format('m/Y');
+        }
+        return $date->format('m/Y');
+    }
+
+    /** Vrai si le relevé (période + service) de cette prestation est déjà signé. */
+    public function estPeriodeSignee(int $numInter, \DateTimeInterface $date, string $type): bool
+    {
+        $moisAnnee = $this->getMoisAnneePourPrestation($date, $type);
+        $releve    = $this->releveRepository->findByMoisAnneeIntervenant($moisAnnee, $numInter, strtoupper($type));
+        return $releve !== null && $releve->isSigner() === true;
     }
 
     /**
@@ -664,11 +684,13 @@ class HoraireinterService
         $date      = new \DateTime($periodeFin);
         $moisAnnee = $date->format('m/Y');
 
-        $now      = new \DateTime();
-        $prevDate = (clone $now)->modify('-1 month');
-
-        if (!in_array($moisAnnee, [$now->format('m/Y'), $prevDate->format('m/Y')])) {
-            return ['success' => false, 'message' => 'Vous ne pouvez signer que le mois actuel ou le mois précédent'];
+        // On ne peut signer qu'un relevé dont la PÉRIODE EST TERMINÉE (mois écoulé) :
+        // pas la période en cours, qui se clôture plus tard et dépend du service
+        // (la periodeFin encode déjà la fin de période : MENA le 24, ENFA fin de mois).
+        $today = new \DateTime('today');
+        // En dev/test (debug), on ne limite pas la période pour faciliter les essais.
+        if (!$this->isDebug && $date >= $today) {
+            return ['success' => false, 'message' => "Vous ne pouvez signer qu'un relevé dont la période est déjà terminée (mois écoulé)."];
         }
 
         $this->releveRepository->signerReleve($moisAnnee, $numInter, $type);

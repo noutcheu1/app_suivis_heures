@@ -25,11 +25,29 @@
 
 {% block body %}
 
-<div class="page-header">
-    <h1>Génération en cours…</h1>
-    <p>Veuillez patienter, ne touchez à rien</p>
+{% if famillesPages is empty %}
+<div class="card" style="max-width:460px;margin:60px auto;">
+    <div class="card-body" style="text-align:center;padding:40px;">
+        <i class="fas fa-circle-info" style="font-size:32px;color:var(--text-xmuted);display:block;margin-bottom:12px;"></i>
+        <p style="color:var(--text-muted);">Aucune prestation enregistrée pour ce mois.</p>
+    </div>
+</div>
+{% else %}
+
+{# ── Jolie page « téléchargement en cours » ──────────────────────────────── #}
+<div id="dlStatus" class="card" style="max-width:460px;margin:60px auto;text-align:center;padding:34px 26px;box-shadow:var(--shadow-md);">
+    <div id="dlIcon" style="font-size:42px;color:var(--primary);line-height:1;">
+        <i class="fas fa-file-arrow-down fa-bounce"></i>
+    </div>
+    <h2 id="dlTitle" style="margin:16px 0 6px;font-size:19px;">Téléchargement du relevé…</h2>
+    <p id="dlText" style="color:var(--text-muted);margin:0;font-size:14px;">Génération du PDF en cours, veuillez patienter…</p>
+    <div style="height:6px;background:var(--border);border-radius:20px;overflow:hidden;max-width:280px;margin:20px auto 0;">
+        <div id="dlBar" style="height:100%;width:25%;background:var(--primary);border-radius:20px;transition:width .5s ease;"></div>
+    </div>
 </div>
 
+{# Fiches rendues hors-écran : invisibles à l'utilisateur, lues par jsPDF #}
+<div id="allFiches" style="position:absolute;left:-9999px;top:0;width:800px;visibility:hidden;">
 {% for familles in famillesPages %}
 {% set p = loop.index %}
 <div class="fiche-page">
@@ -237,13 +255,7 @@
 
 </div>
 {% endfor %}
-
-{% if famillesPages is empty %}
-<div class="card" style="margin-top:20px;">
-    <div class="card-body" style="text-align:center;padding:40px;">
-        <p style="color:var(--text-muted);">Aucune prestation enregistrée pour ce mois.</p>
-    </div>
-</div>
+</div>{# /allFiches #}
 {% endif %}
 
 {% endblock %}
@@ -254,6 +266,33 @@
 <script src="https://unpkg.com/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="{{ asset('assets/js/build_relever_d_heure_pdf.js') }}"></script>
 <script>
-    genererFichesPDF('{{ filename }}');
+window.addEventListener('load', () => {
+    const isEmail = new URLSearchParams(location.search).get('pdfmode') === 'email';
+    // Laisse le DOM se peindre (carte de chargement visible) avant de générer.
+    setTimeout(() => {
+        try {
+            genererFichesPDF('{{ filename }}');
+        } catch (e) {
+            console.error(e);
+            const t = document.getElementById('dlTitle');
+            const x = document.getElementById('dlText');
+            const i = document.getElementById('dlIcon');
+            if (t) t.textContent = 'Erreur lors de la génération';
+            if (x) x.textContent = e.message || 'Veuillez réessayer.';
+            if (i) i.innerHTML = '<i class="fas fa-triangle-exclamation" style="color:#dc2626;"></i>';
+            return;
+        }
+        // En mode email (iframe), pas d'UI à mettre à jour (téléchargement non demandé).
+        if (isEmail) return;
+        const bar = document.getElementById('dlBar');
+        const t   = document.getElementById('dlTitle');
+        const x   = document.getElementById('dlText');
+        const i   = document.getElementById('dlIcon');
+        if (bar) bar.style.width = '100%';
+        if (i) i.innerHTML = '<i class="fas fa-circle-check" style="color:#22c55e;"></i>';
+        if (t) t.textContent = 'Relevé téléchargé ✓';
+        if (x) x.textContent = 'Le PDF a été enregistré. Vous pouvez fermer cet onglet.';
+    }, 350);
+});
 </script>
 {% endblock %}

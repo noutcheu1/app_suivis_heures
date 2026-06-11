@@ -342,14 +342,39 @@ final class IntervenantsControllerMVC extends AbstractController
             throw $this->createNotFoundException('Intervenant introuvable');
         }
 
-        $familles     = $this->familleIntervenantService->getFamillesForIntervenant($id);
         $assignations = $this->familleIntervenantService->getAssignationsActives($id);
 
+        // Familles reconnues au scan = TOUTES celles pour lesquelles l'intervenant
+        // a un planning PREST (avec le(s) type(s)). Sinon le QR bascule en occasionnel.
+        $famillesScan = [];
+        foreach ($this->familleIntervenantService->getTypesParFamille($id) as $numFam => $types) {
+            $famillesScan[] = [
+                'numFam' => (string) $numFam,
+                'mena'   => in_array('MENA', $types, true),
+                'enfa'   => in_array('ENFA', $types, true),
+            ];
+        }
+
+        // Familles DÉJÀ pointées aujourd'hui (règle : 1 créneau/famille/jour) → on
+        // l'indique dès le scan au lieu de laisser démarrer un compteur qui échouera.
+        $dejaPointe = [];
+        $prestasJour = $this->horaireService->getPrestationsParIntervenant(
+            $id,
+            new \DateTime('today 00:00:00'),
+            new \DateTime('today 23:59:59'),
+        );
+        foreach ($prestasJour as $p) {
+            if ($p->getNumFam()) {
+                $dejaPointe[(string) $p->getNumFam()] = true;
+            }
+        }
+
         return $this->render('intervenants/qr-scan.html.twig', [
-            'auth'        => $this->authService->check(),
-            'user'        => $user,
-            'familles'    => $familles,
-            'assignations'=> $assignations,
+            'auth'         => $this->authService->check(),
+            'user'         => $user,
+            'famillesScan' => $famillesScan,
+            'assignations' => $assignations,
+            'dejaPointe'   => array_keys($dejaPointe),
         ]);
     }
 
@@ -438,12 +463,12 @@ final class IntervenantsControllerMVC extends AbstractController
         $today   = (new \DateTime())->format('Y-m-d');
         $famille = $this->familleService->getFamilleParNumero($numFam);
 
-        // Intervenant assigné à cette famille → saisie sur la vraie famille
+        // Intervenant assigné à cette famille → scanner de l'app en mode AUTOMATIQUE
+        // (compteur Démarrer/Terminer) pré-sélectionné sur cette famille, sans caméra.
         if ($famille && $this->familleIntervenantService->peutPointer((int) $interId, (string) $numFam)) {
-            return $this->redirectToRoute('intervenant_suivie_mvc', [
-                'id'      => $interId,
-                'famille' => $numFam,
-                'date'    => $today,
+            return $this->redirectToRoute('intervenant_qr_mvc', [
+                'id'  => $interId,
+                'fam' => $numFam,
             ]);
         }
 

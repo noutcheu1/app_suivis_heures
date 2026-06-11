@@ -50,9 +50,15 @@ class ProposerRepository extends ServiceEntityRepository
         $rows = $this->conn->fetchAllAssociative(
             "SELECT DISTINCT p.numero_Famille AS numFam, p.idPresta_Prestations AS type
              FROM proposer p
+             INNER JOIN famille f ON f.numero_Famille = p.numero_Famille
              WHERE p.numSalarie_Intervenants = ?
                AND p.idADH_TypeADH = 'PREST'
-               AND (p.idPresta_Prestations = 'MENA' OR p.idPresta_Prestations = 'ENFA')",
+               AND (p.idPresta_Prestations = 'MENA' OR p.idPresta_Prestations = 'ENFA')
+               AND (f.archive_Famille = 0 OR f.archive_Famille IS NULL)
+               AND f.numero_Famille != 9999
+               AND (f.mand_Famille = 0 OR f.mand_Famille IS NULL)
+               AND ((f.PGE_Famille IS NOT NULL AND f.PGE_Famille != '')
+                    OR (f.PM_Famille IS NOT NULL AND f.PM_Famille != ''))",
             [$numSalarie]
         );
 
@@ -249,11 +255,21 @@ class ProposerRepository extends ServiceEntityRepository
      */
     public function isIntervenantAssignedToFamille(int $numSalarie, string $numeroFamille): bool
     {
+        // Cohérent avec findTypesParFamilleForIntervenant (familles prestataires de
+        // l'intervenant). On NE requiert PAS un planning encore actif (dateFin) : un
+        // intervenant peut pointer/déclarer pour une famille dont le planning a expiré.
+        // Le filtre prestataire (mand=0, PGE/PM, non archivée) reste appliqué.
         $count = $this->conn->fetchOne(
-            'SELECT COUNT(*) FROM proposer p
+            "SELECT COUNT(*) FROM proposer p
+             INNER JOIN famille f ON f.numero_Famille = p.numero_Famille
              WHERE p.numSalarie_Intervenants = ?
                AND p.numero_Famille = ?
-               AND ' . self::ACTIF_SQL,
+               AND p.idADH_TypeADH = 'PREST'
+               AND (p.idPresta_Prestations = 'MENA' OR p.idPresta_Prestations = 'ENFA')
+               AND (f.archive_Famille = 0 OR f.archive_Famille IS NULL)
+               AND (f.mand_Famille = 0 OR f.mand_Famille IS NULL)
+               AND ((f.PGE_Famille IS NOT NULL AND f.PGE_Famille != '')
+                    OR (f.PM_Famille IS NOT NULL AND f.PM_Famille != ''))",
             [$numSalarie, $numeroFamille]
         );
 

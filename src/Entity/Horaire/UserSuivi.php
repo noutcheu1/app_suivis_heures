@@ -28,6 +28,10 @@ class UserSuivi implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'string', length: 20)]
     private string $role; // 'admin' | 'intervenant' | 'famille'
 
+    /** Email du dossier (candidat / famille), renseigné à l'inscription. */
+    #[ORM\Column(name: 'email', type: 'string', length: 180, nullable: true)]
+    private ?string $email = null;
+
     #[ORM\Column(type: 'string', length: 255)]
     private string $password;
 
@@ -60,6 +64,9 @@ class UserSuivi implements UserInterface, PasswordAuthenticatedUserInterface
         };
     }
     public function setRole(string $role): static { $this->role = $role; return $this; }
+
+    public function getEmail(): ?string { return $this->email; }
+    public function setEmail(?string $email): static { $this->email = $email; return $this; }
 
     public function getPassword(): string { return $this->password; }
     public function setPassword(string $password): static { $this->password = $password; return $this; }

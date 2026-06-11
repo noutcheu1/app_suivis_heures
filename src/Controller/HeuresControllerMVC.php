@@ -2,6 +2,8 @@
 
 namespace App\Controller;
 
+use App\Entity\Horaire\Horaireinter;
+use App\Security\Voter\HoraireVoter;
 use App\Service\AuthService;
 use App\Service\FamilleIntervenantService;
 use App\Service\HoraireinterService;
@@ -75,6 +77,21 @@ final class HeuresControllerMVC extends AbstractController
             ], 403);
         }
 
+        $typePresta = $data['type'] ?? $data['typePresta'] ?? '';
+
+        // Garde : période signée → déclaration impossible (Voter)
+        $sujet = (new Horaireinter())
+            ->setNumInter((int) $numInter)
+            ->setDatePresta($datePresta)
+            ->setTypePresta((string) $typePresta);
+        if (!$this->isGranted(HoraireVoter::CREATE, $sujet)) {
+            return $this->json([
+                'success' => false,
+                'locked'  => true,
+                'error'   => "Le relevé de cette période est déjà signé : déclaration impossible.",
+            ], 423);
+        }
+
         $donnees = [
             'numFam'           => $isFamilleOccasionnelle ? null : $numFam,
             'nomFam'           => $data['nomRemplacement'] ?? $data['nomFam'] ?? null,
@@ -82,7 +99,7 @@ final class HeuresControllerMVC extends AbstractController
             'datePresta'       => $dateStr,
             'heureDebutPresta' => ($data['heureDebut'] ?? '') . ':' . ($data['minuteDebut'] ?? ''),
             'heureFinPresta'   => ($data['heureFin'] ?? '') . ':' . ($data['minuteFin'] ?? ''),
-            'typePresta'       => $data['type'] ?? $data['typePresta'] ?? null,
+            'typePresta'       => $typePresta,
             'kmAvecEnfant'     => $data['trajet'] ?? $data['kmAvecEnfant'] ?? 0,
         ];
 
@@ -119,11 +136,16 @@ final class HeuresControllerMVC extends AbstractController
             return $this->json(['success' => false, 'error' => 'Non autorisé'], 403);
         }
 
-        if ($horaire && !$isAdmin && $this->horaireService->isVerrouille($horaire)) {
+        if (!$this->isGranted(HoraireVoter::EDIT, $horaire)) {
+            $signe = $horaire->getDatePresta() && $this->horaireService->estPeriodeSignee(
+                (int) $horaire->getNumInter(), $horaire->getDatePresta(), (string) $horaire->getTypePresta()
+            );
             return $this->json([
                 'success' => false,
                 'locked'  => true,
-                'error'   => 'Cette prestation appartient à un mois passé et ne peut plus être modifiée.',
+                'error'   => $signe
+                    ? 'Le relevé de cette période est déjà signé : modification impossible.'
+                    : 'Cette prestation appartient à un mois passé et ne peut plus être modifiée.',
             ], 423);
         }
 
@@ -161,11 +183,16 @@ final class HeuresControllerMVC extends AbstractController
         $isAdmin = $this->authService->isAdmin();
         $horaire = $this->horaireService->getPrestation($id);
 
-        if ($horaire && !$isAdmin && $this->horaireService->isVerrouille($horaire)) {
+        if ($horaire && !$this->isGranted(HoraireVoter::DELETE, $horaire)) {
+            $signe = $horaire->getDatePresta() && $this->horaireService->estPeriodeSignee(
+                (int) $horaire->getNumInter(), $horaire->getDatePresta(), (string) $horaire->getTypePresta()
+            );
             return $this->json([
                 'success' => false,
                 'locked'  => true,
-                'error'   => 'Cette prestation appartient à un mois passé et ne peut plus être supprimée.',
+                'error'   => $signe
+                    ? 'Le relevé de cette période est déjà signé : suppression impossible.'
+                    : 'Cette prestation appartient à un mois passé et ne peut plus être supprimée.',
             ], 423);
         }
 

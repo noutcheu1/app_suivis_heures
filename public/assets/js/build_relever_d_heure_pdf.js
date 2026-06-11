@@ -337,5 +337,16 @@ function genererFichesPDF(filename) {
         }
     });
 
+    // Mode "email" (page chargée dans une iframe cachée par la fiche relevé) :
+    // on renvoie le PDF en base64 au parent au lieu de le télécharger.
+    const pdfMode = new URLSearchParams(location.search).get('pdfmode');
+    if (pdfMode === 'email' && window.parent && window.parent !== window) {
+        window.parent.postMessage(
+            { type: 'relevePdfBase64', filename, data: doc.output('datauristring') },
+            '*'
+        );
+        return;
+    }
+
     doc.save(filename);
 }
