@@ -84,6 +84,44 @@ final class AdminControllerMVC extends AbstractController
         ]);
     }
 
+    #[Route('/admin-mvc/intervenants-familles', name: 'admin_intervenants_familles_mvc')]
+    public function intervenantsFamilles(Request $request): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $intervenants = $this->intervenantService->getTousLesIntervenants();
+
+        // Pour chaque intervenant : les familles pour lesquelles il a un planning PREST,
+        // avec le(s) type(s) de prestation (Ménage / Garde).
+        $lignes = [];
+        foreach ($intervenants as $inter) {
+            $typesMap = $this->proposerRepo->findTypesParFamilleForIntervenant((int) $inter->getId());
+            if (empty($typesMap)) {
+                continue; // pas de famille → on n'affiche pas l'intervenant
+            }
+            $familles = [];
+            foreach ($typesMap as $numFam => $types) {
+                $familles[] = [
+                    'numFam' => (string) $numFam,
+                    'mena'   => in_array('MENA', $types, true),
+                    'enfa'   => in_array('ENFA', $types, true),
+                ];
+            }
+            $lignes[] = [
+                'intervenant' => $inter,
+                'familles'    => $familles,
+                'nbFamilles'  => count($familles),
+            ];
+        }
+
+        return $this->render('admin/intervenants/familles.html.twig', [
+            'auth'   => $this->authService->check(),
+            'lignes' => $lignes,
+        ]);
+    }
+
     #[Route('/admin-mvc/familles', name: 'admin_familles_mvc')]
     public function listeFamilles(Request $request): Response
     {
@@ -902,11 +940,52 @@ final class AdminControllerMVC extends AbstractController
         }
 
         $validFamIds  = $this->familleRepo->findAllValidFamilleIds();
-        $stats        = $this->horaireRepo->getStatsPeriodeParIntervenant(
-            $debut->format('Y-m-d'),
-            $fin->format('Y-m-d'),
-            $validFamIds
+
+        // Périodes par type :
+        //   - MENA : 25 du mois précédent → 24 du mois courant ($debut/$fin)
+        //   - ENFA : 1er → dernier jour du mois calendaire
+        $enfaDebut = new \DateTime(sprintf('%04d-%02d-01', $y, $m));
+        $enfaFin   = (clone $enfaDebut)->modify('last day of this month');
+
+        $statsMena = $this->horaireRepo->getStatsPeriodeParIntervenant(
+            $debut->format('Y-m-d'), $fin->format('Y-m-d'), $validFamIds, 'MENA'
         );
+        $statsEnfa = $this->horaireRepo->getStatsPeriodeParIntervenant(
+            $enfaDebut->format('Y-m-d'), $enfaFin->format('Y-m-d'), $validFamIds, 'ENFA'
+        );
+
+        // Fusion des deux jeux de stats par intervenant
+        $stats = [];
+        foreach ([$statsMena, $statsEnfa] as $part) {
+            foreach ($part as $id => $data) {
+                foreach (['MENA', 'ENFA'] as $t) {
+                    if (isset($data[$t])) {
+                        $stats[$id][$t] = $data[$t];
+                    }
+                }
+                $prevAjout = $stats[$id]['derniereAjout'] ?? '0000-00-00 00:00:00';
+                $newAjout  = $data['derniereAjout'] ?? '0000-00-00 00:00:00';
+                $stats[$id]['derniereAjout'] = $newAjout > $prevAjout ? $newAjout : $prevAjout;
+            }
+        }
+
+        // Inclure aussi les intervenants ayant des prestations déclarées (ex. occasionnel)
+        // mais sans planning PREST → absents de getTousLesIntervenants().
+        $presentIds = [];
+        foreach ($intervenants as $iv) {
+            $presentIds[(int) $iv->getId()] = true;
+        }
+        foreach (array_keys($stats) as $id) {
+            if (!isset($presentIds[$id])) {
+                $extra = $this->intervenantRepo->find($id);
+                if ($extra) {
+                    $intervenants[] = $extra;
+                    $presentIds[$id] = true;
+                }else{
+                   $presentIds[$id] = false;
+                }
+            }
+        }
 
         // Relevés depuis relevemensuelinter pour ce mois
         $relevesMois = $this->relevemensuelinterRepo->findBy(['moisannee' => $moisAnnee]);
@@ -959,6 +1038,7 @@ final class AdminControllerMVC extends AbstractController
         return $this->render('admin/releves/intervenants.html.twig', [
             'auth'            => $this->authService->check(),
             'intervenants'    => $intervenants,
+            'presentIds'    => $presentIds,
             'stats'           => $stats,
             'releves'         => $releves,
             'typesParInter'   => $typesParInter,

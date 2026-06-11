@@ -21,6 +21,14 @@ security:
             logout:
                 path: app_logout
                 target: app_login
+            # Session longue : l'utilisateur (surtout l'intervenant sur mobile) reste
+            # connecté ~1 an → il ne se reconnecte presque jamais. Cookie signé
+            # (basé sur le hash du mot de passe) → invalidé si le mot de passe change.
+            remember_me:
+                secret: '%kernel.secret%'
+                lifetime: 31536000      # 1 an (secondes)
+                always_remember_me: true
+                samesite: lax
 
     role_hierarchy:
         ROLE_ADMIN: [ROLE_INTERVENANT, ROLE_FAMILLE]

@@ -134,7 +134,9 @@ final class FamillesControllerMVC extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
-        $numFam = $this->authService->famille_id();
+        $numFam = $this->authService->isAdmin()
+            ? $request->query->get('numFam')
+            : $this->authService->famille_id();
         if (!$numFam) {
             throw $this->createNotFoundException(
                 'Aucun dossier famille trouvé pour votre identifiant. Contactez l\'administrateur.'
@@ -161,7 +163,11 @@ final class FamillesControllerMVC extends AbstractController
         if (!$this->authService->check()) {
             return $this->redirectToRoute('app_login');
         }
-        $numFam = $this->authService->famille_id();
+        // Admin : peut consulter le QR de n'importe quelle famille via ?numFam=.
+        // Famille : son propre numéro.
+        $numFam = $this->authService->isAdmin()
+            ? $request->query->get('numFam')
+            : $this->authService->famille_id();
         if (!$numFam) {
             throw $this->createNotFoundException(
                 'Aucun dossier famille trouvé pour votre identifiant. Contactez l\'administrateur.'
@@ -183,7 +189,9 @@ final class FamillesControllerMVC extends AbstractController
         if (!$this->authService->check()) {
             return $this->redirectToRoute('app_login');
         }
-        $numFam = $this->authService->famille_id();
+        $numFam = $this->authService->isAdmin()
+            ? $request->query->get('numFam')
+            : $this->authService->famille_id();
         if (!$numFam) {
             throw $this->createNotFoundException(
                 'Aucun dossier famille trouvé pour votre identifiant. Contactez l\'administrateur.'

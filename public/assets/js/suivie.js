@@ -349,15 +349,21 @@ function filterFamillesByType() {
     const selectFamille = document.getElementById("famille");
 
     Array.from(selectFamille.options).forEach(o => {
-        if (!o.value || o.value === '0') { o.hidden = false; return; }
+        if (!o.value) { o.hidden = false; return; }   // placeholder « Choisir une famille »
+
+        // Aucun type choisi → on n'affiche AUCUNE famille (ni occasionnelle)
+        if (!type) { o.hidden = true; return; }
+
+        // Famille occasionnelle : disponible dès qu'un type est choisi
+        if (o.value === '0') { o.hidden = false; return; }
 
         // Exclure définitivement les familles mandataires ou sans PGE/PM
         if (!isPrestataire(o)) { o.hidden = true; o.disabled = true; return; }
 
-        // Filtre par type de prestation
-        if (!type) { o.hidden = false; return; }
+        // Filtre par type : la famille n'apparaît QUE si elle a ce type de prestation
+        // (data-prestations = tous les proposers PREST de l'intervenant pour cette famille)
         const prests = o.dataset.prestations ? o.dataset.prestations.split(',').filter(Boolean) : [];
-        o.hidden = prests.length > 0 && !prests.includes(type);
+        o.hidden = !prests.includes(type);
     });
 
     // Si la famille sélectionnée est maintenant masquée, réinitialiser
@@ -398,73 +404,16 @@ function updateVisibility() {
 document.getElementById("famille").addEventListener("change", handleFamilleChange);
 document.getElementById("type").addEventListener("change", filterFamillesByType);
 
-// ── Autocomplete famille occasionnelle ─────────────────────────────────────
+// ── Famille occasionnelle : saisie libre du nom (sans suggestions) ──────────
 familleOccaSearch.addEventListener('input', function () {
-    const query = this.value.trim().toLowerCase();
-    nomRemplacementInput.value = this.value.trim(); // autorise aussi la saisie libre
-
-    if (!query) {
-        familleOccaSuggestions.style.display = 'none';
-        return;
-    }
-
-    const matches = (typeof FAMILLES_OCC !== 'undefined' ? FAMILLES_OCC : [])
-        .filter(f => f.toLowerCase().includes(query))
-        .slice(0, 10);
-
-    if (matches.length === 0) {
-        familleOccaSuggestions.style.display = 'none';
-        return;
-    }
-
-    familleOccaSuggestions.innerHTML = '';
-    matches.forEach(label => {
-        const item = document.createElement('div');
-        item.textContent = label;
-        item.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border);transition:background .15s;';
-        item.addEventListener('mouseenter', () => { item.style.background = 'var(--bg-secondary)'; });
-        item.addEventListener('mouseleave', () => { item.style.background = ''; });
-        item.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // évite le blur avant la sélection
-            familleOccaSearch.value = label;
-            nomRemplacementInput.value = label;
-            familleOccaSuggestions.style.display = 'none';
-        });
-        familleOccaSuggestions.appendChild(item);
-    });
-    familleOccaSuggestions.style.display = 'block';
-});
-
-familleOccaSearch.addEventListener('blur', () => {
-    setTimeout(() => { familleOccaSuggestions.style.display = 'none'; }, 150);
-});
-
-familleOccaSearch.addEventListener('keydown', (e) => {
-    const items = familleOccaSuggestions.querySelectorAll('div');
-    const active = familleOccaSuggestions.querySelector('.occ-active');
-    if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        const next = active ? active.nextElementSibling : items[0];
-        if (active) active.classList.remove('occ-active');
-        if (next) { next.classList.add('occ-active'); next.style.background = 'var(--bg-secondary)'; }
-    } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        const prev = active ? active.previousElementSibling : items[items.length - 1];
-        if (active) active.classList.remove('occ-active');
-        if (prev) { prev.classList.add('occ-active'); prev.style.background = 'var(--bg-secondary)'; }
-    } else if (e.key === 'Enter' && active) {
-        e.preventDefault();
-        familleOccaSearch.value = active.textContent;
-        nomRemplacementInput.value = active.textContent;
-        familleOccaSuggestions.style.display = 'none';
-    } else if (e.key === 'Escape') {
-        familleOccaSuggestions.style.display = 'none';
-    }
+    nomRemplacementInput.value = this.value.trim();
+    if (familleOccaSuggestions) familleOccaSuggestions.style.display = 'none';
 });
 
 // Initialisation
 filterMandataireFamilles(); // masque les familles mandataires dès le chargement
 updateVisibility();
+filterFamillesByType();     // pas de type au départ → aucune famille affichée
 
 if (params.has('edite')) {
     getInfoData(params.get('edite'));
@@ -474,7 +423,8 @@ if (params.has('edite')) {
     const dateParam = params.get('date');
     const hdebParam = params.get('hdeb');
     const hfinParam = params.get('hfin');
-    console.log({famParam, typeParam, dateParam, hdebParam, hfinParam});
+    const nomDbg    = params.get('nom');
+    console.log('[suivie] params:', {famParam, typeParam, dateParam, hdebParam, hfinParam, nom: nomDbg});
     if (famParam || typeParam) {
         // Pré-remplissage depuis le planning — valeurs fixées directement,
         // sans déclencher les filtres en cascade.
@@ -494,6 +444,17 @@ if (params.has('edite')) {
         if (hfinParam) setTimeSelects('heureFin',   'minuteFin',   hfinParam);
 
         updateVisibility();
+
+        // Famille occasionnelle (famille=0) + nom pré-rempli — APRÈS updateVisibility
+        // (qui affiche le conteneur occasionnel) pour que la valeur ne soit pas écrasée.
+        const nomParam = params.get('nom');
+        if (famParam === '0' && nomParam) {
+            familleOccaContainer.hidden = false;
+            familleOccaSearch.value = nomParam;
+            familleOccaSearch.placeholder = nomParam;
+            nomRemplacementInput.value = nomParam;
+        }
+
         form.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
         handleFamilleChange();

@@ -1,0 +1,81 @@
+{% extends 'base.html.twig' %}
+{% block title %}Intervenants & familles{% endblock %}
+{% block page_title %}Intervenants & familles{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+    <h1>Familles par intervenant</h1>
+    <p>{{ lignes|length }} intervenant{% if lignes|length > 1 %}s{% endif %} avec au moins une famille</p>
+</div>
+
+<div class="table-wrapper">
+
+    <div class="table-toolbar">
+        <div class="table-search">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Rechercher un intervenant ou une famille..." oninput="filterTable()">
+        </div>
+    </div>
+
+    {% if lignes is empty %}
+    <div class="empty-state">
+        <div class="empty-state-icon"><i class="fas fa-users"></i></div>
+        <h3>Aucune affectation</h3>
+        <p>Aucun intervenant n'a de famille au planning.</p>
+    </div>
+    {% else %}
+    <table class="data-table" id="ifTable">
+        <thead>
+            <tr>
+                <th>Intervenant</th>
+                <th style="text-align:center;">Familles</th>
+                <th>Familles pour lesquelles il travaille</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ligne in lignes %}
+            <tr>
+                <td>
+                    <a href="{{ path('admin_intervenant_detail_mvc', {id: ligne.intervenant.id}) }}" style="font-weight:600;">
+                        {{ ligne.intervenant.nom }} {{ ligne.intervenant.prenom }}
+                    </a>
+                    <div style="font-size:11px;color:var(--text-xmuted);">#{{ ligne.intervenant.id }}</div>
+                </td>
+                <td style="text-align:center;">
+                    <span class="badge badge-info">{{ ligne.nbFamilles }}</span>
+                </td>
+                <td>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                        {% for f in ligne.familles %}
+                        <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--border);font-size:12.5px;">
+                            <a href="{{ path('admin_famille_detail_mvc', {numFam: f.numFam}) }}" style="font-weight:500;">
+                                {{ famille_label(f.numFam) }}
+                            </a>
+                            {% if f.mena %}<i class="fas fa-broom" style="color:#1d4ed8;" title="Ménage"></i>{% endif %}
+                            {% if f.enfa %}<i class="fas fa-child" style="color:#15803d;" title="Garde d'enfants"></i>{% endif %}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+function filterTable() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    document.querySelectorAll('#ifTable tbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

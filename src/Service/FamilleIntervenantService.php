@@ -27,6 +27,15 @@ class FamilleIntervenantService
         private HoraireinterRepository $horaireRepository,
     ) {}
 
+    /**
+     * Types de prestation par famille pour cet intervenant (tous PREST).
+     * @return array<string, string[]>
+     */
+    public function getTypesParFamille(int $numSalarie): array
+    {
+        return $this->proposerRepository->findTypesParFamilleForIntervenant($numSalarie);
+    }
+
     // ── Listes globales (filtrées sur le planning actif) ──────────────────────
 
     /**

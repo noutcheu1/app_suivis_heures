@@ -63,7 +63,7 @@
         </tr>
         <tr>
             <td class="no-borders" colspan="4" style="font-size:10px;">
-                LES FEUILLES D'HEURES DOIVENT ÊTRE SIGNÉES AU PLUS TARD LE 30/31 DU MOIS
+                LES FEUILLES D'HEURES DOIVENT ÊTRE SIGNÉES AU PLUS TARD LE {{ fiche.afficherKm ? '30/31' : '25/26' }} DU MOIS
             </td>
         </tr>
         <tr class="cell-position-right bold">
@@ -93,7 +93,7 @@
                     <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 0;">
                         <span>{{ i + 1 }}</span>
                         {% if familles[i] is defined %}
-                            {% set famLabel = famille_label(familles[i].numFam) %}
+                            {% set famLabel = familles[i].numFam ? famille_label(familles[i].numFam) : 'FAMILLE OCCASIONNELLE' ~ familles[i].nomFam %}
                             {% set famFs = famLabel|length > 20 ? '7px' : (famLabel|length > 13 ? '8px' : '9px') %}
                             <span class="nom-famille" style="font-weight:bold; font-size:{{ famFs }};">{{ famLabel }}</span>
                             <i style="font-size:7px;" class="villes">{{ familles[i].ville_Famille }}</i>
@@ -132,13 +132,12 @@
                 <td>{% if familles[i] is defined %}{{ familles[i].totalHeures }}{% endif %}</td>
             {% endfor %}
         </tr>
-        <tr>{% set totalprestation = 0  %}
+        <tr>
             <td class="no-borders"></td><th colspan="2">TRAJET X Nombre de Km</th>
             {% for i in 0..4 %}
                 <td style="font-size:10px;">
                     {%- if familles[i] is defined and familles[i].distanceAller > 0 -%}
                         {% set distance = familles[i].distanceAller > 15 ? 15 : familles[i].distanceAller %}
-                        {% set totalprestation = totalprestation + familles[i].nbPrestations %}
                         {{ familles[i].nbPrestations }} x {{ distance|number_format(0, ',', ' ') }} km
                     {%- elseif familles[i] is defined -%}
                         {{ familles[i].nbPrestations }} x 0 km
@@ -164,14 +163,12 @@
         <tr><td class="no-borders" colspan="8"><br></td></tr>
         <tr>
             <td class="no-borders"></td>
-            <td colspan="2" class="no-borders">TOTAL MENSUEL DES HEURES</td>
+            <td colspan="2" class="no-borders bold">TOTAL <strong class="bold">MENSUEL</strong> du OU des RELEVES HEURES</td>
             <td>{{ fiche.totalHeures }}</td>
             <th class="no-borders"> TOTAL KM TRAJET SANS ENFANTS </th>
             <td>
-                    {{ fiche.totaux.kmMois|number_format(1, ',', ' ') }} Km X ..... €
-                    (
-                    {{ familles|slice(0, 5)|reduce((total, f) => total + f.nbPrestations, 0) }} prestations
-                    )
+                    {{ fiche.totaux.kmMois|number_format(1, ',', ' ') }} Km X ..... € <br>
+                    ( {{ familles|slice(0, 5)|reduce((total, f) => total + f.nbPrestations, 0) }} TRAJETS )
                 </td>
             {% if fiche.totaux.kmMois > 0 or fiche.totaux.kmEnfantsMois > 0 %}
                 <th class="no-borders">TOTAL KM TRAJET{% if fiche.afficherKm %} / AVEC ENFANTS{% endif %}</th>

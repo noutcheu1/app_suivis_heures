@@ -29,6 +29,21 @@ final class LoginControllerMVC extends AbstractController
         Request $request,
         AuthenticationUtils $authenticationUtils
     ): Response {
+        // Déjà connecté → on n'affiche pas le login, on redirige vers le bon espace
+        if ($this->authService->check()) {
+            if ($this->authService->isAdmin()) {
+                return $this->redirectToRoute('admin_dashboard_mvc');
+            }
+            if ($this->authService->isIntervenant()) {
+                return $this->redirectToRoute('intervenant_panel_mvc', [
+                    'id' => $this->authService->intervenant_id(),
+                ]);
+            }
+            if ($this->authService->isFamille()) {
+                return $this->redirectToRoute('famille_panel_mvc');
+            }
+        }
+
         $error        = $authenticationUtils->getLastAuthenticationError();
         $lastUsername = $authenticationUtils->getLastUsername();
 

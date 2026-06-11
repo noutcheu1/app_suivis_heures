@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\Horaire\UserSuivi;
+use App\Repository\CandidatRepository;
 use App\Repository\UserSuiviRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -13,6 +14,7 @@ class UserSuiviService
         private UserSuiviRepository $repository,
         private EntityManagerInterface $entityManager,
         private UserPasswordHasherInterface $passwordHasher,
+        private CandidatRepository $candidatRepository,
     ) {}
 
     /**
@@ -49,6 +51,11 @@ class UserSuiviService
         $user = new UserSuivi();
         $user->setUsername($identifiant);
         $user->setRole($role);
+        // L'email n'est récupéré que pour un intervenant, depuis la table Candidat
+        // (le login intervenant correspond au numSS, clé du candidat).
+        if ($role === 'intervenant') {
+            $user->setEmail($this->candidatRepository->findByNumSs($identifiant)?->getEmail());
+        }
         $user->setPassword($this->passwordHasher->hashPassword($user, $motDePasse));
 
         $this->entityManager->persist($user);

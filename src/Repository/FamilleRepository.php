@@ -368,6 +368,8 @@ class FamilleRepository extends ServiceEntityRepository
              FROM proposer p
              INNER JOIN famille f ON f.numero_Famille = p.numero_Famille
              WHERE p.numSalarie_Intervenants = :numSalarie
+               AND p.idADH_TypeADH = \'PREST\'
+               AND (p.idPresta_Prestations = \'MENA\' OR p.idPresta_Prestations = \'ENFA\')
                AND (f.archive_Famille = 0 OR f.archive_Famille IS NULL)
                AND f.numero_Famille != 9999
                AND (f.mand_Famille = 0 OR f.mand_Famille IS NULL)
