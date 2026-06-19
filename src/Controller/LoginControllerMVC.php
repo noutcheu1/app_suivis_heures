@@ -87,6 +87,10 @@ final class LoginControllerMVC extends AbstractController
             return $this->json(['success' => false, 'error' => 'Tous les champs sont requis.']);
         }
 
+        if (strlen($password) < 8) {
+            return $this->json(['success' => false, 'error' => 'Le mot de passe doit contenir au moins 8 caractères.']);
+        }
+
         if ($password !== $password2) {
             return $this->json(['success' => false, 'error' => 'Les mots de passe ne correspondent pas.']);
         }

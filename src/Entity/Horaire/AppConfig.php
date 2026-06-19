@@ -26,6 +26,10 @@ class AppConfig
     #[ORM\Column]
     private int $nbrPalierTarifM = 0;
 
+    /** Fenêtre (en jours ±) autour de la fin de période où la notif « relevé à signer » s'affiche. */
+    #[ORM\Column(options: ['default' => 3])]
+    private int $nbJoursFenetreSignature = 3;
+
     #[ORM\Column]
     private \DateTimeImmutable $updatedAt;
 
@@ -44,6 +48,9 @@ class AppConfig
 
     public function getNbrPalierTarifM(): int { return $this->nbrPalierTarifM; }
     public function setNbrPalierTarifM(int $v): static { $this->nbrPalierTarifM = $v; return $this; }
+
+    public function getNbJoursFenetreSignature(): int { return $this->nbJoursFenetreSignature; }
+    public function setNbJoursFenetreSignature(int $v): static { $this->nbJoursFenetreSignature = max(0, $v); return $this; }
 
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }
     public function touch(): static { $this->updatedAt = new \DateTimeImmutable(); return $this; }

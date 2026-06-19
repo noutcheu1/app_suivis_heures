@@ -882,6 +882,7 @@ final class AdminControllerMVC extends AbstractController
             $config->setNbrJourSaisie((int)$request->request->get('nbrJourSaisie', 10));
             $config->setNbrPalierTarifGE((int)$request->request->get('nbrPalierTarifGE', 4));
             $config->setNbrPalierTarifM((int)$request->request->get('nbrPalierTarifM', 0));
+            $config->setNbJoursFenetreSignature((int)$request->request->get('nbJoursFenetreSignature', 3));
             $config->touch();
             $this->em->flush();
             $this->addFlash('success', 'Configuration enregistrée.');

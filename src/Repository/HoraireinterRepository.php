@@ -328,6 +328,9 @@ class HoraireinterRepository extends ServiceEntityRepository
             ->andWhere('h.datePresta BETWEEN :startDate AND :endDate')
             ->andWhere('h.typePresta = :type')
             ->andWhere('h.desactiver = :desactiver')
+            // Exclut les pointages encore en cours (début sans fin) : pas une heure
+            // déclarée tant qu'il n'y a pas d'heure de fin.
+            ->andWhere('h.heureFinPresta IS NOT NULL')
             ->setParameter('numInter', $numInter)
             ->setParameter('startDate', $startDate)
             ->setParameter('endDate', $endDate)
@@ -337,6 +340,33 @@ class HoraireinterRepository extends ServiceEntityRepository
             ->addOrderBy('h.heureDebutPresta', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Retourne le pointage « en cours » d'un intervenant pour une famille aujourd'hui :
+     * une ligne démarrée (heureDebutPresta rempli) mais pas encore terminée
+     * (heureFinPresta NULL). Sert au pointage QR sans connexion (Démarrer/Terminer).
+     */
+    public function findEnCours(int $numInter, string $numFam): ?Horaireinter
+    {
+        $debutJour = new \DateTime('today 00:00:00');
+        $finJour   = new \DateTime('today 23:59:59');
+
+        return $this->createQueryBuilder('h')
+            ->where('h.numInter = :numInter')
+            ->andWhere('h.numFam = :numFam')
+            ->andWhere('h.datePresta BETWEEN :debut AND :fin')
+            ->andWhere('h.heureFinPresta IS NULL')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('numInter', $numInter)
+            ->setParameter('numFam', $numFam)
+            ->setParameter('debut', $debutJour)
+            ->setParameter('fin', $finJour)
+            ->setParameter('desactiver', false)
+            ->orderBy('h.heureDebutPresta', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     public function findDistinctFamilleNumsByIntervenant(int $numInter): array

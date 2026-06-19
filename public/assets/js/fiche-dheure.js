@@ -10,12 +10,14 @@ console.log('[PARAMS] type         :', type);
 console.log('[PARAMS] ID intervenant (depuis Twig) :', typeof ID !== 'undefined' ? ID : '⚠️ ID NON DÉFINI !');
 
 if (typeof ID === 'undefined') {
-    alert('[fiche-dheure.js] ⚠️ La variable ID est indéfinie ! Vérifier le bloc <script> dans sheet.html.twig');
+    toast('[fiche-dheure.js] ⚠️ La variable ID est indéfinie ! Vérifier le bloc <script> dans sheet.html.twig');
 }
 
 let periodeFin = null;
 // Relevé signé → plus aucune modification possible (cases verrouillées).
 let RELEVE_SIGNED = false;
+// Fiche/page courante du pager — conservée à travers les rafraîchissements (édition).
+let FICHE_PAGE = 0;
 
 // ─── Peuplement select minutes (0, 5, 10 … 55) ───────────────────────────────
 (function () {
@@ -63,7 +65,7 @@ async function chargerReleve() {
         if (!res.ok) {
             const body = await res.text();
             console.error('[API] Corps de la réponse d\'erreur :', body);
-            alert(`[chargerReleve] Erreur HTTP ${res.status}\n${body}`);
+            toast(`[chargerReleve] Erreur HTTP ${res.status}\n${body}`);
             throw new Error(`HTTP ${res.status}`);
         }
         const rawText = await res.text();
@@ -72,7 +74,7 @@ async function chargerReleve() {
             data = JSON.parse(rawText);
         } catch (jsonErr) {
             console.error('[API] ⚠️ Réponse non-JSON :', rawText.slice(0, 200));
-            alert('[chargerReleve] La réponse API n\'est pas du JSON valide !\n' + rawText.slice(0, 200));
+            toast('[chargerReleve] La réponse API n\'est pas du JSON valide !\n' + rawText.slice(0, 200));
             throw jsonErr;
         }
     } catch (err) {
@@ -97,7 +99,7 @@ async function chargerReleve() {
     const container = document.getElementById('tableContainer');
     if (!container) {
         console.error('[DOM] ⚠️ #tableContainer est NULL — impossible d\'insérer les tableaux !');
-        alert('[chargerReleve] #tableContainer introuvable dans le DOM !');
+        toast('[chargerReleve] #tableContainer introuvable dans le DOM !');
         if (typeof activerBoutonTelechargement === 'function') activerBoutonTelechargement();
         return;
     }
@@ -156,7 +158,7 @@ async function chargerReleve() {
         loadCreneaux();
     } catch (err) {
         console.error('[Rendu] ⚠️ Erreur lors du rendu des tableaux :', err);
-        alert('[chargerReleve] Erreur rendu :\n' + err.message + '\n\n' + err.stack);
+        toast('[chargerReleve] Erreur rendu :\n' + err.message + '\n\n' + err.stack);
         container.textContent = 'Erreur lors du rendu du relevé.';
     }
 
@@ -515,7 +517,7 @@ function appliquerEtatSignature(data) {
 }
 
 async function ajouterHeure(heure, minute) {
-    if (!periodeFin) { alert('Données non encore chargées.'); return; }
+    if (!periodeFin) { toast('Données non encore chargées.'); return; }
     try {
         const res = await fetch(`/api/intervenants/${ID}/ajout_heure_de_hors`, {
             method: 'POST',
@@ -532,11 +534,11 @@ async function ajouterHeure(heure, minute) {
         if (result.success) {
             await chargerReleve();
         } else {
-            alert('Erreur : ' + result.message);
+            toast('Erreur : ' + result.message);
         }
     } catch (err) {
         console.error(err);
-        alert('Erreur serveur');
+        toast('Erreur serveur');
     }
 }
 
@@ -604,6 +606,7 @@ function setupPager(container, blocs) {
 
     function show(i, scroll = true) {
         current = Math.max(0, Math.min(total - 1, i));
+        FICHE_PAGE = current; // mémorisé pour survivre à un rafraîchissement (édition)
         blocs.forEach((b, idx) => { b.style.display = idx === current ? '' : 'none'; });
         counter.textContent = current + 1;
         btnPrev.disabled = current === 0;
@@ -612,7 +615,9 @@ function setupPager(container, blocs) {
     }
     btnPrev.onclick = () => show(current - 1);
     btnNext.onclick = () => show(current + 1);
-    show(0, false);
+    // Repart sur la même fiche qu'avant (au lieu de toujours revenir à la fiche 1),
+    // pour ne pas « sauter » après une modification de case.
+    show(Math.min(FICHE_PAGE, total - 1), false);
 }
 
 function chunkArray(arr, size) {
@@ -750,7 +755,9 @@ function renderCreneauxList() {
 
 // ─── Actions serveur (réutilisent les endpoints /heures-mvc) ────────────────
 async function rafraichirApresEdition() {
-    await chargerReleve(); // recharge la grille + relance loadCreneaux()
+    const scrollY = window.scrollY; // conserve la position de défilement
+    await chargerReleve(); // reconstruit la grille (async) + relance loadCreneaux()
+    window.scrollTo({ top: scrollY }); // pas de saut après reconstruction
     if (document.getElementById('cellEditModal').classList.contains('open')) {
         renderCreneauxList();
     }
@@ -762,7 +769,7 @@ function gererReponseVerrou(result, res) {
         return true;
     }
     if (!result.success) {
-        alert('Erreur : ' + (result.error || 'opération impossible'));
+        toast('Erreur : ' + (result.error || 'opération impossible'));
         return true;
     }
     return false;
@@ -783,7 +790,7 @@ async function modifierCreneau(id, { dh, dm, fh, fm }) {
         const result = await res.json();
         if (gererReponseVerrou(result, res)) return;
         await rafraichirApresEdition();
-    } catch (err) { console.error(err); alert('Erreur serveur'); }
+    } catch (err) { console.error(err); toast('Erreur serveur'); }
 }
 
 async function supprimerCreneau(id) {
@@ -797,7 +804,7 @@ async function supprimerCreneau(id) {
         const result = await res.json();
         if (gererReponseVerrou(result, res)) return;
         await rafraichirApresEdition();
-    } catch (err) { console.error(err); alert('Erreur serveur'); }
+    } catch (err) { console.error(err); toast('Erreur serveur'); }
 }
 
 function frDate(ymd) {
@@ -823,5 +830,5 @@ chargerReleve().then(() => {
     console.log('[fiche-dheure.js] monTableau11 dans le DOM :', !!document.getElementById('monTableau11'));
 }).catch(err => {
     console.error('[fiche-dheure.js] ❌ chargerReleve() rejeté :', err);
-    alert('Erreur inattendue dans chargerReleve() :\n' + err.message);
+    toast('Erreur inattendue dans chargerReleve() :\n' + err.message);
 });

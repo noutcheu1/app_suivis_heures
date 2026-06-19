@@ -211,7 +211,11 @@ async function terminer() {
     try {
         const res = await fetch(QR_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            },
+            credentials: 'same-origin',
             body: JSON.stringify({
                 action: 'fin',
                 numFam: currentFam.code,
@@ -233,10 +237,10 @@ async function terminer() {
                 `${enCours.heure} → ${hFin} · ${enCours.type === 'ENFA' ? "Garde d'enfants" : 'Ménage'}`;
         } else {
             // Affiche la vraie raison renvoyée par le serveur (chevauchement, date, etc.)
-            alert(data.error || 'Enregistrement impossible — réessayez');
+            toast(data.error || 'Enregistrement impossible — réessayez', 'error');
         }
     } catch {
-        alert('Erreur réseau — réessayez');
+        toast('Erreur réseau — réessayez');
     }
 }
 
@@ -326,12 +330,16 @@ async function validerRecuperation() {
     const ec = getEnCours(recoverCode);
     if (!ec) { ignorerRecuperation(); return; }
     const hFin = document.getElementById('recHeureFin').value;
-    if (!hFin) { alert('Veuillez indiquer l\'heure de fin.'); return; }
+    if (!hFin) { toast('Veuillez indiquer l\'heure de fin.'); return; }
 
     try {
         const res = await fetch(QR_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            },
+            credentials: 'same-origin',
             body: JSON.stringify({
                 action: 'fin',
                 numFam: recoverCode,
@@ -352,10 +360,10 @@ async function validerRecuperation() {
             if (autre) afficherRecuperation(autre);
             else demarrerFlux();
         } else {
-            alert(data.error || 'Enregistrement impossible.');
+            toast(data.error || 'Enregistrement impossible.', 'error');
         }
     } catch {
-        alert('Erreur réseau — réessayez');
+        toast('Erreur réseau — réessayez');
     }
 }
 

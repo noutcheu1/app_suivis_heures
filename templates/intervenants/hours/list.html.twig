@@ -303,12 +303,12 @@ document.querySelectorAll('.btn-action-presta').forEach(btn => {
             if (result.success) {
                 window.location.reload();
             } else if (result.locked) {
-                alert('Ce mois est clôturé — la prestation ne peut plus être modifiée.');
+                toast('Ce mois est clôturé — la prestation ne peut plus être modifiée.');
             } else {
-                alert('Erreur : ' + (result.error ?? 'Impossible d\'effectuer cette action.'));
+                toast('Erreur : ' + (result.error ?? 'Impossible d\'effectuer cette action.'));
             }
         } catch (err) {
-            alert('Erreur  : ' + err);
+            toast('Erreur  : ' + err);
         }
     });
 });
