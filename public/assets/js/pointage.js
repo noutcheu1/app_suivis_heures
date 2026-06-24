@@ -40,6 +40,12 @@
         return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
     }
 
+    // Heure RÉELLE (non arrondie) du téléphone → "HH:MM".
+    function heureReelleMaintenant() {
+        const d = new Date();
+        return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    }
+
     async function postJSON(url, body) {
         const res = await fetch(url, {
             method: 'POST',

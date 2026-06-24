@@ -119,6 +119,7 @@ final class PointageController extends AbstractController
                 $fam['nomFam'],
                 (string) ($data['type'] ?? 'ENFA'),
                 $this->heureClient($data['heure'] ?? null),
+                $this->heureClient($data['heureReelle'] ?? null),
             );
         } catch (\Throwable $e) {
             return $this->json(['success' => false, 'error' => $e->getMessage()], 422);
@@ -150,7 +151,13 @@ final class PointageController extends AbstractController
         $fam      = $this->resoudreFamille($numInter, $numFam);
 
         try {
-            $horaire = $this->horaireService->terminerPointage($numInter, $fam['effFam'], $km, $this->heureClient($data['heure'] ?? null));
+            $horaire = $this->horaireService->terminerPointage(
+                $numInter,
+                $fam['effFam'],
+                $km,
+                $this->heureClient($data['heure'] ?? null),
+                $this->heureClient($data['heureReelle'] ?? null),
+            );
         } catch (\Throwable $e) {
             return $this->json(['success' => false, 'error' => $e->getMessage()], 422);
         }
@@ -185,9 +192,10 @@ final class PointageController extends AbstractController
 
         return [
             'assigned' => $assigned,
-            // Non assigné → occasionnel : numFam à NULL (comme la saisie manuelle),
-            // le nom réel étant conservé dans nomFam.
-            'effFam'   => $assigned ? $numFam : null,
+            // Le scan identifie une VRAIE famille → on garde toujours le numFam réel.
+            // Le caractère « occasionnel » (hors planning) est porté par le flag de la
+            // prestation, pas par un numFam vide.
+            'effFam'   => $numFam,
             'nomFam'   => $nomFam,
         ];
     }
