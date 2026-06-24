@@ -241,11 +241,14 @@ function buildCorps(data, famillesSubset, opts = {}) {
     trFamNoms.append(mkTd('', { cls: 'no-borders' }), mkTh('Date', { colSpan: 2 }));
 
     familles.forEach((fam, i) => {
-        const th    = document.createElement('th');
-        const ville = fam.numFam === '9998'
-            ? 'OCCASIONNELLE'
-            : (fam.ville_Famille ?? '').toUpperCase();
-        th.innerHTML = `${i + 1}<br>${escHtml(fam.nomFam)}<br><span style="font-weight:normal">${escHtml(ville)}</span>`;
+        const th = document.createElement('th');
+        // Occasionnelle = pas de numéro de famille réel (null / '' / '0' / '9998').
+        const estOccasionnel = !fam.numFam || fam.numFam === '0' || fam.numFam === '9998';
+        const nomFamHtml = estOccasionnel
+            ? 'FAMILLE OCCASIONNELLE' + (fam.nomFam ? ' ' + escHtml(fam.nomFam) : '')
+            : escHtml(fam.nomFam);
+        const ville = estOccasionnel ? '' : (fam.ville_Famille ?? '').toUpperCase();
+        th.innerHTML = `${i + 1}<br>${nomFamHtml}<br><span style="font-weight:normal">${escHtml(ville)}</span>`;
         trFamNoms.appendChild(th);
     });
     tbody.appendChild(trFamNoms);

@@ -18,6 +18,7 @@ class ReleveMailService
     public function __construct(
         private MailerInterface     $mailer,
         private HoraireinterService $horaireService,
+        private EmailTemplateService $emailTemplates,
     ) {}
 
     /**
@@ -49,17 +50,15 @@ class ReleveMailService
             }
 
             $libelle = strtoupper($type) === 'MENA' ? 'Ménage' : "Garde d'enfants";
+            // Modèle personnalisable par l'admin (repli sur le texte par défaut).
+            $tpl = $this->emailTemplates->resoudre('releve_signe', ['libelle' => $libelle]);
+
             $email = (new Email())
                 ->from(self::EMAIL_NOREPLY)
                 ->to($emailDest)
                 ->cc(self::EMAIL_STRUCTURE)
-                ->subject("Chaudoudoux — Relevé d'heures signé ({$libelle})")
-                ->html(
-                    "<p>Bonjour,</p>"
-                    . "<p>Votre relevé d'heures <strong>{$libelle}</strong> a bien été signé. "
-                    . "Vous le trouverez en pièce jointe.</p>"
-                    . "<p style='font-size:12px;color:#94a3b8;'>— La Maison des Chaudoudoux</p>"
-                )
+                ->subject($tpl['sujet'])
+                ->html($tpl['html'])
                 ->attach($pdfContent, $filename, 'application/pdf');
 
             $this->mailer->send($email);

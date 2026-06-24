@@ -152,7 +152,7 @@
             <tbody>
             {% for p in dernieres %}
             <tr>
-                <td style="font-weight:500;">{{ p.numFam ? famille_label(p.numFam) : (p.nomFam ?: '—') }}</td>
+                <td style="font-weight:500;">{{ (p.numFam and p.numFam != '0') ? famille_label(p.numFam) : ('Famille occasionnelle' ~ (p.nomFam ? ' ' ~ p.nomFam : '')) }}</td>
                 <td>{{ p.datePresta|date('d/m/Y') }}</td>
                 <td>{{ p.heureDebutPresta ? p.heureDebutPresta|date('H:i') : '—' }}</td>
                 <td>{{ p.heureFinPresta ? p.heureFinPresta|date('H:i') : '—' }}</td>

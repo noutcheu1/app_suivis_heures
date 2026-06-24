@@ -347,26 +347,31 @@ class HoraireinterRepository extends ServiceEntityRepository
      * une ligne démarrée (heureDebutPresta rempli) mais pas encore terminée
      * (heureFinPresta NULL). Sert au pointage QR sans connexion (Démarrer/Terminer).
      */
-    public function findEnCours(int $numInter, string $numFam): ?Horaireinter
+    public function findEnCours(int $numInter, ?string $numFam): ?Horaireinter
     {
         $debutJour = new \DateTime('today 00:00:00');
         $finJour   = new \DateTime('today 23:59:59');
 
-        return $this->createQueryBuilder('h')
+        $qb = $this->createQueryBuilder('h')
             ->where('h.numInter = :numInter')
-            ->andWhere('h.numFam = :numFam')
             ->andWhere('h.datePresta BETWEEN :debut AND :fin')
             ->andWhere('h.heureFinPresta IS NULL')
             ->andWhere('h.desactiver = :desactiver')
             ->setParameter('numInter', $numInter)
-            ->setParameter('numFam', $numFam)
             ->setParameter('debut', $debutJour)
             ->setParameter('fin', $finJour)
             ->setParameter('desactiver', false)
             ->orderBy('h.heureDebutPresta', 'DESC')
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
+            ->setMaxResults(1);
+
+        // Occasionnel : numFam null/0 → on cherche les pointages sans famille rattachée.
+        if ($numFam === null || $numFam === '' || $numFam === '0') {
+            $qb->andWhere('h.numFam IS NULL OR h.numFam = :zero')->setParameter('zero', '0');
+        } else {
+            $qb->andWhere('h.numFam = :numFam')->setParameter('numFam', $numFam);
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findDistinctFamilleNumsByIntervenant(int $numInter): array

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token('pointage') }}">
+    <title>Pointage — {{ nomFam }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --primary:#4f46e5; --green:#16a34a; --muted:#64748b; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:Inter,system-ui,-apple-system,sans-serif; background:#f1f5f9;
+               min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:24px 16px; }
+        .card { background:#fff; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.08);
+                width:100%; max-width:420px; padding:28px 24px; }
+        h1 { font-size:18px; margin:0 0 4px; color:#1e1b4b; }
+        .fam { font-size:14px; color:var(--muted); margin-bottom:20px; }
+        label { display:block; font-size:13px; font-weight:600; color:#334155; margin:14px 0 6px; }
+        input[type=tel], input[type=number] { width:100%; padding:13px 14px; border:1px solid #cbd5e1;
+                border-radius:10px; font-size:16px; }
+        input:focus { outline:none; border-color:var(--primary); }
+        .btn { width:100%; padding:14px; border:none; border-radius:10px; font-size:15px; font-weight:600;
+                cursor:pointer; margin-top:18px; color:#fff; background:var(--primary); }
+        .btn:disabled { opacity:.5; cursor:not-allowed; }
+        .btn-green { background:var(--green); }
+        .btn-ghost { background:#e2e8f0; color:#334155; margin-top:8px; }
+        .hidden { display:none; }
+        .confirm-nom { font-size:20px; font-weight:700; color:#1e1b4b; text-align:center; margin:8px 0 2px; }
+        .type-row { display:flex; gap:8px; margin-top:8px; }
+        .type-btn { flex:1; padding:11px; border:2px solid #cbd5e1; border-radius:10px; background:#fff;
+                cursor:pointer; font-weight:600; color:#334155; font-size:14px; }
+        .type-btn.active { border-color:var(--primary); color:var(--primary); background:#eef2ff; }
+        .done { text-align:center; padding:10px 0; }
+        .done i { font-size:46px; color:var(--green); }
+        .done p { font-size:16px; color:#334155; margin:12px 0 0; }
+        .hint { font-size:12px; color:var(--muted); margin-top:10px; text-align:center; }
+        .info-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; margin-top:14px; }
+        .info-box .t { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-bottom:6px; }
+        .info-line { display:flex; justify-content:space-between; font-size:14px; color:#334155; padding:2px 0; }
+        .info-line b { color:#1e1b4b; }
+    </style>
+</head>
+<body>
+<div class="card" id="card"
+     data-num-fam="{{ numFam }}"
+     data-url-identifier="{{ path('pointage_identifier', {numFam: numFam}) }}"
+     data-url-demarrer="{{ path('pointage_demarrer', {numFam: numFam}) }}"
+     data-url-terminer="{{ path('pointage_terminer', {numFam: numFam}) }}">
+
+    <h1><i class="fas fa-clock" style="color:var(--primary);"></i> Pointage</h1>
+    <div class="fam">{{ nomFam }}</div>
+
+    {# Étape 1 : saisie du numéro #}
+    <div id="etape-tel">
+        <label for="tel">Votre numéro de téléphone</label>
+        <input type="tel" id="tel" inputmode="numeric" autocomplete="tel" placeholder="06 12 34 56 78">
+        <button class="btn" id="btn-identifier">Continuer</button>
+        <div class="hint">Identifiez-vous avec le numéro enregistré dans votre dossier.</div>
+    </div>
+
+    {# Étape 2 : confirmation + action #}
+    <div id="etape-action" class="hidden">
+        <div class="confirm-nom" id="confirm-nom"></div>
+        <div class="hint" id="confirm-sub"></div>
+
+        {# Planning prévu du jour #}
+        <div id="planning-section" class="info-box hidden">
+            <div class="t"><i class="fas fa-calendar-day"></i> Prévu au planning aujourd'hui</div>
+            <div id="planning-list"></div>
+        </div>
+
+        {# Récap horaires (à la clôture) #}
+        <div id="horaires-section" class="info-box hidden">
+            <div class="t"><i class="fas fa-stopwatch"></i> Horaires</div>
+            <div class="info-line"><span>Début</span><b id="h-debut">—</b></div>
+            <div class="info-line"><span>Fin (maintenant)</span><b id="h-fin">—</b></div>
+        </div>
+
+        <div id="type-section" class="hidden">
+            <label>Type de prestation</label>
+            <div class="type-row" id="type-row"></div>
+        </div>
+
+        <div id="km-section" class="hidden">
+            <label for="km">Kilomètres avec enfant(s) (optionnel)</label>
+            <input type="number" id="km" min="0" step="0.1" placeholder="0">
+        </div>
+
+        <button class="btn btn-green" id="btn-demarrer">Démarrer</button>
+        <button class="btn btn-green hidden" id="btn-terminer">Terminer</button>
+        <button class="btn btn-ghost" id="btn-retour">Ce n'est pas moi / changer de numéro</button>
+    </div>
+
+    {# Étape 3 : confirmation finale #}
+    <div id="etape-fin" class="hidden done">
+        <i class="fas fa-circle-check"></i>
+        <p id="fin-msg"></p>
+    </div>
+</div>
+
+<script src="{{ asset('assets/js/app.js') }}"></script>
+<script src="{{ asset('assets/js/pointage.js') }}?v={{ 'now'|date('YmdHis') }}" defer></script>
+</body>
+</html>

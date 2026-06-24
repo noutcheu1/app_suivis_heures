@@ -22,6 +22,7 @@ class MdpOublieService
         private IntervenantRepository $intervenantRepository,
         private FamilleRepository    $familleRepository,
         private UserPasswordHasherInterface $passwordHasher,
+        private EmailTemplateService $emailTemplates,
     ) {}
 
     /**
@@ -119,30 +120,17 @@ class MdpOublieService
     private function envoyerEmail(string $destinataire, string $identifiant, string $code): bool
     {
         try {
-            $html = "
-            <div style='font-family:Inter,sans-serif;max-width:480px;margin:0 auto;'>
-                <h2 style='color:#1e1b4b;'>Réinitialisation de votre mot de passe</h2>
-                <p>Bonjour,</p>
-                <p>Vous avez demandé la réinitialisation du mot de passe pour le compte&nbsp;:
-                   <strong>{$identifiant}</strong></p>
-                <p>Votre code de réinitialisation&nbsp;:</p>
-                <div style='background:#f1f5f9;border-radius:10px;padding:16px;text-align:center;
-                            font-size:32px;font-weight:700;letter-spacing:8px;
-                            color:#4f46e5;font-family:monospace;margin:16px 0;'>
-                    {$code}
-                </div>
-                <p style='font-size:13px;color:#64748b;'>
-                    Ce code est valable <strong>1 heure</strong>.<br>
-                    Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
-                </p>
-                <p style='font-size:12px;color:#94a3b8;'>— L'équipe La Maison des Chaudoudoux</p>
-            </div>";
+            // Modèle personnalisable par l'admin (repli sur le texte par défaut).
+            $tpl = $this->emailTemplates->resoudre('mdp_oublie', [
+                'identifiant' => $identifiant,
+                'code'        => $code,
+            ]);
 
             $email = (new Email())
                 ->from(self::EMAIL_NOREPLY)
                 ->to($destinataire)
-                ->subject('Chaudoudoux — Code de réinitialisation')
-                ->html($html);
+                ->subject($tpl['sujet'])
+                ->html($tpl['html']);
 
             $this->mailer->send($email);
             return true;

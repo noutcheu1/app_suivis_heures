@@ -35,8 +35,9 @@
             --border-strong:  #cbd5e1;
 
             --text:           #0f172a;
-            --text-muted:     #64748b;
-            --text-xmuted:    #94a3b8;
+            /* Contraste renforcé (accessibilité seniors) : gris secondaires assombris */
+            --text-muted:     #475569;
+            --text-xmuted:    #64748b;
 
             --success:        #10b981;
             --success-bg:     #ecfdf5;
@@ -68,8 +69,9 @@
 
         body {
             font-family: 'Inter', system-ui, sans-serif;
-            font-size: 15px;
-            line-height: 1.6;
+            /* Accessibilité : corps de texte plus grand pour les seniors */
+            font-size: 16.5px;
+            line-height: 1.65;
             color: var(--text);
             background: var(--bg);
             margin: 0;
@@ -87,10 +89,20 @@
 
         /* ─── Navbar Bootstrap overrides ────────────────────── */
         .navbar { box-shadow: 0 1px 4px rgba(0,0,0,.25); }
-        .navbar .nav-link { font-size: 13px; padding: 0.4rem 0.75rem !important; }
-        .navbar .dropdown-item { font-size: 13px; padding: 0.4rem 1rem; }
-        .navbar-brand { font-size: 14px; font-weight: 600; }
-        .navbar .btn-sm { font-size: 12px; }
+        /* Accessibilité : libellés plus grands, zones plus hautes et faciles à viser */
+        .navbar .nav-link { font-size: 15.5px; padding: 0.55rem 0.9rem !important; display: flex; align-items: center; }
+        .navbar .nav-link i { font-size: 1.05em; }
+        .navbar .dropdown-item { font-size: 15px; padding: 0.6rem 1.1rem; min-height: 44px; display: flex; align-items: center; }
+        .navbar-brand { font-size: 16px; font-weight: 600; }
+        .navbar .btn-sm { font-size: 14px; }
+
+        /* ─── Accessibilité : cibles tactiles ≥ 44px ─────────── */
+        .btn { min-height: 44px; font-size: 15px; }
+        .btn-sm { min-height: 38px; }
+        .form-control, .form-select, input[type="text"], input[type="tel"],
+        input[type="number"], input[type="password"], input[type="email"], select, textarea {
+            min-height: 44px; font-size: 16px;
+        }
 
         /* ─── Main wrapper ───────────────────────────────────── */
         .main-wrapper {
@@ -618,6 +630,7 @@
                                 <li><a class="dropdown-item" href="{{ path('admin_vacances_mvc') }}"><i class="fas fa-umbrella-beach me-2 text-muted"></i>Formulaires vacances</a></li>
                                 <li><a class="dropdown-item" href="{{ path('admin_tarifs_mvc') }}"><i class="fas fa-tags me-2 text-muted"></i>Tarifs</a></li>
                                 <li><a class="dropdown-item" href="{{ path('admin_import_mvc') }}"><i class="fas fa-file-import me-2 text-muted"></i>Import Access</a></li>
+                                <li><a class="dropdown-item" href="{{ path('admin_emails_mvc') }}"><i class="fas fa-envelope me-2 text-muted"></i>Modèles d'email</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ path('admin_config_mvc') }}"><i class="fas fa-gear me-2 text-muted"></i>Paramètres généraux</a></li>
                             </ul>
