@@ -132,6 +132,51 @@ class IntervenantRepository extends ServiceEntityRepository
     }
 
     /**
+     * Résout un intervenant par son numéro de téléphone (portable), normalisé.
+     *
+     * Sert au pointage QR sans connexion : l'intervenant saisit son numéro, on
+     * retrouve son dossier via candidats.telPortable_Candidats (exposé par la vue
+     * vue_intervenants). Le numéro stocké ("06.12.34.56.78") est nettoyé en SQL
+     * des mêmes séparateurs que UserSuiviRepository::normaliserTel().
+     *
+     * Retourne null si introuvable OU ambigu (>1 intervenant actif avec ce numéro).
+     */
+    public function findByTelephoneNormalise(string $tel): ?Intervenant
+    {
+        $norm = UserSuiviRepository::normaliserTel($tel);
+        if ($norm === '') {
+            return null;
+        }
+
+        $ids = $this->getActiveProposerIds();
+        if (empty($ids)) {
+            return null;
+        }
+
+        $conn = $this->getEntityManager()->getConnection();
+        $matches = $conn->fetchFirstColumn(
+            "SELECT numSalarie_Intervenants
+             FROM vue_intervenants
+             WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+                       COALESCE(telPortable_Candidats, ''),
+                       '.',''),' ',''),'-',''),'/',''),'(',''),')','') = :norm",
+            ['norm' => $norm]
+        );
+
+        // On ne garde que les intervenants ayant un proposer PREST actif (non archivés).
+        $matches = array_values(array_intersect(
+            array_map('intval', $matches),
+            $ids
+        ));
+
+        if (count($matches) !== 1) {
+            return null; // 0 = introuvable, >1 = ambigu → on refuse
+        }
+
+        return $this->findInfosIntervenant($matches[0]);
+    }
+
+    /**
      * Trouve l'intervenant lié à un candidat via la FK
      * intervenants.candidats_numcandidat_candidats = $candidatId.
      *

@@ -96,7 +96,7 @@
         {% set dureeH = (presta.heureFinPresta|date('U') - presta.heureDebutPresta|date('U')) / 3600 %}
         <tr class="presta-row" data-group="{{ groupe.key }}" data-type="{{ presta.typePresta }}" data-hours="{{ dureeH > 0 ? dureeH : 0 }}"{% if verrouille %} style="opacity:.8;"{% endif %}>
             <td>
-                {% if presta.numFam is not null %}
+                {% if presta.numFam and presta.numFam != '0' %}
                     {% if isAdmin %}
                         <a href="{{ path('admin_famille_detail_mvc', {numFam: presta.numFam}) }}" style="font-weight:500;">
                             {{ famille_label(presta.numFam) }}
@@ -105,7 +105,7 @@
                         <span style="font-weight:500;">{{ famille_label(presta.numFam) }}</span>
                     {% endif %}
                 {% else %}
-                    <span style="font-weight:500;">{{ presta.nomFam ?: '—' }}</span>
+                    <span style="font-weight:500;">Famille occasionnelle{% if presta.nomFam %} {{ presta.nomFam }}{% endif %}</span>
                 {% endif %}
             </td>
             <td>{{ presta.datePresta|date('d/m/Y') }}</td>
@@ -183,7 +183,7 @@
         <div class="modal-content border-0" style="border-radius:var(--radius-lg);">
             <div class="modal-header border-0 pb-0">
                 <h6 class="modal-title fw-semibold">
-                    Détail — {{ presta.numFam ? famille_label(presta.numFam) : (presta.nomFam ?: '—') }}
+                    Détail — {{ (presta.numFam and presta.numFam != '0') ? famille_label(presta.numFam) : ('Famille occasionnelle' ~ (presta.nomFam ? ' ' ~ presta.nomFam : '')) }}
                     {% if verrouille %}
                     <span class="badge badge-muted" style="margin-left:6px;font-size:10px;">
                         <i class="fas fa-lock" style="font-size:9px;"></i> Clôturé
@@ -195,7 +195,7 @@
             <div class="modal-body">
                 <dl style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13.5px;margin:0;">
                     <dt style="color:var(--text-muted);font-weight:500;">Famille</dt>
-                    <dd style="margin:0;">{{ presta.numFam ? famille_label(presta.numFam) : (presta.nomFam ?: '—') }}</dd>
+                    <dd style="margin:0;">{{ (presta.numFam and presta.numFam != '0') ? famille_label(presta.numFam) : ('Famille occasionnelle' ~ (presta.nomFam ? ' ' ~ presta.nomFam : '')) }}</dd>
                     <dt style="color:var(--text-muted);font-weight:500;">Date</dt>
                     <dd style="margin:0;">{{ presta.datePresta|date('d/m/Y') }}</dd>
                     <dt style="color:var(--text-muted);font-weight:500;">Début</dt>
@@ -303,12 +303,12 @@ document.querySelectorAll('.btn-action-presta').forEach(btn => {
             if (result.success) {
                 window.location.reload();
             } else if (result.locked) {
-                alert('Ce mois est clôturé — la prestation ne peut plus être modifiée.');
+                toast('Ce mois est clôturé — la prestation ne peut plus être modifiée.');
             } else {
-                alert('Erreur : ' + (result.error ?? 'Impossible d\'effectuer cette action.'));
+                toast('Erreur : ' + (result.error ?? 'Impossible d\'effectuer cette action.'));
             }
         } catch (err) {
-            alert('Erreur  : ' + err);
+            toast('Erreur  : ' + err);
         }
     });
 });

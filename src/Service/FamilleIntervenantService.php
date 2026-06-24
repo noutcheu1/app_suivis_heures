@@ -36,6 +36,36 @@ class FamilleIntervenantService
         return $this->proposerRepository->findTypesParFamilleForIntervenant($numSalarie);
     }
 
+    /**
+     * Créneaux PRÉVUS au planning (proposer) pour cet intervenant, cette famille,
+     * et le jour de la semaine d'AUJOURD'HUI. Sert à afficher l'horaire prévu lors
+     * du pointage QR.
+     *
+     * @return list<array{type:string, heureDebut:string, heureFin:?string}>
+     */
+    public function getCreneauxDuJour(int $numSalarie, string $numFam): array
+    {
+        $joursFr = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+        $jourAuj = $joursFr[(int) (new \DateTime())->format('N') - 1];
+
+        $creneaux = [];
+        foreach ($this->proposerRepository->findActivesByIntervenant($numSalarie) as $p) {
+            if ((string) $p->getNumeroFamille() !== $numFam) {
+                continue;
+            }
+            if (mb_strtolower(trim($p->getJour())) !== $jourAuj) {
+                continue;
+            }
+            $creneaux[] = [
+                'type'       => strtoupper($p->getTypePrestation()),
+                'heureDebut' => $p->getHeureDebut()->format('H:i'),
+                'heureFin'   => $p->getHeureFin()?->format('H:i'),
+            ];
+        }
+
+        return $creneaux;
+    }
+
     // ── Listes globales (filtrées sur le planning actif) ──────────────────────
 
     /**

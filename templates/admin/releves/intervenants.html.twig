@@ -248,8 +248,9 @@ tr.selected-row:hover td { background:#eef2ff !important; }
                     <i class="fas fa-pen-to-square"></i> Dernière saisie
                     <i class="fas fa-sort" style="font-size:9px;opacity:.35;"></i>
                 </th>
-                <th style="text-align:center;">
+                <th onclick="sortTable(6)" style="cursor:pointer;text-align:center;">
                     <i class="fas fa-circle-half-stroke"></i> Statut
+                    <i class="fas fa-sort" style="font-size:9px;opacity:.35;"></i>
                 </th>
                 <th class="col-sm-hide" style="text-align:center;">
                     <i class="fas fa-cloud-arrow-down"></i> Téléchargé admin
@@ -339,46 +340,30 @@ tr.selected-row:hover td { background:#eef2ff !important; }
                 {% else %}<span style="color:var(--border-strong);">—</span>{% endif %}
             </td>
 
-            {# Statut synthétique : signé + téléchargé par type #}
-            <td style="text-align:center;font-size:11px;">
+            {# Statut par type (Ménage / Garde) : signé + PDF, en mots clairs #}
+            {% set nbSignes = (hM > 0 and signeM ? 1 : 0) + (hE > 0 and signeE ? 1 : 0) %}
+            <td style="font-size:11px;" data-sort="{{ nbSignes }}">
                 {% if hT == 0 %}
-                    <span style="color:var(--border-strong);">—</span>
+                    <div style="text-align:center;color:var(--border-strong);">—</div>
                 {% else %}
-                    <div style="display:inline-flex;flex-direction:column;gap:4px;align-items:flex-start;">
-                    {% if hM > 0 %}
-                        {% set okM = signeM and dlM %}
-                        {% set warnM = signeM and not dlM %}
-                        {% set todoM = not signeM %}
-                        <span style="display:flex;align-items:center;gap:5px;"
-                              title="Ménage — Signé : {{ signeM ? (dateSigneM ? dateSigneM|date('d/m/Y') : 'oui') : 'non' }} | Téléchargé : {{ dlM ? dlM|date('d/m/Y') : 'non' }}">
-                            <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:10px;font-weight:700;
-                                background:{{ okM ? '#dcfce7' : (warnM ? '#fef9c3' : '#fee2e2') }};
-                                color:{{ okM ? '#15803d' : (warnM ? '#854d0e' : '#dc2626') }};">
-                                {{ okM ? '✓' : (warnM ? '!' : '×') }}
-                            </span>
-                            <span style="color:var(--text-muted);">M
-                                {% if signeM and dateSigneM %}<span style="color:#15803d;">✎{{ dateSigneM|date('d/m') }}</span>{% endif %}
-                                {% if dlM %}<span style="color:#1d4ed8;margin-left:2px;">⬇{{ dlM|date('d/m') }}</span>{% endif %}
-                            </span>
-                        </span>
-                    {% endif %}
-                    {% if hE > 0 %}
-                        {% set okE = signeE and dlE %}
-                        {% set warnE = signeE and not dlE %}
-                        {% set todoE = not signeE %}
-                        <span style="display:flex;align-items:center;gap:5px;"
-                              title="Garde — Signé : {{ signeE ? (dateSigneE ? dateSigneE|date('d/m/Y') : 'oui') : 'non' }} | Téléchargé : {{ dlE ? dlE|date('d/m/Y') : 'non' }}">
-                            <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:10px;font-weight:700;
-                                background:{{ okE ? '#dcfce7' : (warnE ? '#fef9c3' : '#fee2e2') }};
-                                color:{{ okE ? '#15803d' : (warnE ? '#854d0e' : '#dc2626') }};">
-                                {{ okE ? '✓' : (warnE ? '!' : '×') }}
-                            </span>
-                            <span style="color:var(--text-muted);">GE
-                                {% if signeE and dateSigneE %}<span style="color:#15803d;">✎{{ dateSigneE|date('d/m') }}</span>{% endif %}
-                                {% if dlE %}<span style="color:#1d4ed8;margin-left:2px;">⬇{{ dlE|date('d/m') }}</span>{% endif %}
-                            </span>
-                        </span>
-                    {% endif %}
+                    <div style="display:flex;flex-direction:column;gap:3px;">
+                    {% for type in ['MENA', 'ENFA'] %}
+                        {% set heures  = type == 'MENA' ? hM : hE %}
+                        {% if heures > 0 %}
+                            {% set signe   = type == 'MENA' ? signeM : signeE %}
+                            {% set dateSig = type == 'MENA' ? dateSigneM : dateSigneE %}
+                            {% set dl      = type == 'MENA' ? dlM : dlE %}
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <span style="width:54px;font-weight:600;color:{{ signe ? '#15803d' : 'var(--text-muted)' }};">
+                                    {{ type == 'MENA' ? 'Ménage' : 'Garde' }}
+                                </span>
+                                <span style="color:{{ signe ? '#15803d' : 'var(--text-muted)' }};"
+                                      title="{{ signe ? 'Signé le ' ~ (dateSig ? dateSig|date('d/m/Y') : '?') : 'Non signé' }}">
+                                    {% if signe %}✓ Signé{% if dateSig %} le {{ dateSig|date('d/m/Y') }}{% endif %}{% else %}✗ Non signé{% endif %}
+                                </span>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
                     </div>
                 {% endif %}
             </td>

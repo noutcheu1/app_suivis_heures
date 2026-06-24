@@ -387,6 +387,13 @@ final class IntervenantsControllerMVC extends AbstractController
             return $this->json(['success' => false, 'error' => 'Non authentifié'], 401);
         }
 
+        if (!$this->isCsrfTokenValid('ajax', $request->headers->get('X-CSRF-Token', ''))) {
+            return $this->json([
+                'success' => false,
+                'error'   => 'Votre session a expiré. Rechargez la page puis réessayez.',
+            ], 403);
+        }
+
         if (!$this->authService->isAdmin() && !$this->authService->isIntervenantAccepted()) {
             return $this->json(['success' => false, 'error' => 'Candidature en attente d\'acceptation'], 403);
         }
@@ -445,11 +452,10 @@ final class IntervenantsControllerMVC extends AbstractController
     #[Route('/declarer/{numFam}', name: 'declarer_qr_mvc', methods: ['GET'])]
     public function declarerViaQr(string $numFam, Request $request): Response
     {
-        // Non connecté → on mémorise l'URL demandée (TargetPath standard Symfony)
-        // pour y revenir automatiquement après le login.
+        // Non connecté → pointage SANS connexion : identification par numéro de
+        // téléphone sur la page dédiée (pas de login forcé).
         if (!$this->authService->check()) {
-            $request->getSession()->set('_security.main.target_path', $request->getUri());
-            return $this->redirectToRoute('app_login');
+            return $this->redirectToRoute('pointage_saisie', ['numFam' => $numFam]);
         }
 
         $interId = $this->authService->intervenant_id();

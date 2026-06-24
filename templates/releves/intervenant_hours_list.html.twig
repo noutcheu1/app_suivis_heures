@@ -36,7 +36,7 @@
                 data-debut="{{ prestation.heureDebutPresta ? prestation.heureDebutPresta|date('H:i') : '' }}"
                 data-fin="{{ prestation.heureFinPresta ? prestation.heureFinPresta|date('H:i') : '' }}">
                 <td>{{ prestation.datePresta|date('d/m/Y') }}</td>
-                <td style="font-weight:500;">{{ prestation.numFam ? famille_label(prestation.numFam) : '-' }}</td>
+                <td style="font-weight:500;">{{ (prestation.numFam and prestation.numFam != '0') ? famille_label(prestation.numFam) : ('Famille occasionnelle' ~ (prestation.nomFam ? ' ' ~ prestation.nomFam : '')) }}</td>
                 <td>
                     <span class="badge {{ prestation.typePresta == 'ENFA' ? 'badge-info' : (prestation.typePresta == 'MENA' ? 'badge-muted' : 'badge-warning') }}">
                         {{ prestation.typePresta == 'ENFA' ? "Garde d'enfants" : (prestation.typePresta == 'MENA' ? 'Ménage' : (prestation.typePresta|default('Autre'))) }}

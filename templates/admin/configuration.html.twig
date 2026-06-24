@@ -39,6 +39,19 @@
 
       <div style="margin-bottom:18px;">
         <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:4px;">
+          Fenêtre de la notification « relevé à signer » (jours ±)
+        </label>
+        <input type="number" name="nbJoursFenetreSignature" min="0" max="15"
+               value="{{ config.nbJoursFenetreSignature }}"
+               style="width:100%;padding:7px 10px;font-size:14px;border:1px solid #d1d5db;border-radius:6px;">
+        <p style="font-size:11px;color:#6b7280;margin:4px 0 0;">
+          La notif n'apparaît que ± N jours autour de la fin de période
+          (≈ 25 du mois pour le ménage, 30/31 pour la garde). 0 = le jour exact uniquement.
+        </p>
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:4px;">
           Nombre de paliers tarifaires — Garde d'enfants
         </label>
         <input type="number" name="nbrPalierTarifGE" min="0" max="10"

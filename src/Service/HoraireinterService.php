@@ -102,11 +102,148 @@ class HoraireinterService
         
         $this->entityManager->persist($horaire);
         $this->entityManager->flush();
-        
+
         return $horaire;
     }
 
-    
+    /**
+     * Pointage QR sans connexion — DÉMARRER.
+     * Crée une ligne horaireinter « en cours » (heure de début = maintenant arrondi
+     * au quart d'heure, heure de fin NULL). Tant qu'elle n'a pas de fin, elle n'est
+     * jamais comptée dans les relevés.
+     */
+    public function demarrerPointage(int $numInter, ?string $numFam, string $nomFam, string $type, ?string $heure = null): Horaireinter
+    {
+        if ($numInter <= 0) {
+            throw new \LogicException('Intervenant non identifié.');
+        }
+
+        $type  = strtoupper($type) === 'MENA' ? 'MENA' : 'ENFA';
+        $today = new \DateTime('today');
+
+        // Famille occasionnelle (non assignée) : numFam stocké à NULL, comme la saisie
+        // manuelle — le nom reste dans nomFam, ce qui permet aux listes/édition de
+        // l'afficher (les templates testent « numFam is not null »).
+        $occasionnel = ($numFam === null || $numFam === '' || $numFam === '0');
+        $numFamStored = $occasionnel ? null : $numFam;
+
+        if (!$occasionnel && !$this->proposerRepository->isIntervenantAssignedToFamille($numInter, $numFam)) {
+            throw new \LogicException('Vous n\'êtes pas assigné à cette famille dans le planning.');
+        }
+
+        if ($this->repository->findEnCours($numInter, $numFamStored)) {
+            throw new \LogicException('Un pointage est déjà en cours.');
+        }
+
+        if (!$occasionnel && $this->repository->existsDoublonFamilleDate($numInter, $numFam, $today, $type)) {
+            throw new \LogicException('Vous avez déjà pointé cette famille aujourd\'hui.');
+        }
+
+        $horaire = new Horaireinter();
+        $horaire->setNumFam($numFamStored);
+        $horaire->setNomFam($nomFam);
+        $horaire->setNumInter($numInter);
+        $horaire->setDatePresta($today);
+        // Heure du téléphone si fournie (évite le décalage de fuseau serveur/UTC),
+        // sinon repli sur l'heure serveur arrondie.
+        $horaire->setHeureDebutPresta($heure ? new \DateTime($heure) : $this->arrondiQuartHeure(new \DateTime()));
+        $horaire->setHeureFinPresta(null);
+        $horaire->setTypePresta($type);
+        $horaire->setAjouterLe(new \DateTime());
+        $horaire->setDesactiver(false);
+        $horaire->setDeclarerLeFam(null);
+        $horaire->setHeuresTotal(0.0);
+
+        if (!$occasionnel) {
+            $km = $this->calculerKmTrajet($numInter, (string) $numFam);
+            $horaire->setKmTrajet($km !== null ? (string) $km : null);
+        }
+
+        $this->entityManager->persist($horaire);
+        $this->entityManager->flush();
+
+        return $horaire;
+    }
+
+    /**
+     * Indique s'il existe un pointage en cours (début sans fin) aujourd'hui pour
+     * cette famille — pour proposer « Terminer » plutôt que « Démarrer ».
+     */
+    public function aPointageEnCours(int $numInter, ?string $numFam): bool
+    {
+        return $this->repository->findEnCours($numInter, $numFam) !== null;
+    }
+
+    /**
+     * Heure de début (HH:MM) du pointage en cours pour cette famille aujourd'hui,
+     * ou null s'il n'y en a pas. Sert à afficher « Début → Fin » à la clôture.
+     */
+    public function heureDebutEnCours(int $numInter, ?string $numFam): ?string
+    {
+        return $this->repository->findEnCours($numInter, $numFam)
+            ?->getHeureDebutPresta()?->format('H:i');
+    }
+
+    /**
+     * Type (ENFA/MENA) du pointage en cours pour cette famille aujourd'hui — sert
+     * à n'afficher le km « avec enfant » que pour la garde.
+     */
+    public function typeEnCours(int $numInter, ?string $numFam): ?string
+    {
+        return $this->repository->findEnCours($numInter, $numFam)?->getTypePresta();
+    }
+
+    /**
+     * Pointage QR sans connexion — TERMINER.
+     * Renseigne l'heure de fin (maintenant arrondi) sur le pointage en cours du jour
+     * pour cette famille : la ligne devient une heure déclarée complète.
+     */
+    public function terminerPointage(int $numInter, ?string $numFam, ?float $km = null, ?string $heure = null): Horaireinter
+    {
+        $horaire = $this->repository->findEnCours($numInter, $numFam);
+        if (!$horaire) {
+            throw new \LogicException('Aucun pointage en cours pour cette famille.');
+        }
+
+        $debut = $horaire->getHeureDebutPresta();
+        // Heure de fin du téléphone si fournie (sinon repli serveur arrondi).
+        $fin   = $heure ? new \DateTime($heure) : $this->arrondiQuartHeure(new \DateTime());
+
+        // L'heure de début vient d'un champ TIME (date époque 1970) ; on l'aligne sur
+        // la même date que la fin avant validation, sinon l'écart de timestamps est
+        // faussé (~55 ans → faux dépassement des 10h).
+        $debutCompare = (clone $fin)->setTime((int) $debut->format('H'), (int) $debut->format('i'), 0);
+
+        // Durée nulle / max 10h / chevauchement (en excluant la ligne courante).
+        $this->validerCreneau($numInter, $horaire->getDatePresta(), $debutCompare, $fin, $horaire->getId());
+
+        $horaire->setHeureFinPresta($fin);
+        if ($horaire->getTypePresta() === 'ENFA' && $km !== null) {
+            $horaire->setKmAvecEnfant((string) $km);
+        }
+        $horaire->setModifierLe(new \DateTime());
+        $horaire->setHeuresTotal($this->calculerHeures($debut->format('H:i:s'), $fin->format('H:i:s')));
+
+        $this->entityManager->flush();
+
+        return $horaire;
+    }
+
+    /**
+     * Arrondit une date/heure au quart d'heure le plus proche (cohérent avec le
+     * pointage QR connecté côté JS : arrondiQuartHeure).
+     */
+    private function arrondiQuartHeure(\DateTime $dt): \DateTime
+    {
+        $result  = clone $dt;
+        $minutes = (int) $result->format('i');
+        $arrondi = (int) (round($minutes / 15) * 15); // 0,15,30,45,60
+        $result->setTime((int) $result->format('H'), 0, 0);
+        if ($arrondi > 0) {
+            $result->modify("+{$arrondi} minutes");
+        }
+        return $result;
+    }
 
     /**
      * Retourne les prestations d'un intervenant pour une période
@@ -116,6 +253,9 @@ class HoraireinterService
         $qb = $this->repository->createQueryBuilder('h')
             ->where('h.numInter = :numInter')
             ->andWhere('h.desactiver = :desactiver')
+            // Exclut les pointages en cours (début sans fin) : pas encore des heures
+            // déclarées, ils ne doivent apparaître ni dans les listes ni les stats.
+            ->andWhere('h.heureFinPresta IS NOT NULL')
             ->setParameter('numInter', $numInter)
             ->setParameter('desactiver', false)
             ->orderBy('h.datePresta', 'DESC')
@@ -747,8 +887,10 @@ class HoraireinterService
      */
     public function getRelevesASigner(int $numInter): array
     {
-        $now  = new \DateTime();
-        $prev = (clone $now)->modify('-1 month');
+        $now    = new \DateTime();
+        $today  = new \DateTime('today');
+        $prev   = (clone $now)->modify('-1 month');
+        $fenetre = $this->appConfigRepository->getConfig()->getNbJoursFenetreSignature();
         $nonSignes = [];
 
         foreach ([$now, $prev] as $date) {
@@ -771,6 +913,20 @@ class HoraireinterService
                     return $n === null || $n === '' || $n === '0' || in_array($n, $validIds, true);
                 }));
                 if ($nb === 0) continue;
+
+                // La notif « à signer » n'apparaît que dans la fenêtre de fin de période
+                // (±3 jours) : ~25 du mois pour le MÉNAGE, dernier jour (30/31) pour la GARDE.
+                if ($type === 'MENA') {
+                    $ref = new \DateTime(sprintf('%04d-%02d-25', $y, $m));
+                } else { // ENFA → dernier jour du mois
+                    $ref = (new \DateTime(sprintf('%04d-%02d-01', $y, $m)))->modify('last day of this month');
+                }
+                $debutFenetre = (clone $ref)->modify("-{$fenetre} days");
+                $finFenetre   = (clone $ref)->modify("+{$fenetre} days");
+                if ($today < $debutFenetre || $today > $finFenetre) {
+                    continue; // hors fenêtre de signature → pas de notif
+                }
+
                 $releve = $this->releveRepository->findByMoisAnneeIntervenant($mois, $numInter, $type);
                 if (!$releve || !$releve->isSigner()) {
                     $nonSignes[] = [

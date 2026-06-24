@@ -187,7 +187,7 @@ async function genererPDF(type_de_garde, anne_file) {
  * @param {string} filename  ex: 'Fiches_Vierges_GardeEnfants.pdf'
  */
 function genererFichesPDF(filename) {
-    if (!window.jspdf) { alert('jsPDF non chargée'); return; }
+    if (!window.jspdf) { toast('jsPDF non chargée'); return; }
     const { jsPDF } = window.jspdf;
 
     const fiches = document.querySelectorAll('.fiche-page');
