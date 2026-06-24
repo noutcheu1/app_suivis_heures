@@ -112,7 +112,7 @@ class HoraireinterService
      * au quart d'heure, heure de fin NULL). Tant qu'elle n'a pas de fin, elle n'est
      * jamais comptée dans les relevés.
      */
-    public function demarrerPointage(int $numInter, ?string $numFam, string $nomFam, string $type, ?string $heure = null): Horaireinter
+    public function demarrerPointage(int $numInter, ?string $numFam, string $nomFam, string $type, ?string $heure = null, ?string $heureReelle = null): Horaireinter
     {
         if ($numInter <= 0) {
             throw new \LogicException('Intervenant non identifié.');
@@ -121,40 +121,45 @@ class HoraireinterService
         $type  = strtoupper($type) === 'MENA' ? 'MENA' : 'ENFA';
         $today = new \DateTime('today');
 
-        // Famille occasionnelle (non assignée) : numFam stocké à NULL, comme la saisie
-        // manuelle — le nom reste dans nomFam, ce qui permet aux listes/édition de
-        // l'afficher (les templates testent « numFam is not null »).
-        $occasionnel = ($numFam === null || $numFam === '' || $numFam === '0');
-        $numFamStored = $occasionnel ? null : $numFam;
-
-        if (!$occasionnel && !$this->proposerRepository->isIntervenantAssignedToFamille($numInter, $numFam)) {
-            throw new \LogicException('Vous n\'êtes pas assigné à cette famille dans le planning.');
-        }
+        // Le scan identifie une VRAIE famille → on garde toujours le numFam réel.
+        // Le flag « occasionnel » indique seulement que la famille n'est pas au planning
+        // de l'intervenant (intervention hors planning). Une saisie sans famille du tout
+        // (numFam vide) est aussi marquée occasionnelle (numFam stocké à NULL).
+        $estVide      = ($numFam === null || $numFam === '' || $numFam === '0');
+        $numFamStored = $estVide ? null : $numFam;
+        $occasionnel  = $estVide
+            ? true
+            : !$this->proposerRepository->isIntervenantAssignedToFamille($numInter, $numFam);
 
         if ($this->repository->findEnCours($numInter, $numFamStored)) {
             throw new \LogicException('Un pointage est déjà en cours.');
         }
 
-        if (!$occasionnel && $this->repository->existsDoublonFamilleDate($numInter, $numFam, $today, $type)) {
+        if (!$estVide && $this->repository->existsDoublonFamilleDate($numInter, $numFam, $today, $type)) {
             throw new \LogicException('Vous avez déjà pointé cette famille aujourd\'hui.');
         }
+
+        // Heure arrondie (affichée au relevé) — heure du téléphone si fournie.
+        $debutArrondi = $heure ? new \DateTime($heure) : $this->arrondiQuartHeure(new \DateTime());
+        // Heure RÉELLE (non arrondie) — trace du scan.
+        $debutReel = $heureReelle ? new \DateTime($heureReelle) : clone $debutArrondi;
 
         $horaire = new Horaireinter();
         $horaire->setNumFam($numFamStored);
         $horaire->setNomFam($nomFam);
         $horaire->setNumInter($numInter);
         $horaire->setDatePresta($today);
-        // Heure du téléphone si fournie (évite le décalage de fuseau serveur/UTC),
-        // sinon repli sur l'heure serveur arrondie.
-        $horaire->setHeureDebutPresta($heure ? new \DateTime($heure) : $this->arrondiQuartHeure(new \DateTime()));
+        $horaire->setHeureDebutPresta($debutArrondi);
+        $horaire->setHeureDebutReelle($debutReel);
         $horaire->setHeureFinPresta(null);
         $horaire->setTypePresta($type);
+        $horaire->setOccasionnel($occasionnel);
         $horaire->setAjouterLe(new \DateTime());
         $horaire->setDesactiver(false);
         $horaire->setDeclarerLeFam(null);
         $horaire->setHeuresTotal(0.0);
 
-        if (!$occasionnel) {
+        if (!$estVide) {
             $km = $this->calculerKmTrajet($numInter, (string) $numFam);
             $horaire->setKmTrajet($km !== null ? (string) $km : null);
         }
@@ -198,7 +203,7 @@ class HoraireinterService
      * Renseigne l'heure de fin (maintenant arrondi) sur le pointage en cours du jour
      * pour cette famille : la ligne devient une heure déclarée complète.
      */
-    public function terminerPointage(int $numInter, ?string $numFam, ?float $km = null, ?string $heure = null): Horaireinter
+    public function terminerPointage(int $numInter, ?string $numFam, ?float $km = null, ?string $heure = null, ?string $heureReelle = null): Horaireinter
     {
         $horaire = $this->repository->findEnCours($numInter, $numFam);
         if (!$horaire) {
@@ -206,7 +211,7 @@ class HoraireinterService
         }
 
         $debut = $horaire->getHeureDebutPresta();
-        // Heure de fin du téléphone si fournie (sinon repli serveur arrondi).
+        // Heure de fin arrondie (affichée au relevé) — heure du téléphone si fournie.
         $fin   = $heure ? new \DateTime($heure) : $this->arrondiQuartHeure(new \DateTime());
 
         // L'heure de début vient d'un champ TIME (date époque 1970) ; on l'aligne sur
@@ -218,6 +223,8 @@ class HoraireinterService
         $this->validerCreneau($numInter, $horaire->getDatePresta(), $debutCompare, $fin, $horaire->getId());
 
         $horaire->setHeureFinPresta($fin);
+        // Heure de fin RÉELLE (non arrondie) — trace du scan.
+        $horaire->setHeureFinReelle($heureReelle ? new \DateTime($heureReelle) : clone $fin);
         if ($horaire->getTypePresta() === 'ENFA' && $km !== null) {
             $horaire->setKmAvecEnfant((string) $km);
         }
@@ -663,6 +670,7 @@ class HoraireinterService
         $prestations = array_values(array_filter($prestations, function ($p) use ($validFamIds) {
             $numFam = $p->getNumFam();
             return $numFam === null || $numFam === '' || $numFam === '0'
+                || $p->isOccasionnel()                       // scan hors planning → toujours affiché
                 || in_array($numFam, $validFamIds, true);
         }));
 

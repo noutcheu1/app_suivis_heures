@@ -70,6 +70,18 @@ class Horaireinter
     #[ORM\Column(name: 'sourceFacturation', length: 5, nullable: true)]
     private ?string $sourceFacturation = null;
 
+    /** Prestation pointée par scan pour une famille HORS planning (occasionnelle). */
+    #[ORM\Column(name: 'occasionnel', options: ['default' => 0])]
+    private bool $occasionnel = false;
+
+    /** Heure de début RÉELLE du pointage (non arrondie) — renseignée par le scan. */
+    #[ORM\Column(name: 'heureDebutReelle', type: 'time', nullable: true)]
+    private ?\DateTimeInterface $heureDebutReelle = null;
+
+    /** Heure de fin RÉELLE du pointage (non arrondie) — renseignée par le scan. */
+    #[ORM\Column(name: 'heureFinReelle', type: 'time', nullable: true)]
+    private ?\DateTimeInterface $heureFinReelle = null;
+
     /** Computed field — not stored in DB */
     private float $heuresTotal = 0.0;
 
@@ -253,6 +265,15 @@ class Horaireinter
         $this->sourceFacturation = $sourceFacturation;
         return $this;
     }
+
+    public function isOccasionnel(): bool { return $this->occasionnel; }
+    public function setOccasionnel(bool $v): static { $this->occasionnel = $v; return $this; }
+
+    public function getHeureDebutReelle(): ?\DateTimeInterface { return $this->heureDebutReelle; }
+    public function setHeureDebutReelle(?\DateTimeInterface $v): static { $this->heureDebutReelle = $v; return $this; }
+
+    public function getHeureFinReelle(): ?\DateTimeInterface { return $this->heureFinReelle; }
+    public function setHeureFinReelle(?\DateTimeInterface $v): static { $this->heureFinReelle = $v; return $this; }
 
     public function getHeuresTotal(): float
     {
