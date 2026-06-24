@@ -14,9 +14,6 @@ migrations/
 /phpunit.xml
 /.phpunit.cache/
 ###< phpunit/phpunit ###
-<<<<<<< HEAD
-migrations/.gitignore
-=======
 *.sql
 */*.sql
 docker/conf/dumps/*.sql
@@ -98,7 +95,6 @@ install-log.txt
 .env.dev.local
 .env.prod.local
 
->>>>>>> feature/intervention
 *.sql
 */*.sql
 docker/conf/dumps/*.sql
@@ -180,3 +176,4 @@ install-log.txt
 .env.dev.local
 .env.prod.local
 
+.env
