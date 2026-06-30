@@ -55,7 +55,7 @@ if (isset($_POST) && isset($_GET['signer'])) {
     }
 }
 
-if (isset($_GET['fam']) && $_SESSION["username"] == "9.99.99.99.999.999.99") {
+if (isset($_GET['fam']) && $_SESSION["username"] == "9999999999") {
     $user0 = $GLOBALS['pdo']->getFamilleNumFam($_GET['fam'], $premierJour); 
 } else {
     $user0 = $GLOBALS['pdo']->getFamilleNumFam($_SESSION["username"], $premierJour);
@@ -188,7 +188,7 @@ foreach ($prestations as $item2) {
 <main>
     <h1>
     <?php 
-    if ($_SESSION["username"] == "9.99.99.99.999.999.99") {
+    if ($_SESSION["username"] == "9999999999") {
         echo "Voici la/les fiche/s de recapitulatif d'heures de ";
         echo "<a href='".BASE_URL."/admin/familles.php?id=". $_GET['fam'] ."'>". $user0['nom_Parents']."</a><br>";
         
@@ -209,14 +209,14 @@ foreach ($prestations as $item2) {
     
     <ul class="menu">
         <li>
-            <a href="<?= BASE_URL ?>/mon-recap?type=<?= $_GET['type']?>&mois=<?= $_GET['mois'] - 1 ?><?php if ($_SESSION["username"] == "9.99.99.99.999.999.99") { ?>&fam=<?= $_GET['fam'] ?><?php } ?>">
+            <a href="<?= BASE_URL ?>/mon-recap?type=<?= $_GET['type']?>&mois=<?= $_GET['mois'] - 1 ?><?php if ($_SESSION["username"] == "9999999999") { ?>&fam=<?= $_GET['fam'] ?><?php } ?>">
                 <img src="<?= BASE_URL ?>/assets/icons/flecheGaucheR.png">
                 Mois precedente
             </a>
         </li>
         <?php if ($_GET['mois'] < 0) { ?>
             <li> 
-                <a href="<?= BASE_URL ?>/mon-recap?type=<?= $_GET['type']?>&mois=<?= $_GET['mois'] + 1 ?><?php if ($_SESSION["username"] == "9.99.99.99.999.999.99") { ?>&fam=<?= $_GET['fam'] ?><?php } ?>">
+                <a href="<?= BASE_URL ?>/mon-recap?type=<?= $_GET['type']?>&mois=<?= $_GET['mois'] + 1 ?><?php if ($_SESSION["username"] == "9999999999") { ?>&fam=<?= $_GET['fam'] ?><?php } ?>">
                     <img src="<?= BASE_URL ?>/assets/icons/flecheDroiteR.png" >
                     Mois suivante
                 </a>
@@ -392,7 +392,7 @@ foreach ($prestations as $item2) {
             ?> </td> <td> <?= number_format($totalHeure*($tarif / 3600), 2, '.', '')." €" ?> </td> 
             
             <td rowspan="15"> 
-            <?php if ($_GET['mois'] >= -1 && $releverMensuel['montantPrincipal'] == null || $_SESSION["username"] == "9.99.99.99.999.999.99" ) { ?>
+            <?php if ($_GET['mois'] >= -1 && $releverMensuel['montantPrincipal'] == null || $_SESSION["username"] == "9999999999" ) { ?>
             
             <form id="paiementForm" action="<?= BASE_URL ?>/mon-recap?type=<?= $_GET['type'] ?>&mois=<?= $_GET['mois'] ?>&paiement=1<?php if (isset($_GET['fam'])) {echo "&fam=".$_GET['fam'];} ?>" method="POST">
                 <label for="moyen_paiement">Moyen de paiement :</label>
@@ -409,7 +409,7 @@ foreach ($prestations as $item2) {
             </form> <?php    
         } else if ($releverMensuel['typeRèglement'] == null) { ?>
                 Non renseigne 
-            <?php } if ($_SESSION["username"] == "9.99.99.99.999.999.99" || $releverMensuel['montantPrincipal'] != null) { 
+            <?php } if ($_SESSION["username"] == "9999999999" || $releverMensuel['montantPrincipal'] != null) { 
                 if ($releverMensuel['typeRèglement'] == "cheque") {
                     echo "Chèque <br> N° : ".$releverMensuel['numChèque']."  <br> Montant : ".$releverMensuel['montantPrincipal']." €";
                 } else if ($releverMensuel['typeRèglement'] == "prelevement") {
@@ -479,7 +479,7 @@ foreach ($prestations as $item2) {
             }
             ?>
             <tr> <td class="no-borders"> </td> <th> Abonnement mensuel </th> <td> <?= $tarifs['abonnement'] ?> € </td> </tr>
-            <?php if ($_SESSION["username"] == "9.99.99.99.999.999.99") { ?>
+            <?php if ($_SESSION["username"] == "9999999999") { ?>
             <form method="post" action="<?= BASE_URL ?>/mon-recap?type=<?= $_GET['type'] ?>&mois=<?= $_GET['mois'] ?>&suplement=1&fam=<?=$_GET['fam']?>">
                 <tr id="suplement1"> <th rowspan="2"> Frais / Remboursement </th> 
                 <td> Libellé : <textarea name="libelle"><?= htmlspecialchars($releverMensuel['libelerSupl']) ?></textarea> </td> 
@@ -528,7 +528,7 @@ foreach ($prestations as $item2) {
                 <tr> <td style='width: 12%;' class="no-borders" rowspan="8"> </td> <th colspan='4'> QUESTIONNAIRE DE SATISFACTION </th> <td style='width: 12%;' class="no-borders" rowspan="8"> </td> </tr> 
                 <tr> <th style='width: 19%;'> Ponctualité </th> <th style='width: 19%;'> Régularité / Relationnel </th> <th style='width: 19%;'> Respect des horaires </th> <th style='width: 19%;'> Qualité du travail </th> </tr>
                 <tr> 
-                <?php if ($_SESSION["username"] != "9.99.99.99.999.999.99" && $releverMensuel['signerLe'] == Null) {?>
+                <?php if ($_SESSION["username"] != "9999999999" && $releverMensuel['signerLe'] == Null) {?>
                 <form action="<?= BASE_URL ?>/mon-recap?type=<?= $_GET['type'] ?>&mois=<?= $_GET['mois'] ?>&signer=1" method="POST" >
                     <td>
                     <select name="Ponctualite" required>
@@ -649,7 +649,7 @@ async function genererPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'mm', 'a4');
     document.getElementById('monTableau0').style.display = '';
-    <?php if ($_SESSION["username"] == "9.99.99.99.999.999.99") {?>
+    <?php if ($_SESSION["username"] == "9999999999") {?>
     document.getElementById('paiementForm').style.display = 'none';
     document.getElementById('suplement1').style.display = 'none';
     document.getElementById('suplement2').style.display = 'none';
@@ -708,7 +708,7 @@ if ($_GET['type'] == "MENA") {
     echo "G ENFANT";
 } ?> <?= $moisComplets[(int)$dernierJour->format('n')] . " " . $dernierJour->format('Y') ?>.pdf');
 document.getElementById('monTableau0').style.display = 'none';
-<?php if ($_SESSION["username"] == "9.99.99.99.999.999.99") {?>
+<?php if ($_SESSION["username"] == "9999999999") {?>
 document.getElementById('paiementForm').style.display = '';
 document.getElementById('suplement1').style.display = '';
 document.getElementById('suplement2').style.display = '';

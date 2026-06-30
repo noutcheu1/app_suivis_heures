@@ -443,7 +443,7 @@ package "Authentification suivi heures" #F5F5F5 {
   ' Indépendante de la table users (autres applications).
   '
   ' Le champ username contient selon le rôle :
-  '   admin       → identifiant libre (ex: 9.99.99.99.999.999.99)
+  '   admin       → identifiant libre (ex: 9999999999)
   '   intervenant → numSS_Candidats (numéro de sécurité sociale)
   '   famille     → PM_Famille ou PGE_Famille
   '

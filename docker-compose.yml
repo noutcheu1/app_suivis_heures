@@ -10,7 +10,7 @@ services:
       - "8032:80"
     volumes:
       - .:/var/www/html
-      - app_var:/var/www/html/var
+     
     depends_on:
       db:
         condition: service_healthy
