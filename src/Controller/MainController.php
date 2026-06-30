@@ -16,10 +16,10 @@ final class MainController extends AbstractController
     ) {}
 
     /**
-     * Page d'accueil — redirige vers dashboard si connecté,
+     * Page d'accueil redirige vers dashboard si connecté,
      * sinon vers la sélection du type (intervenant/famille)
      * 
-     * ⚠ Cette route NE doit PAS s'appeler 'dashboard' — DashboardController 
+     * ⚠ Cette route NE doit PAS s'appeler 'dashboard' DashboardController 
      * gère déjà la route '/' avec le nom 'dashboard'.
      * On sépare ici : '/' = type_selection UNIQUEMENT si pas connecté.
      */

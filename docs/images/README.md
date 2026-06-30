@@ -38,4 +38,4 @@ Respectez les **noms de fichiers** ci-dessous (ils sont déjà liés dans les gu
 | `famille-09-profil.png` | Page Mon profil |
 
 ## Espace Admin (`guide-admin.md`)
-*(à compléter si vous illustrez aussi le guide admin — voir le guide pour les pages)*
+*(à compléter si vous illustrez aussi le guide admin voir le guide pour les pages)*

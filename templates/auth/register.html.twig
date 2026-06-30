@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Inscription — La Maison des Chaudoudoux{% endblock %}
+{% block title %}Inscription La Maison des Chaudoudoux{% endblock %}
 
 {% block stylesheets %}
 {{ parent() }}
@@ -149,17 +149,17 @@
 
             <div class="mb-3">
                 <label class="field-label" id="id-label">
-                    {% if type == 'INTER' %}Identifiant salarié{% else %}Code client (PM ou PGE){% endif %}
+                    {% if type == 'INTER' %}Numéro de téléphone{% else %}Code client (PM ou PGE){% endif %}
                 </label>
                 <div class="input-wrap">
                     <i class="fas fa-id-card input-icon" id="id-icon"></i>
                     <input type="text" id="id_conexion" name="id"
-                           maxlength="{{ type == 'INTER' ? '21' : '7' }}"
-                           placeholder="{{ type == 'INTER' ? '9.xx.xx.xx.xxx.xxx.xx' : 'PGE1234' }}"
+                           maxlength="{{ type == 'INTER' ? '14' : '7' }}"
+                           placeholder="{{ type == 'INTER' ? '06 12 34 56 78' : 'PGE1234' }}"
                            autocomplete="username" required>
                 </div>
                 <p class="field-hint" id="id-hint">
-                    {% if type == 'INTER' %}Format : 9.xx.xx.xx.xxx.xxx.xx{% else %}Format : PGE1234 ou PM1234{% endif %}
+                    {% if type == 'INTER' %}Format : 06 12 34 56 78{% else %}Format : PGE1234 ou PM1234{% endif %}
                 </p>
             </div>
 
@@ -202,7 +202,7 @@
 
     <div class="register-footer">
         <i class="fas fa-shield-alt"></i>
-        Inscription sécurisée — données chiffrées
+        Inscription sécurisée données chiffrées
     </div>
 
 </div>
@@ -226,11 +226,11 @@ function selectType(t) {
     document.getElementById('btn-fam').classList.toggle('selected', t === 'FAM');
 
     if (t === 'INTER') {
-        document.getElementById('id-label').textContent = 'Identifiant salarié';
-        document.getElementById('id-icon').className = 'fas fa-id-card input-icon';
-        idInput.maxLength = 21;
-        idInput.placeholder = '9.xx.xx.xx.xxx.xxx.xx';
-        document.getElementById('id-hint').textContent = 'Format : 9.xx.xx.xx.xxx.xxx.xx';
+        document.getElementById('id-label').textContent = 'Numéro de téléphone';
+        document.getElementById('id-icon').className = 'fas fa-phone input-icon';
+        idInput.maxLength = 14;
+        idInput.placeholder = '06 12 34 56 78';
+        document.getElementById('id-hint').textContent = 'Format : 06 12 34 56 78';
     } else {
         document.getElementById('id-label').textContent = 'Code client (PM ou PGE)';
         document.getElementById('id-icon').className = 'fas fa-users input-icon';
@@ -291,15 +291,9 @@ document.getElementById('create_login_form').addEventListener('submit', e => {
 
 idInput.addEventListener('input', () => {
     if (currentType === 'INTER') {
-        let v = idInput.value.replace(/\D/g, '');
-        const b = [1,2,2,2,3,3,2];
-        let r = '', pos = 0;
-        for (let i = 0; i < b.length && pos < v.length; i++) {
-            if (i > 0) r += '.';
-            r += v.slice(pos, pos + b[i]);
-            pos += b[i];
-        }
-        idInput.value = r;
+        // Téléphone : chiffres regroupés par 2 (06 12 34 56 78).
+        let v = idInput.value.replace(/\D/g, '').slice(0, 10);
+        idInput.value = (v.match(/.{1,2}/g) || []).join(' ');
     } else if (currentType === 'FAM') {
         idInput.value = idInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     }

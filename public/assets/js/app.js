@@ -3,7 +3,7 @@ console.log('[app.js] Bootstrap disponible :', typeof bootstrap !== 'undefined' 
 console.log('[app.js] HoursCalculator disponible :', typeof window.HoursCalculator !== 'undefined' ? 'OUI' : 'NON');
 
 /**
- * Toast réutilisable — remplace les alert() natifs.
+ * Toast réutilisable remplace les alert() natifs.
  * Usage : toast('Message'), toast('Erreur…', 'error'), toast('OK', 'success').
  * Disponible globalement via window.toast.
  */

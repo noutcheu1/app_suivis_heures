@@ -4,6 +4,23 @@ let scanInterval = null;
 let currentFam = null;
 let selectedType = 'ENFA';
 let timerInterval = null;
+let currentEnCours = null; // pointage en cours actif (données serveur)
+
+// Heure réelle (non arrondie) du téléphone → "HH:MM"
+function heureReelleNow() {
+    const d = new Date();
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+// Affiche/masque le champ « Modifier l'heure » (début ou fin), pré-rempli.
+function toggleModif(which) {
+    const wrap = document.getElementById(which === 'fin' ? 'modifFinWrap' : 'modifDebutWrap');
+    const input = document.getElementById(which === 'fin' ? 'modifFin' : 'modifDebut');
+    if (!wrap) return;
+    const hidden = wrap.style.display === 'none' || !wrap.style.display;
+    wrap.style.display = hidden ? 'block' : 'none';
+    if (hidden && !input.value) input.value = arrondiQuartHeure(new Date());
+}
 
 const video    = document.getElementById('video');
 const canvas   = document.getElementById('canvas');
@@ -16,7 +33,7 @@ async function startCamera() {
     // Sur une IP en http:// (ex. mobile via le réseau local), l'API est indisponible.
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
         status.textContent = location.protocol === 'https:'
-            ? 'Caméra non supportée par ce navigateur — utilisez la saisie manuelle'
+            ? 'Caméra non supportée par ce navigateur utilisez la saisie manuelle'
             : 'La caméra nécessite une connexion sécurisée (HTTPS). Sur mobile, utilisez la saisie manuelle.';
         document.getElementById('manuelSection').style.display = 'block';
         return;
@@ -32,11 +49,11 @@ async function startCamera() {
         scanInterval = setInterval(scanFrame, 300);
     } catch (e) {
         // Message selon la vraie cause du refus
-        let msg = 'Caméra non disponible — utilisez la saisie manuelle';
+        let msg = 'Caméra non disponible utilisez la saisie manuelle';
         if (e && e.name === 'NotAllowedError') {
             msg = 'Autorisation caméra refusée. Activez-la dans les réglages du navigateur, ou utilisez la saisie manuelle.';
         } else if (e && e.name === 'NotFoundError') {
-            msg = 'Aucune caméra détectée — utilisez la saisie manuelle.';
+            msg = 'Aucune caméra détectée utilisez la saisie manuelle.';
         }
         status.textContent = msg;
         document.getElementById('manuelSection').style.display = 'block';
@@ -70,22 +87,11 @@ function handleScan(raw) {
     if (m) code = decodeURIComponent(m[1]);
     code = code.trim();
 
-    // Recherche insensible à la casse parmi les familles de l'intervenant
-    let key = FAMILLES[code] ? code
-            : Object.keys(FAMILLES).find(k => k.toUpperCase() === code.toUpperCase());
-
-    const fam = key ? FAMILLES[key] : null;
-    if (!fam) {
-        // Non reconnu → on bascule vers le formulaire de saisie avec la famille
-        // OCCASIONNELLE pré-sélectionnée (l'intervenant y saisit le nom).
-        // Le serveur connaît la famille (par son numéro) : il résout le nom et
-        // ouvre le formulaire pré-rempli (occasionnel avec le nom si non assigné).
-        status.textContent = `Famille "${code}" — ouverture de la saisie…`;
-        window.location.href = '/declarer/' + encodeURIComponent(code);
-        return;
-    }
-    currentFam = { code: key, ...fam };
-    afficherResultat(currentFam);
+    // Flux UNIQUE : on redirige vers la page de pointage /pointage/{code}.
+    // (Connecté, le numéro y est récupéré automatiquement → identification directe.)
+    status.textContent = 'Ouverture du pointage…';
+    stopCamera();
+    window.location.href = '/pointage/' + encodeURIComponent(code);
 }
 
 function afficherResultat(fam) {
@@ -99,16 +105,24 @@ function afficherResultat(fam) {
     document.getElementById('resHeure').textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     document.getElementById('resDate').textContent  = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
-    // Check localStorage pour intervention en cours
-    const enCours = getEnCours(fam.code);
+    // Pointage en cours = donnée SERVEUR (plus de localStorage).
+    const enCours = getEnCoursServeur(fam.code);
 
     if (enCours) {
+        currentEnCours = enCours;
         showFin(enCours);
     } else if (estDejaPointe(fam.code)) {
         showDejaPointe();
     } else {
         showDebut(fam);
     }
+}
+
+// Pointage en cours (serveur) du jour pour cette famille.
+function getEnCoursServeur(code) {
+    if (!Array.isArray(EN_COURS)) return null;
+    return EN_COURS.find(e => e.aujourdhui && e.numFam
+        && String(e.numFam).toUpperCase() === String(code).toUpperCase()) || null;
 }
 
 // Famille déjà pointée aujourd'hui (règle : 1 créneau/famille/jour)
@@ -159,14 +173,17 @@ function showFin(enCours) {
     document.getElementById('actionSaved').style.display = 'none';
     document.getElementById('typeSelect').style.display  = 'none';
 
-    document.getElementById('heureDebutAffiche').textContent = enCours.heure;
+    const debut = enCours.heureDebut || '—';
+    document.getElementById('heureDebutAffiche').textContent = debut;
     document.getElementById('kmSection').style.display = enCours.type === 'ENFA' ? 'block' : 'none';
     selectedType = enCours.type;
 
-    // Timer durée
+    // Timer durée : à partir de l'heure de début (aujourd'hui).
     clearInterval(timerInterval);
+    const [dh, dm] = (enCours.heureDebut || '0:0').split(':').map(Number);
+    const startTs = new Date(); startTs.setHours(dh, dm, 0, 0);
     timerInterval = setInterval(() => {
-        const diff = Date.now() - enCours.ts;
+        const diff = Math.max(0, Date.now() - startTs.getTime());
         const h = Math.floor(diff / 3600000);
         const m = Math.floor((diff % 3600000) / 60000);
         document.getElementById('dureeCourante').textContent = `${h}h${String(m).padStart(2,'0')}`;
@@ -187,60 +204,66 @@ function selectType(btn) {
     document.querySelectorAll('.type-pill').forEach(p => p.classList.toggle('active', p === btn));
 }
 
-function demarrer() {
-    const now = new Date();
-    const hh  = arrondiQuartHeure(now); // début arrondi au quart d'heure le plus proche
-    setEnCours(currentFam.code, {
-        heure: hh,
-        type: selectedType,
-        ts: now.getTime(),
-        date: now.toISOString().slice(0,10),
-        nom: currentFam.nom,
+async function postQr(payload) {
+    const res = await fetch(QR_API_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
     });
-    showFin(getEnCours(currentFam.code));
+    return res.json().catch(() => ({ success: false, error: 'Réponse invalide du serveur' }));
+}
+
+async function demarrer() {
+    // Heure arrondie (relevé) = saisie manuelle si fournie, sinon arrondi auto.
+    const heure = (document.getElementById('modifDebut')?.value || '').trim() || arrondiQuartHeure(new Date());
+    try {
+        const data = await postQr({
+            action: 'debut',
+            numFam: currentFam.code,
+            type: selectedType,
+            heure: heure,                 // arrondie (modifiable) → affichée au relevé
+            heureReelle: heureReelleNow(),// réelle (trace)
+        });
+        if (data.success) {
+            currentEnCours = { numFam: currentFam.code, heureDebut: heure, type: selectedType, aujourdhui: true };
+            showFin(currentEnCours);
+        } else {
+            toast(data.error || 'Démarrage impossible réessayez', 'error');
+        }
+    } catch {
+        toast('Erreur réseau réessayez', 'error');
+    }
 }
 
 async function terminer() {
-    const enCours = getEnCours(currentFam.code);
-    if (!enCours) return;
-
-    const now  = new Date();
-    const hFin = arrondiQuartHeure(now); // fin arrondie au quart d'heure le plus proche
+    if (!currentEnCours) return;
+    const hFin = (document.getElementById('modifFin')?.value || '').trim() || arrondiQuartHeure(new Date());
     const km   = document.getElementById('kmInput').value || null;
-
     try {
-        const res = await fetch(QR_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-                action: 'fin',
-                numFam: currentFam.code,
-                nomFam: currentFam.nom,
-                heureDebut: enCours.heure,
-                heureFin: hFin,
-                date: enCours.date,
-                type: enCours.type,
-                km: km ? parseFloat(km) : null,
-            })
+        const data = await postQr({
+            action: 'fin',
+            numFam: currentFam.code,
+            type: currentEnCours.type,
+            heure: hFin,                  // arrondie (modifiable)
+            heureReelle: heureReelleNow(),// réelle (trace)
+            km: km ? parseFloat(km) : null,
         });
-        const data = await res.json().catch(() => ({ success: false, error: 'Réponse invalide du serveur' }));
         if (data.success) {
-            clearEnCours(currentFam.code);
             clearInterval(timerInterval);
             document.getElementById('actionFin').style.display   = 'none';
             document.getElementById('actionSaved').style.display = 'block';
             document.getElementById('savedSummary').textContent =
-                `${enCours.heure} → ${hFin} · ${enCours.type === 'ENFA' ? "Garde d'enfants" : 'Ménage'}`;
+                `${data.debut || currentEnCours.heureDebut} → ${data.fin || hFin} · ${currentEnCours.type === 'ENFA' ? "Garde d'enfants" : 'Ménage'}`;
+            currentEnCours = null;
         } else {
-            // Affiche la vraie raison renvoyée par le serveur (chevauchement, date, etc.)
-            toast(data.error || 'Enregistrement impossible — réessayez', 'error');
+            toast(data.error || 'Enregistrement impossible réessayez', 'error');
         }
     } catch {
-        toast('Erreur réseau — réessayez');
+        toast('Erreur réseau réessayez', 'error');
     }
 }
 
@@ -250,6 +273,7 @@ function annuler() {
 
 function rescan() {
     currentFam = null;
+    currentEnCours = null;
     clearInterval(timerInterval);
     document.getElementById('resultSection').style.display  = 'none';
     document.getElementById('scannerSection').style.display = 'block';
@@ -270,92 +294,56 @@ function scanManuel() {
     if (v) handleScan(v);
 }
 
-// ── LocalStorage helpers ─────────────────────────────
-const LS_KEY = `qr_inter_${INTERVENANT_ID}`;
-function getEnCours(code) {
-    try { const d = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); return d[code] || null; }
-    catch { return null; }
-}
-function setEnCours(code, data) {
-    try { const d = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); d[code] = data; localStorage.setItem(LS_KEY, JSON.stringify(d)); }
-    catch {}
-}
-function clearEnCours(code) {
-    try { const d = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); delete d[code]; localStorage.setItem(LS_KEY, JSON.stringify(d)); }
-    catch {}
-}
-
-// ── Récupération d'une intervention non terminée ─────
+// ── Récupération d'une intervention non terminée (données SERVEUR) ─────
 const JOURS_FR = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
-let recoverCode = null;
+let recEc = null;
+// Oublis = pointages en cours d'un AUTRE jour (non terminés).
+let oublisRestants = (Array.isArray(EN_COURS) ? EN_COURS : []).filter(e => !e.aujourdhui);
 
 function trouverEnCoursOublie() {
-    let all = {};
-    try { all = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { return null; }
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const now = Date.now();
-    for (const [code, ec] of Object.entries(all)) {
-        if (!ec || !ec.ts) continue;
-        // Oublié = d'un autre jour, ou démarré il y a plus de 12h
-        const stale = (ec.date && ec.date !== todayStr) || (now - ec.ts > 12 * 3600 * 1000);
-        if (stale) return { code, ...ec };
-    }
-    return null;
+    return oublisRestants.length ? oublisRestants[0] : null;
 }
 
 function afficherRecuperation(ec) {
-    recoverCode = ec.code;
+    recEc = ec;
     document.getElementById('scannerSection').style.display = 'none';
     document.getElementById('resultSection').style.display  = 'none';
     document.getElementById('recoverSection').style.display = 'block';
 
-    document.getElementById('recFam').textContent   = ec.nom || ec.code;
+    document.getElementById('recFam').textContent   = ec.nomFam || ec.numFam;
     document.getElementById('recDate').textContent  = new Date(ec.date).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
-    document.getElementById('recDebut').textContent = ec.heure;
+    document.getElementById('recDebut').textContent = ec.heureDebut;
 
-    // Pré-remplir avec l'heure prévue (proposer) si disponible
+    // Pré-remplir avec l'heure prévue (planning) si disponible
     const jour = JOURS_FR[new Date(ec.date).getDay()];
-    const prevu = PLANNING_FIN[`${ec.code}|${jour}|${ec.type}`];
+    const prevu = PLANNING_FIN[`${ec.numFam}|${jour}|${ec.type}`];
     const input = document.getElementById('recHeureFin');
     if (prevu) {
         input.value = prevu;
         document.getElementById('recPrevuNote').textContent = `(heure prévue : ${prevu})`;
     } else {
-        input.value = ec.heure;
+        input.value = ec.heureDebut;
         document.getElementById('recPrevuNote').textContent = '';
     }
 }
 
 async function validerRecuperation() {
-    const ec = getEnCours(recoverCode);
-    if (!ec) { ignorerRecuperation(); return; }
+    if (!recEc) { ignorerRecuperation(); return; }
     const hFin = document.getElementById('recHeureFin').value;
-    if (!hFin) { toast('Veuillez indiquer l\'heure de fin.'); return; }
+    if (!hFin) { toast('Veuillez indiquer l\'heure de fin.', 'error'); return; }
 
     try {
-        const res = await fetch(QR_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-                action: 'fin',
-                numFam: recoverCode,
-                nomFam: ec.nom,
-                heureDebut: ec.heure,
-                heureFin: hFin,
-                date: ec.date,
-                type: ec.type,
-                km: null,
-            })
+        const data = await postQr({
+            action: 'fin',
+            numFam: recEc.numFam,
+            type: recEc.type,
+            heure: hFin,          // arrondie (saisie)
+            heureReelle: hFin,    // pas d'heure réelle connue après coup → = saisie
+            km: null,
         });
-        const data = await res.json().catch(() => ({ success:false, error:'Réponse invalide du serveur' }));
         if (data.success) {
-            clearEnCours(recoverCode);
+            oublisRestants.shift();
             document.getElementById('recoverSection').style.display = 'none';
-            // Y a-t-il un autre oubli ? sinon reprendre le scan normal
             const autre = trouverEnCoursOublie();
             if (autre) afficherRecuperation(autre);
             else demarrerFlux();
@@ -363,12 +351,13 @@ async function validerRecuperation() {
             toast(data.error || 'Enregistrement impossible.', 'error');
         }
     } catch {
-        toast('Erreur réseau — réessayez');
+        toast('Erreur réseau réessayez', 'error');
     }
 }
 
 function ignorerRecuperation() {
-    if (recoverCode) clearEnCours(recoverCode);
+    // On ne supprime PAS le pointage serveur : on passe au suivant (récupérable plus tard).
+    oublisRestants.shift();
     document.getElementById('recoverSection').style.display = 'none';
     const autre = trouverEnCoursOublie();
     if (autre) afficherRecuperation(autre);

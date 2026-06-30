@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Tarif — {{ famille.nomFamille ?? famille.numeroFamille }}{% endblock %}
+{% block title %}Tarif {{ famille.nomFamille ?? famille.numeroFamille }}{% endblock %}
 {% block page_title %}Tarif famille{% endblock %}
 
 {% block body %}
@@ -7,7 +7,7 @@
 <div class="page-header">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
-            <h1>Taux horaire — {{ famille_label(famille) }}</h1>
+            <h1>Taux horaire {{ famille_label(famille) }}</h1>
             <p>
                 <code style="font-size:12px;color:var(--text-muted);">{{ famille.numeroFamille }}</code>
                 &nbsp;· Chaque modification crée une nouvelle version horodatée.
@@ -101,7 +101,7 @@
 
         </div>
         <p style="font-size:12px;color:var(--text-muted);margin-top:10px;">
-            Les anciennes versions sont conservées — un nouvel enregistrement horodaté est créé.
+            Les anciennes versions sont conservées un nouvel enregistrement horodaté est créé.
         </p>
     </form>
 </div>

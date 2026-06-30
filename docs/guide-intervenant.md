@@ -1,4 +1,4 @@
-# Guide d'utilisation — Espace Intervenant·e
+# Guide d'utilisation Espace Intervenant·e
 
 Ce guide explique **chaque page** de votre espace : comment y aller, à quoi sert **chaque
 zone de l'écran**, et comment l'utiliser. Suivez les images. 🙂
@@ -34,14 +34,14 @@ En haut de chaque page, le **menu** vous emmène partout :
 **Comment y accéder :** menu **Accueil** (page d'arrivée après connexion).
 
 **Les zones de la page :**
-1. **En-tête** — « Bonjour M./Mme [votre nom] » + bouton **Mon profil** (à droite).
-2. **Vignettes de chiffres (KPI)** — 6 cases résumant votre mois :
+1. **En-tête** « Bonjour M./Mme [votre nom] » + bouton **Mon profil** (à droite).
+2. **Vignettes de chiffres (KPI)** 6 cases résumant votre mois :
    - **Total heures**, **Heures validées** (par les familles), **Heures en attente**,
      **Signalements** (écarts), **Prestations** (nombre), **Total km**.
-3. **Bandeau d'alerte** (s'il y en a) — « Relevé non signé… » avec un bouton pour aller le signer.
-4. **Actions rapides** — 5 raccourcis : **Saisir des heures**, **Scanner QR**,
+3. **Bandeau d'alerte** (s'il y en a) « Relevé non signé… » avec un bouton pour aller le signer.
+4. **Actions rapides** 5 raccourcis : **Saisir des heures**, **Scanner QR**,
    **Mes familles** (planning), **Relevé Garde enfants**, **Relevé Ménage**.
-5. **Dernières prestations** — un tableau de vos saisies récentes.
+5. **Dernières prestations** un tableau de vos saisies récentes.
 
 ![Tableau de bord avec les zones numérotées](images/intervenant-02-accueil.png)
 
@@ -77,7 +77,7 @@ n'êtes **pas connecté** → une page de pointage s'ouvre.
 **Les zones de la page :**
 1. **Nom de la famille** (en haut).
 2. **Champ « numéro de téléphone »** → tapez le vôtre, puis **Continuer**.
-3. **Confirmation du nom** — votre nom s'affiche pour vérifier que c'est bien vous.
+3. **Confirmation du nom** votre nom s'affiche pour vérifier que c'est bien vous.
 4. **Créneau prévu** au planning du jour (rappel).
 5. Bouton **Démarrer** (à l'arrivée) / **Terminer** (au départ, avec le récapitulatif Début → Fin).
 
@@ -93,8 +93,8 @@ n'êtes **pas connecté** → une page de pointage s'ouvre.
 **Comment y accéder :** menu **Saisir mes heures** (ou bouton « Saisir » depuis le planning / Mes heures).
 
 **Les zones du formulaire :**
-1. **Type** — boutons **Garde d'enfants** / **Ménage** (change la liste des familles).
-2. **Famille** — liste déroulante, ou option **Occasionnelle** + champ pour taper le nom.
+1. **Type** boutons **Garde d'enfants** / **Ménage** (change la liste des familles).
+2. **Famille** liste déroulante, ou option **Occasionnelle** + champ pour taper le nom.
 3. **Date** de la prestation.
 4. **Heure de début** et **Heure de fin** (sélecteur au quart d'heure).
 5. **Km avec enfant** (seulement pour la Garde).
@@ -112,11 +112,11 @@ n'êtes **pas connecté** → une page de pointage s'ouvre.
 **Comment y accéder :** menu **Mes heures**.
 
 **Les zones de la page :**
-1. **En-tête** — « Heures de [votre nom] » + bouton **Saisir** (pour ajouter).
-2. **Barre de recherche** — pour filtrer rapidement.
-3. **Tableau par mois** — colonnes : **Famille · Date · Début · Fin · Type · Statut**.
+1. **En-tête** « Heures de [votre nom] » + bouton **Saisir** (pour ajouter).
+2. **Barre de recherche** pour filtrer rapidement.
+3. **Tableau par mois** colonnes : **Famille · Date · Début · Fin · Type · Statut**.
    - Seul le **mois en cours** est ouvert ; les autres se déplient à la demande.
-4. **Clic sur une ligne** — pour la **modifier** ou la **supprimer**
+4. **Clic sur une ligne** pour la **modifier** ou la **supprimer**
    *(impossible si le mois est verrouillé ou le relevé signé).*
 
 ![Liste des heures regroupées par mois](images/intervenant-07-mes-heures.png)
@@ -128,9 +128,9 @@ n'êtes **pas connecté** → une page de pointage s'ouvre.
 **Comment y accéder :** menu **Planning**.
 
 **Les zones de la page :**
-1. **En-tête** — « Mon planning » + boutons **Scanner QR** et **Accueil**.
-2. **Une ligne (carte) par jour** — vos créneaux prévus (famille, horaires) ; le jour en cours est mis en avant.
-3. **Clic sur un créneau** — ouvre une fenêtre avec un bouton **Saisir** (pré-rempli) et **Fermer**.
+1. **En-tête** « Mon planning » + boutons **Scanner QR** et **Accueil**.
+2. **Une ligne (carte) par jour** vos créneaux prévus (famille, horaires) ; le jour en cours est mis en avant.
+3. **Clic sur un créneau** ouvre une fenêtre avec un bouton **Saisir** (pré-rempli) et **Fermer**.
 
 ![Planning de la semaine](images/intervenant-08-planning.png)
 
@@ -142,9 +142,9 @@ n'êtes **pas connecté** → une page de pointage s'ouvre.
 
 **Les zones de la page :**
 1. **Choix du mois** et du **type** (Garde / Ménage).
-2. **La fiche, MODIFIABLE** — tableau **jours × familles** (les cases qui contiennent des heures sont cliquables).
-3. **Familles occasionnelles** — affichées « Famille occasionnelle + nom ».
-4. **Heures hors Chaudoudoux** (en bas) — un champ « _ h _ » + bouton **Sauvegarder heures
+2. **La fiche, MODIFIABLE** tableau **jours × familles** (les cases qui contiennent des heures sont cliquables).
+3. **Familles occasionnelles** affichées « Famille occasionnelle + nom ».
+4. **Heures hors Chaudoudoux** (en bas) un champ « _ h _ » + bouton **Sauvegarder heures
    hors Chaudoudoux** : indiquez le total d'heures du mois pour **tous vos employeurs**.
 5. **Récapitulatif** (à droite/bas) : total par famille, km, total du mois.
 6. Bouton **Signer**.
@@ -153,7 +153,7 @@ n'êtes **pas connecté** → une page de pointage s'ouvre.
 
 ### ✏️ Comment modifier une heure (mois en cours, avant signature)
 1. **Cliquez sur la case** du jour à corriger (celle qui affiche déjà des heures).
-2. Une fenêtre **« Créneaux — [famille] »** s'ouvre avec, pour chaque créneau, deux sélecteurs :
+2. Une fenêtre **« Créneaux [famille] »** s'ouvre avec, pour chaque créneau, deux sélecteurs :
    **heure de début** (h / min) → **heure de fin** (h / min).
 3. Changez les valeurs, puis cliquez sur le bouton **✓** (coche) pour **enregistrer**.
 4. La fiche se met à jour **toute seule** (sans recharger). Fermez la fenêtre avec **Fermer**.
@@ -174,7 +174,7 @@ n'êtes **pas connecté** → une page de pointage s'ouvre.
 2. Cliquez sur **Signer** → une fenêtre de **confirmation** apparaît → confirmez avec **Signer**.
 3. Le **PDF** vous est **envoyé par email** et le relevé devient **verrouillé**.
 
-> ⚠️ Si le mois est **clôturé**, la fenêtre affiche « Ce mois est clôturé — modification
+> ⚠️ Si le mois est **clôturé**, la fenêtre affiche « Ce mois est clôturé modification
 > impossible » : vous ne pouvez plus corriger, contactez l'administration.
 > 📄 Au-delà de **5 familles**, le relevé continue sur une **page suivante**.
 
@@ -188,8 +188,8 @@ n'êtes **pas connecté** → une page de pointage s'ouvre.
 **Comment y accéder :** menu **Mon profil** (ou bouton **Mon profil** sur l'accueil).
 
 **Les zones de la page :**
-1. **En-tête** — votre nom + bouton **Accueil**.
-2. **Carte « Informations personnelles »** — nom, numéro de salarié, **email**, **téléphone**, adresse.
+1. **En-tête** votre nom + bouton **Accueil**.
+2. **Carte « Informations personnelles »** nom, numéro de salarié, **email**, **téléphone**, adresse.
 
 ![Page Mon profil](images/intervenant-10-profil.png)
 

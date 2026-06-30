@@ -43,11 +43,13 @@ security:
         # /declarer est public : le contrôleur redirige les non-connectés vers /pointage.
         - { path: ^/declarer,               roles: PUBLIC_ACCESS }
         - { path: ^/pointage,               roles: PUBLIC_ACCESS }
+        # /garde : déclaration garde d'enfant sans QR (téléphone → planning → pointage).
+        - { path: ^/garde,                  roles: PUBLIC_ACCESS }
         - { path: ^/admin-mvc,              roles: ROLE_ADMIN }
         - { path: ^/familles-mvc,           roles: ROLE_ADMIN }
         - { path: ^/famille/,               roles: ROLE_FAMILLE }
         # Catch-all : REMEMBERED (et non FULLY) pour ne pas casser le cookie
-        # « se souvenir de moi » d'1 an — un intervenant ré-authentifié par cookie
+        # « se souvenir de moi » d'1 an un intervenant ré-authentifié par cookie
         # est IS_AUTHENTICATED_REMEMBERED, pas FULLY.
         - { path: ^/,                       roles: IS_AUTHENTICATED_REMEMBERED }
 

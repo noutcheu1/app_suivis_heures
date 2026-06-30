@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Confirmer mes heures — {{ famille.nomFamille ?? '' }}{% endblock %}
+{% block title %}Confirmer mes heures {{ famille.nomFamille ?? '' }}{% endblock %}
 {% block page_title %}Confirmation des heures{% endblock %}
 
 {% block body %}
@@ -8,7 +8,7 @@
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
             <h1>{{ famille_label(famille) }}</h1>
-            <p>{{ moisLabel|capitalize }} — heures à confirmer</p>
+            <p>{{ moisLabel|capitalize }} heures à confirmer</p>
         </div>
         {% if isAdmin %}
         <a href="{{ path('admin_famille_detail_mvc', {numFam: famille.numeroFamille}) }}" class="btn btn-secondary btn-sm">

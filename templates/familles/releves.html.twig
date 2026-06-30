@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Mes relevés — {{ famille.nomFamille ?? '' }}{% endblock %}
+{% block title %}Mes relevés {{ famille.nomFamille ?? '' }}{% endblock %}
 {% block page_title %}Mes relevés{% endblock %}
 
 {% block body %}
@@ -14,7 +14,7 @@
   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
     <div>
       <h1>Mes relevés</h1>
-      <p>Historique des relevés mensuels — {{ famille_label(famille) }}</p>
+      <p>Historique des relevés mensuels {{ famille_label(famille) }}</p>
     </div>
     <a href="{{ path('famille_panel_mvc') }}" class="btn btn-secondary btn-sm">
       <i class="fas fa-arrow-left"></i> Mon espace
@@ -106,13 +106,13 @@
             <div style="display:flex;flex-direction:column;gap:5px;align-items:center;">
               {% if hasGE %}
               <a href="{{ path('famille_ma_facture_mvc', {mois: groupe.moisannee, type: 'GE'}) }}"
-                 class="btn btn-secondary btn-sm" title="Garde d'enfants — {{ moisFr }} {{ annee }}" style="white-space:nowrap;">
+                 class="btn btn-secondary btn-sm" title="Garde d'enfants {{ moisFr }} {{ annee }}" style="white-space:nowrap;">
                 <i class="fas fa-child"></i> Garde
               </a>
               {% endif %}
               {% if hasMENA %}
               <a href="{{ path('famille_ma_facture_mvc', {mois: groupe.moisannee, type: 'MENA'}) }}"
-                 class="btn btn-secondary btn-sm" title="Ménage — {{ moisFr }} {{ annee }}" style="white-space:nowrap;">
+                 class="btn btn-secondary btn-sm" title="Ménage {{ moisFr }} {{ annee }}" style="white-space:nowrap;">
                 <i class="fas fa-broom"></i> Ménage
               </a>
               {% endif %}

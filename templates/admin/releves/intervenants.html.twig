@@ -81,7 +81,7 @@ tr.selected-row:hover td { background:#eef2ff !important; }
         <h1 style="font-size:20px;font-weight:700;margin:0 0 4px;">Relevés des intervenants</h1>
         <p style="text-transform:uppercase; font-size:13px;color:var(--text-muted);margin:0;">
             Du <strong>{{ periodeDebut|date('d/m/Y') }}</strong> au <strong>{{ periodeFin|date('d/m/Y') }}</strong>
-            — {{ intervenants|length }} intervenants
+            {{ intervenants|length }} intervenants
         </p>
     </div>
     {% set moisLabelCourant = '' %}
@@ -368,7 +368,7 @@ tr.selected-row:hover td { background:#eef2ff !important; }
                 {% endif %}
             </td>
 
-            {# Téléchargé admin — M et GE avec date #}
+            {# Téléchargé admin M et GE avec date #}
             <td class="col-sm-hide" style="text-align:center;font-size:12px;">
                 {% if hT == 0 %}
                     <span style="color:var(--border-strong);">—</span>
@@ -417,7 +417,7 @@ tr.selected-row:hover td { background:#eef2ff !important; }
               {% endif %}
 
 
-            {# TYPE DE PRESTATION — d'après le PLANNING (proposer), pas les heures.
+            {# TYPE DE PRESTATION d'après le PLANNING (proposer), pas les heures.
                Style « étiquette » neutre (gris/outline pointillé) pour ne PAS confondre
                avec les boutons de téléchargement bleu/vert de la colonne PDF individuel. #}
             <td style="text-align:center;padding-right:16px;" colspan="2">

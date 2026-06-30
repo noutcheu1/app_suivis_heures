@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Modèles d'email — Admin{% endblock %}
+{% block title %}Modèles d'email Admin{% endblock %}
 {% block page_title %}Personnalisation des emails{% endblock %}
 
 {% block body %}
@@ -26,7 +26,7 @@
         {# Variables disponibles + signification #}
         <div style="background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;">
             <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">
-                <i class="fas fa-tags"></i> Variables disponibles — cliquez pour copier
+                <i class="fas fa-tags"></i> Variables disponibles cliquez pour copier
             </div>
             {% for nom, desc in t.variables %}
                 <div style="display:flex;align-items:baseline;gap:10px;padding:4px 0;">

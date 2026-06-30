@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Facture — {{ famille ? famille.nomFamille : facture.numFam }} — {{ moisAnnee }}{% endblock %}
+{% block title %}Facture {{ famille ? famille.nomFamille : facture.numFam }} {{ moisAnnee }}{% endblock %}
 {% block page_title %}Facture mensuelle{% endblock %}
 
 {% set labelMois = moisAnnee|date('F Y', null, 'fr') %}
@@ -10,7 +10,7 @@
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
             <h1>{{ famille ? famille_label(famille) : facture.numFam }}</h1>
-            <p>Facture — <strong>{{ labelMois }}</strong></p>
+            <p>Facture <strong>{{ labelMois }}</strong></p>
         </div>
         <div style="display:flex;gap:8px;">
             <a href="{{ path('admin_facture_print_mvc', {numFam: facture.numFam, moisAnnee: moisAnnee}) }}"

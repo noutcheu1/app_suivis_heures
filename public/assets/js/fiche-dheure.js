@@ -16,7 +16,7 @@ if (typeof ID === 'undefined') {
 let periodeFin = null;
 // Relevé signé → plus aucune modification possible (cases verrouillées).
 let RELEVE_SIGNED = false;
-// Fiche/page courante du pager — conservée à travers les rafraîchissements (édition).
+// Fiche/page courante du pager conservée à travers les rafraîchissements (édition).
 let FICHE_PAGE = 0;
 
 // ─── Peuplement select minutes (0, 5, 10 … 55) ───────────────────────────────
@@ -86,7 +86,7 @@ async function chargerReleve() {
     periodeFin = data.periode.fin;
     RELEVE_SIGNED = !!(data.signer && data.signer.etat);
 
-    console.group(`[Relevé] ${data.type} — ${data.periode.mois} ${data.periode.anner}`);
+    console.group(`[Relevé] ${data.type} ${data.periode.mois} ${data.periode.anner}`);
     console.log('Période fin      :', data.periode.fin);
     console.log('Intervenant      :', data.intervenant);
     console.log('Familles (nb)    :', data.familles.length);
@@ -98,7 +98,7 @@ async function chargerReleve() {
 
     const container = document.getElementById('tableContainer');
     if (!container) {
-        console.error('[DOM] ⚠️ #tableContainer est NULL — impossible d\'insérer les tableaux !');
+        console.error('[DOM] ⚠️ #tableContainer est NULL impossible d\'insérer les tableaux !');
         toast('[chargerReleve] #tableContainer introuvable dans le DOM !');
         if (typeof activerBoutonTelechargement === 'function') activerBoutonTelechargement();
         return;
@@ -242,8 +242,8 @@ function buildCorps(data, famillesSubset, opts = {}) {
 
     familles.forEach((fam, i) => {
         const th = document.createElement('th');
-        // Occasionnelle = pas de numéro de famille réel (null / '' / '0' / '9998').
-        const estOccasionnel = !fam.numFam || fam.numFam === '0' || fam.numFam === '9998';
+        // Occasionnelle = flag serveur (hors planning) OU pas de numéro réel.
+        const estOccasionnel = fam.occasionnel === true || !fam.numFam || fam.numFam === '0' || fam.numFam === '9998';
         const nomFamHtml = estOccasionnel
             ? 'FAMILLE OCCASIONNELLE' + (fam.nomFam ? ' ' + escHtml(fam.nomFam) : '')
             : escHtml(fam.nomFam);
@@ -422,50 +422,19 @@ function fermerSignConfirm() {
     document.getElementById('signConfirmModal')?.classList.remove('open');
 }
 
-async function signer() {
+function signer() {
     if (!periodeFin)   { setSignStatus('Données non encore chargées.', 'error'); return; }
     if (RELEVE_SIGNED) { setSignStatus('Ce relevé est déjà signé.', 'info'); return; }
 
-    const btn = document.getElementById('signerButton');
-    if (btn) { btn.disabled = true; btn.dataset._t = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signature…'; }
-    setSignStatus('Signature en cours…', 'info');
-
-    let pdfBase64 = null;
-    try { pdfBase64 = await genererRelevePdfViaTelechargement(); }
-    catch (e) { console.warn('[signer] PDF non généré :', e); }
-    if (!pdfBase64) console.warn('[signer] pdfBase64 vide — vérifier la page de téléchargement.');
-
-    try {
-        const res = await fetch(`/api/intervenants/${ID}/signer-email`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-                type,
-                periodeFin,
-                pdfBase64,
-                filename: `Releve_${type}_${periodeFin}.pdf`,
-            }),
-        });
-        const result = await res.json();
-        if (!result.success) {
-            console.error('[signer] échec :', result);
-            setSignStatus(result.message || 'Signature impossible.', 'error');
-            if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset._t; }
-            return;
-        }
-        if (result.emailEnvoye === false) {
-            console.warn('[signer] email non envoyé :', result.message);
-            setSignStatus('Relevé signé (email non envoyé' + (result.message ? ' : ' + result.message : '') + ')', 'info');
-        } else {
-            setSignStatus('Relevé signé et envoyé par email ✓', 'ok');
-        }
-        chargerReleve(); // recharge → état signé → verrouillage
-    } catch (err) {
-        console.error('[signer] erreur réseau :', err);
-        setSignStatus('Erreur réseau lors de la signature.', 'error');
-        if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset._t; }
-    }
+    // La génération du PDF + l'envoi de l'email + la signature se font sur la PAGE
+    // D'ATTENTE dédiée (à implémenter). On y redirige immédiatement avec le contexte.
+    setSignStatus('Redirection…', 'info');
+    const q = new URLSearchParams({
+        type:    type,
+        periode: periodeFin,
+        mois:    params.get('mois') || '0',
+    });
+    window.location.href = `/intervenants-mvc/${ID}/releve-signe?${q.toString()}`;
 }
 
 // Génère le relevé EXACTEMENT comme le téléchargement : on charge la page PDF
@@ -514,7 +483,7 @@ function appliquerEtatSignature(data) {
         const b = document.createElement('div');
         b.id = 'signedBanner';
         b.style.cssText = 'margin-bottom:12px;padding:10px 14px;background:#f0fdf4;border-left:3px solid #22c55e;border-radius:8px;font-size:13px;color:#166534;';
-        b.innerHTML = `<i class="fas fa-lock"></i> Relevé signé le <strong>${escHtml(data.signer.date ?? '')}</strong> — il ne peut plus être modifié.`;
+        b.innerHTML = `<i class="fas fa-lock"></i> Relevé signé le <strong>${escHtml(data.signer.date ?? '')}</strong> il ne peut plus être modifié.`;
         container.parentNode.insertBefore(b, container);
     }
 }
@@ -584,7 +553,7 @@ function hm(secondes) {
     return `${h}h${String(m).padStart(2, '0')}`;
 }
 
-// Heures en centièmes (ex. 2h30 → "2,50") — cohérent avec les cellules du relevé.
+// Heures en centièmes (ex. 2h30 → "2,50") cohérent avec les cellules du relevé.
 function centieme(secondes) {
     return (Math.max(0, secondes || 0) / 3600).toFixed(2).replace('.', ',');
 }
@@ -700,7 +669,7 @@ function fillMinuteOptions(sel, value) {
 function openCellEditor(date, numFam, nomFam) {
     CELL_CTX = { date, numFam, nomFam };
     const modal = document.getElementById('cellEditModal');
-    document.getElementById('cellModalTitle').textContent = `Créneaux — ${nomFam || 'Famille occasionnelle'}`;
+    document.getElementById('cellModalTitle').textContent = `Créneaux ${nomFam || 'Famille occasionnelle'}`;
     document.getElementById('cellModalSub').textContent =
         `${frDate(date)} · ${type === 'MENA' ? 'Ménage' : "Garde d'enfants"}`;
     document.getElementById('cellLockedNote').style.display = 'none';

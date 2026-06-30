@@ -1,4 +1,4 @@
-# Guide pratique — La Maison des Chaudoudoux
+# Guide pratique La Maison des Chaudoudoux
 
 Ce guide va droit au but : **« Je veux faire X → voici comment »**.
 Trouvez votre situation et suivez les étapes, une par une.

@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Profil — {{ famille.nomFamille }}{% endblock %}
+{% block title %}Profil {{ famille.nomFamille }}{% endblock %}
 {% block page_title %}Mon profil{% endblock %}
 
 {% block body %}
@@ -12,7 +12,7 @@
             </div>
             <div>
                 <h1>{{ famille_label(famille) }}</h1>
-                <p>Famille — <code style="font-size:12px;">{{ famille.numeroFamille }}</code></p>
+                <p>Famille <code style="font-size:12px;">{{ famille.numeroFamille }}</code></p>
             </div>
         </div>
         <a href="{{ path('famille_panel_mvc') }}" class="btn btn-secondary btn-sm">

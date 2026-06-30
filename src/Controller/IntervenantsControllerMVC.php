@@ -82,7 +82,37 @@ final class IntervenantsControllerMVC extends AbstractController
             'dernieres'       => $dernieres,
             'prochainCreneau' => $prochainCreneau,
             'familles'        => $familles,
+            // Pointages NON terminés → récupération d'oubli (clôture sans QR).
+            'pointagesEnCours'=> $this->horaireService->getPointagesEnCours($id),
         ]);
+    }
+
+    // ── Clôturer un pointage oublié (sans QR, intervenant connecté) ──────────
+    #[Route('/intervenants-mvc/{id}/cloturer-pointage', name: 'intervenant_cloturer_pointage_mvc', methods: ['POST'])]
+    public function cloturerPointage(int $id, Request $request): Response
+    {
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
+        $id = $this->resolveId($id);
+
+        if (!$this->isCsrfTokenValid('cloturer', $request->request->get('_csrf_token'))) {
+            $this->addFlash('error', 'Jeton de sécurité invalide. Réessayez.');
+            return $this->redirectToRoute('intervenant_panel_mvc', ['id' => $id]);
+        }
+
+        try {
+            $this->horaireService->cloturerPointageOublie(
+                $id,
+                (int) $request->request->get('horaireId'),
+                (string) $request->request->get('heure', ''),
+            );
+            $this->addFlash('success', 'Pointage clôturé.');
+        } catch (\Throwable $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('intervenant_panel_mvc', ['id' => $id]);
     }
 
     // ── Profil ────────────────────────────────────────────────────────────────
@@ -103,6 +133,24 @@ final class IntervenantsControllerMVC extends AbstractController
         return $this->render('intervenants/profile.html.twig', [
             'auth' => $this->authService->check(),
             'user' => $user,
+        ]);
+    }
+
+    // ── Page d'attente après clic « Signer » (génère le PDF + envoie l'email) ──
+    #[Route('/intervenants-mvc/{id}/releve-signe', name: 'intervenant_releve_signe_mvc')]
+    public function releveSigne(int $id, Request $request): Response
+    {
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
+        $id = $this->resolveId($id);
+
+        return $this->render('intervenants/hours/releve-signe.html.twig', [
+            'auth'    => $this->authService->check(),
+            'id'      => $id,
+            'type'    => strtoupper($request->query->get('type', 'ENFA')),
+            'periode' => $request->query->get('periode', ''),
+            'mois'    => (int) $request->query->get('mois', 0),
         ]);
     }
 
@@ -225,7 +273,7 @@ final class IntervenantsControllerMVC extends AbstractController
 
         $familles     = $this->familleIntervenantService->getFamillesForIntervenant($id);
         $assignations = $this->familleIntervenantService->getAssignationsActives($id);
-        // Types (MENA/ENFA) par famille — tous les proposers PREST, pour filtrer le select
+        // Types (MENA/ENFA) par famille tous les proposers PREST, pour filtrer le select
         $typesParFamille = $this->familleIntervenantService->getTypesParFamille($id);
 
         // Plage de facturation courante : 25 du mois précédent → aujourd'hui
@@ -375,6 +423,8 @@ final class IntervenantsControllerMVC extends AbstractController
             'famillesScan' => $famillesScan,
             'assignations' => $assignations,
             'dejaPointe'   => array_keys($dejaPointe),
+            // Pointages en cours (côté serveur) → afficher « Terminer » au scan + oublis.
+            'enCours'      => $this->horaireService->getPointagesEnCours($id),
         ]);
     }
 
@@ -405,43 +455,70 @@ final class IntervenantsControllerMVC extends AbstractController
             return $this->json(['success' => false, 'error' => 'Accès refusé'], 403);
         }
 
-        $data       = json_decode($request->getContent(), true) ?? [];
-        $action     = $data['action']     ?? null;
-        $numFam     = $data['numFam']     ?? null;
-        $nomFam     = $data['nomFam']     ?? '';
-        $heureDebut = $data['heureDebut'] ?? null;
-        $heureFin   = $data['heureFin']   ?? null;
-        $date       = $data['date']       ?? date('Y-m-d');
-        $type       = $data['type']       ?? 'ENFA';
-        $km         = $data['km']         ?? null;
+        $data    = json_decode($request->getContent(), true) ?? [];
+        $action  = $data['action'] ?? null;
+        $numFam  = $data['numFam'] ?? null;
+        $type    = $data['type']   ?? 'ENFA';
+        $km      = isset($data['km']) && $data['km'] !== null && $data['km'] !== '' ? (float) $data['km'] : null;
+        // Heures du téléphone : arrondie (relevé) + réelle (trace). Format HH:MM validé.
+        $heure       = $this->heureValideQr($data['heure'] ?? null);
+        $heureReelle = $this->heureValideQr($data['heureReelle'] ?? null);
 
         if (!$numFam) {
             return $this->json(['success' => false, 'error' => 'Famille manquante'], 400);
         }
 
-        if (!$this->familleIntervenantService->peutPointer($id, $numFam)) {
-            return $this->json(['success' => false, 'error' => 'Intervenant non assigné à cette famille'], 403);
+        // Nom réel résolu côté serveur (vraie famille même hors planning → occasionnel).
+        $famille = $this->familleService->getFamilleParNumero((string) $numFam);
+        $nomFam  = $this->familleExtension->familleLabel($famille ?? $numFam) ?: (string) $numFam;
+
+        // Famille connue = présente en base ET non archivée.
+        $familleConnue = $famille !== null && $famille->getArchive() !== true;
+
+        // Vérification (avant de démarrer) : la famille est-elle reconnue ?
+        if ($action === 'verifier') {
+            return $this->json([
+                'success' => true,
+                'connue'  => $familleConnue,
+                'nom'     => $familleConnue ? $nomFam : null,
+            ]);
         }
 
-        if ($action === 'fin' && $heureDebut && $heureFin) {
-            try {
-                $this->horaireService->ajouterPrestation([
-                    'numFam'           => $numFam,
-                    'nomFam'           => $nomFam,
-                    'numInter'         => $id,
-                    'datePresta'       => $date,
-                    'heureDebutPresta' => $heureDebut,
-                    'heureFinPresta'   => $heureFin,
-                    'typePresta'       => $type,
-                    'kmAvecEnfant'     => $km,
-                ]);
-            } catch (\Throwable $e) {
-                return $this->json(['success' => false, 'error' => $e->getMessage()], 422);
+        // Famille inconnue (absente/archivée) → on n'enregistre pas : saisie manuelle requise.
+        if (!$familleConnue) {
+            return $this->json([
+                'success' => false,
+                'inconnue' => true,
+                'error'   => 'Famille inconnue utilisez la saisie manuelle.',
+            ], 404);
+        }
+
+        try {
+            if ($action === 'debut') {
+                $this->horaireService->demarrerPointage($id, (string) $numFam, $nomFam, (string) $type, $heure, $heureReelle);
+                return $this->json(['success' => true, 'action' => 'debut']);
             }
-            return $this->json(['success' => true, 'action' => 'saved']);
+
+            if ($action === 'fin') {
+                $h = $this->horaireService->terminerPointage($id, (string) $numFam, $km, $heure, $heureReelle);
+                return $this->json([
+                    'success' => true,
+                    'action'  => 'fin',
+                    'debut'   => $h->getHeureDebutPresta()?->format('H:i'),
+                    'fin'     => $h->getHeureFinPresta()?->format('H:i'),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            return $this->json(['success' => false, 'error' => $e->getMessage()], 422);
         }
 
-        return $this->json(['success' => true, 'action' => 'debut_recorded']);
+        return $this->json(['success' => false, 'error' => 'Action inconnue'], 400);
+    }
+
+    /** Valide une heure « HH:MM » envoyée par le téléphone (null si invalide). */
+    private function heureValideQr(mixed $heure): ?string
+    {
+        return is_string($heure) && preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $heure) ? $heure : null;
     }
 
     // ── Déclaration via QR famille (scan appareil photo natif) ─────────────────
@@ -450,44 +527,16 @@ final class IntervenantsControllerMVC extends AbstractController
     // son formulaire de saisie pré-rempli avec la famille (pas besoin de la caméra
     // de l'app, donc pas de contrainte HTTPS pour getUserMedia).
     #[Route('/declarer/{numFam}', name: 'declarer_qr_mvc', methods: ['GET'])]
-    public function declarerViaQr(string $numFam, Request $request): Response
+    public function declarerViaQr(string $numFam): Response
     {
-        // Non connecté → pointage SANS connexion : identification par numéro de
-        // téléphone sur la page dédiée (pas de login forcé).
-        if (!$this->authService->check()) {
-            return $this->redirectToRoute('pointage_saisie', ['numFam' => $numFam]);
-        }
-
-        $interId = $this->authService->intervenant_id();
-
-        // Un admin n'a pas de saisie personnelle : on l'informe simplement
-        if (!$interId) {
-            $this->addFlash('error', "Ce QR est destiné aux intervenants. Connectez-vous avec un compte intervenant.");
-            return $this->redirectToRoute('intervenants_mvc');
-        }
-
-        $today   = (new \DateTime())->format('Y-m-d');
-        $famille = $this->familleService->getFamilleParNumero($numFam);
-
-        // Intervenant assigné à cette famille → scanner de l'app en mode AUTOMATIQUE
-        // (compteur Démarrer/Terminer) pré-sélectionné sur cette famille, sans caméra.
-        if ($famille && $this->familleIntervenantService->peutPointer((int) $interId, (string) $numFam)) {
-            return $this->redirectToRoute('intervenant_qr_mvc', [
-                'id'  => $interId,
-                'fam' => $numFam,
-            ]);
-        }
-
-        // Non assigné (ou famille hors de sa liste) → saisie OCCASIONNELLE
-        // avec le VRAI nom de famille pré-rempli (via famille_label : parent/nom).
-        $nom = $this->familleExtension->familleLabel($famille ?? $numFam) ?: $numFam;
-        return $this->redirectToRoute('intervenant_suivie_mvc', [
-            'id'      => $interId,
-            'famille' => '0',
-            'nom'     => $nom,
-            'date'    => $today,
-        ]);
+        // Flux UNIQUE de pointage : qu'on soit connecté ou non, on passe par /pointage.
+        // - non connecté : la page demande le numéro de téléphone ;
+        // - connecté : la page récupère automatiquement le numéro de l'intervenant.
+        // La logique métier (famille connue/occasionnelle, heures) vit dans PointageController.
+        return $this->redirectToRoute('pointage_saisie', ['numFam' => $numFam]);
     }
+
+
 
     // ── Admin : archiver ──────────────────────────────────────────────────────
 

@@ -25,23 +25,23 @@ class EmailTemplateService
                 'identifiant' => 'Identifiant du compte (n° salarié intervenant ou n° famille)',
                 'code'        => 'Code de réinitialisation à 6 chiffres',
             ],
-            'sujet'     => 'Chaudoudoux — Code de réinitialisation',
+            'sujet'     => 'Chaudoudoux Code de réinitialisation',
             'corps'     => "Bonjour,\n\n"
                 . "Vous avez demandé la réinitialisation du mot de passe pour le compte : {identifiant}\n\n"
                 . "Votre code de réinitialisation : {code}\n\n"
                 . "Ce code est valable 1 heure.\n"
                 . "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.\n\n"
-                . "— L'équipe La Maison des Chaudoudoux",
+                . "L'équipe La Maison des Chaudoudoux",
         ],
         'releve_signe' => [
             'label'     => "Relevé d'heures signé (avec PDF)",
             'variables' => [
                 'libelle' => "Type de prestation (« Ménage » ou « Garde d'enfants »)",
             ],
-            'sujet'     => "Chaudoudoux — Relevé d'heures signé ({libelle})",
+            'sujet'     => "Chaudoudoux Relevé d'heures signé ({libelle})",
             'corps'     => "Bonjour,\n\n"
                 . "Votre relevé d'heures {libelle} a bien été signé. Vous le trouverez en pièce jointe.\n\n"
-                . "— La Maison des Chaudoudoux",
+                . "La Maison des Chaudoudoux",
         ],
         'rappel_releve' => [
             'label'     => 'Rappel : relevé à signer (à venir)',
@@ -49,10 +49,38 @@ class EmailTemplateService
                 'nom'  => "Nom complet de l'intervenant",
                 'mois' => 'Mois concerné (ex. « mai 2026 »)',
             ],
-            'sujet'     => 'Chaudoudoux — Pensez à signer votre relevé de {mois}',
+            'sujet'     => 'Chaudoudoux Pensez à signer votre relevé de {mois}',
             'corps'     => "Bonjour {nom},\n\n"
                 . "Votre relevé d'heures du mois de {mois} est prêt et attend votre signature.\n\n"
-                . "— La Maison des Chaudoudoux",
+                . "La Maison des Chaudoudoux",
+        ],
+        'pointage_fin_proche' => [
+            'label'     => 'Rappel : fin de prestation proche (≈15 min avant)',
+            'variables' => [
+                'nom'     => "Nom complet de l'intervenant",
+                'famille' => 'Nom de la famille',
+                'debut'   => 'Heure de début (ex. « 08:00 »)',
+                'fin'     => 'Heure de fin prévue (ex. « 16:00 »)',
+            ],
+            'sujet'     => 'Chaudoudoux Votre prestation se termine bientôt',
+            'corps'     => "Bonjour {nom},\n\n"
+                . "Votre prestation chez {famille} (commencée à {debut}) est prévue jusqu'à {fin}.\n"
+                . "Pensez à terminer votre pointage à la fin de l'intervention.\n\n"
+                . "La Maison des Chaudoudoux",
+        ],
+        'pointage_oubli' => [
+            'label'     => 'Rappel : pointage non terminé (oubli)',
+            'variables' => [
+                'nom'     => "Nom complet de l'intervenant",
+                'famille' => 'Nom de la famille',
+                'debut'   => 'Heure de début (ex. « 08:00 »)',
+                'fin'     => 'Heure de fin prévue (ex. « 16:00 »)',
+            ],
+            'sujet'     => 'Chaudoudoux N\'oubliez pas de terminer votre pointage',
+            'corps'     => "Bonjour {nom},\n\n"
+                . "Votre pointage chez {famille} (commencé à {debut}, fin prévue à {fin}) est toujours en cours.\n"
+                . "Merci de le terminer dès que possible pour enregistrer vos heures.\n\n"
+                . "La Maison des Chaudoudoux",
         ],
     ];
 

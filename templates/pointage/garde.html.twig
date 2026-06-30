@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token('pointage') }}">
+    <title>Déclaration garde d'enfant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --primary:#4f46e5; --green:#16a34a; --muted:#64748b; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:Inter,system-ui,-apple-system,sans-serif; background:#f1f5f9;
+               min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:24px 16px; }
+        .card { background:#fff; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.08);
+                width:100%; max-width:420px; padding:28px 24px; }
+        h1 { font-size:18px; margin:0 0 4px; color:#1e1b4b; }
+        .sub { font-size:14px; color:var(--muted); margin-bottom:20px; }
+        label { display:block; font-size:13px; font-weight:600; color:#334155; margin:14px 0 6px; }
+        input[type=tel] { width:100%; padding:13px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:16px; }
+        input:focus { outline:none; border-color:var(--primary); }
+        .btn { width:100%; padding:14px; border:none; border-radius:10px; font-size:15px; font-weight:600;
+                cursor:pointer; margin-top:18px; color:#fff; background:var(--primary); }
+        .btn:disabled { opacity:.5; cursor:not-allowed; }
+        .hidden { display:none; }
+        .confirm-nom { font-size:20px; font-weight:700; color:#1e1b4b; text-align:center; margin:4px 0 14px; }
+        .hint { font-size:12px; color:var(--muted); margin-top:10px; text-align:center; }
+        .creneau { width:100%; text-align:left; background:#fff; border:2px solid #cbd5e1; border-radius:12px;
+                   padding:14px; margin-top:10px; cursor:pointer; display:flex; align-items:center; gap:12px; }
+        .creneau:hover { border-color:var(--primary); background:#eef2ff; }
+        .creneau .ic { width:38px; height:38px; border-radius:10px; background:#eef2ff; color:var(--primary);
+                       display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+        .creneau .nom { font-weight:700; color:#1e1b4b; font-size:15px; }
+        .creneau .plage { font-size:13px; color:var(--muted); }
+        .badge { margin-left:auto; font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px;
+                 background:#fef3c7; color:#b45309; }
+        .empty { text-align:center; color:var(--muted); font-size:14px; padding:18px 0; }
+    </style>
+</head>
+<body>
+<div class="card" id="card"
+     data-url-planning="{{ path('garde_planning') }}">
+
+    <h1><i class="fas fa-child" style="color:var(--primary);"></i> Garde d'enfant</h1>
+    <div class="sub">Déclarez votre garde du jour</div>
+
+    {# Étape 1 : numéro de téléphone #}
+    <div id="etape-tel">
+        <label for="tel">Votre numéro de téléphone</label>
+        <input type="tel" id="tel" inputmode="numeric" autocomplete="tel" placeholder="06 12 34 56 78">
+        <button class="btn" id="btn-continuer">Voir mes gardes du jour</button>
+        <div class="hint">Identifiez-vous avec le numéro enregistré dans votre dossier.</div>
+    </div>
+
+    {# Étape 2 : choix de la famille (créneaux garde du jour) #}
+    <div id="etape-liste" class="hidden">
+        <div class="confirm-nom" id="confirm-nom"></div>
+        <label>Chez quelle famille intervenez-vous ?</label>
+        <div id="liste-creneaux"></div>
+        <div class="empty hidden" id="aucun">Aucune garde prévue aujourd'hui dans votre planning.</div>
+        <button class="btn" id="btn-retour" style="background:#e2e8f0;color:#334155;">Changer de numéro</button>
+    </div>
+</div>
+
+<script src="{{ asset('assets/js/app.js') }}?v={{ 'now'|date('YmdHis') }}"></script>
+<script src="{{ asset('assets/js/garde.js') }}?v={{ 'now'|date('YmdHis') }}" defer></script>
+</body>
+</html>

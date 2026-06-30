@@ -328,9 +328,9 @@ class HoraireinterRepository extends ServiceEntityRepository
             ->andWhere('h.datePresta BETWEEN :startDate AND :endDate')
             ->andWhere('h.typePresta = :type')
             ->andWhere('h.desactiver = :desactiver')
-            // Exclut les pointages encore en cours (début sans fin) : pas une heure
-            // déclarée tant qu'il n'y a pas d'heure de fin.
-            ->andWhere('h.heureFinPresta IS NOT NULL')
+            // Exclut les pointages encore EN COURS : le marqueur « terminé » est la
+            // fin RÉELLE (posée au Terminer), pas la fin déclarée (qui peut être modifiée).
+            ->andWhere('h.heureFinReelle IS NOT NULL')
             ->setParameter('numInter', $numInter)
             ->setParameter('startDate', $startDate)
             ->setParameter('endDate', $endDate)
@@ -355,7 +355,7 @@ class HoraireinterRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('h')
             ->where('h.numInter = :numInter')
             ->andWhere('h.datePresta BETWEEN :debut AND :fin')
-            ->andWhere('h.heureFinPresta IS NULL')
+            ->andWhere('h.heureFinReelle IS NULL')
             ->andWhere('h.desactiver = :desactiver')
             ->setParameter('numInter', $numInter)
             ->setParameter('debut', $debutJour)
@@ -372,6 +372,47 @@ class HoraireinterRepository extends ServiceEntityRepository
         }
 
         return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * Tous les pointages « en cours » (début sans fin) d'un intervenant sert au scan
+     * connecté pour savoir, à l'affichage, quelles familles ont un pointage à terminer
+     * (et récupérer les oublis d'un autre jour).
+     *
+     * @return Horaireinter[]
+     */
+    public function findAllEnCours(int $numInter): array
+    {
+        return $this->createQueryBuilder('h')
+            ->where('h.numInter = :numInter')
+            ->andWhere('h.heureFinReelle IS NULL')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('numInter', $numInter)
+            ->setParameter('desactiver', false)
+            ->orderBy('h.datePresta', 'ASC')
+            ->addOrderBy('h.heureDebutPresta', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Tous les pointages « en cours » du JOUR, tous intervenants confondus.
+     * Sert à la commande de rappels (cron) : notifier l'oubli / la fin imminente.
+     *
+     * @return Horaireinter[]
+     */
+    public function findEnCoursAujourdhuiTous(): array
+    {
+        return $this->createQueryBuilder('h')
+            ->where('h.datePresta BETWEEN :debut AND :fin')
+            ->andWhere('h.heureFinReelle IS NULL')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('debut', new \DateTime('today 00:00:00'))
+            ->setParameter('fin', new \DateTime('today 23:59:59'))
+            ->setParameter('desactiver', false)
+            ->orderBy('h.numInter', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     public function findDistinctFamilleNumsByIntervenant(int $numInter): array
@@ -475,6 +516,7 @@ class HoraireinterRepository extends ServiceEntityRepository
               AND h.numInter > 0
               AND h.heureDebutPresta IS NOT NULL
               AND h.heureFinPresta IS NOT NULL
+              AND h.heureFinReelle IS NOT NULL
               $familleWhere
               $typeWhere
             GROUP BY h.numInter, h.typePresta

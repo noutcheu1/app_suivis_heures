@@ -81,7 +81,7 @@ final class LoginControllerMVC extends AbstractController
         $password2 = $data['password2'] ?? null;
         $role      = match($type) { 'FAM' => 'famille', default => 'intervenant' };
 
-        $this->logger->info('Tentative inscription API', ['id' => $id, 'type' => $type]);
+        $this->logger->info('Tentative inscription API', ['type' => $type]);
 
         if (!$id || !$password || !$password2) {
             return $this->json(['success' => false, 'error' => 'Tous les champs sont requis.']);
@@ -95,17 +95,20 @@ final class LoginControllerMVC extends AbstractController
             return $this->json(['success' => false, 'error' => 'Les mots de passe ne correspondent pas.']);
         }
 
+        // Le téléphone saisi ($id) est vérifié sur chaudoudou ; on en déduit l'identifiant
+        // de COMPTE (numSalarie) et l'email. Le téléphone n'est JAMAIS stocké dans horaire.
         if ($errorDossier = $this->validerExistenceDossier($id, $type)) {
             return $this->json(['success' => false, 'error' => $errorDossier]);
         }
+        [$loginId, $email] = $this->resoudreIdentifiantCompte($id, $type);
 
-        if ($this->UserSuiviService->identifiantExiste($id)) {
+        if ($this->UserSuiviService->identifiantExiste($loginId)) {
             return $this->json(['success' => false, 'error' => 'Utilisateur déjà inscrit.']);
         }
 
         try {
-            $this->UserSuiviService->creerUtilisateur($id, $password, $role);
-            $this->logger->info('Utilisateur créé via API', ['id' => $id, 'role' => $role]);
+            $this->UserSuiviService->creerUtilisateur($loginId, $password, $role, $email);
+            $this->logger->info('Utilisateur créé via API', ['role' => $role]);
         } catch (\Throwable $th) {
             $this->logger->error('Erreur création utilisateur', ['exception' => $th->getMessage()]);
             return $this->json(['success' => false, 'error' => "Erreur  : {$th->getMessage()}"]);
@@ -144,16 +147,21 @@ final class LoginControllerMVC extends AbstractController
                 $error = 'Les mots de passe ne correspondent pas.';
             } elseif ($errorDossier = $this->validerExistenceDossier($id, $type)) {
                 $error = $errorDossier;
-            } elseif ($this->UserSuiviService->identifiantExiste($id)) {
-                $error = 'Un compte existe déjà avec cet identifiant.';
             } else {
-                try {
-                    $this->UserSuiviService->creerUtilisateur($id, $password, $role);
-                    $this->logger->info('Utilisateur créé via FORM', ['id' => $id, 'role' => $role]);
-                    return $this->redirectToRoute('app_login', ['type' => $type]);
-                } catch (\Throwable $th) {
-                    $error = "Erreur  : {$th->getMessage()}";
-                    $this->logger->error('Erreur inscription FORM', ['exception' => $th->getMessage()]);
+                // Téléphone vérifié sur chaudoudou → identifiant de compte = numSalarie
+                // (jamais le téléphone). Famille : son code inchangé.
+                [$loginId, $email] = $this->resoudreIdentifiantCompte($id, $type);
+                if ($this->UserSuiviService->identifiantExiste($loginId)) {
+                    $error = 'Un compte existe déjà avec cet identifiant.';
+                } else {
+                    try {
+                        $this->UserSuiviService->creerUtilisateur($loginId, $password, $role, $email);
+                        $this->logger->info('Utilisateur créé via FORM', ['role' => $role]);
+                        return $this->redirectToRoute('app_login', ['type' => $type]);
+                    } catch (\Throwable $th) {
+                        $error = "Erreur  : {$th->getMessage()}";
+                        $this->logger->error('Erreur inscription FORM', ['exception' => $th->getMessage()]);
+                    }
                 }
             }
 
@@ -183,14 +191,29 @@ final class LoginControllerMVC extends AbstractController
             return null;
         }
 
-        // INTER ou type inconnu — cherche un intervenant
-        $trouve = $this->intervenantRepository->findByNumSalarie($id)
-               ?? $this->intervenantRepository->findByNumSs($id);
-
-        if (!$trouve) {
-            return 'Aucun dossier intervenant trouvé avec cet identifiant.';
+        // INTER ou type inconnu : on retrouve l'intervenant par son TÉLÉPHONE (RGPD :
+        // plus de numSS). findByTelephoneNormalise refuse 0 ou plusieurs correspondances.
+        if (!$this->intervenantRepository->findByTelephoneNormalise($id)) {
+            return 'Aucun dossier intervenant trouvé avec ce numéro de téléphone.';
         }
 
         return null;
+    }
+
+    /**
+     * À partir de l'identifiant SAISI, retourne [identifiantCompte, email].
+     *  - FAMILLE : son code (PM/PGE) tel quel, sans email → INCHANGÉ.
+     *  - INTERVENANT : le téléphone est vérifié sur chaudoudou et on stocke le numSalarie
+     *    (ID interne non sensible) + l'email du dossier. Le téléphone n'est jamais stocké.
+     *
+     * @return array{0:string, 1:?string}
+     */
+    private function resoudreIdentifiantCompte(string $id, ?string $type): array
+    {
+        if ($type === 'FAM') {
+            return [$id, null];
+        }
+        $intervenant = $this->intervenantRepository->findByTelephoneNormalise($id);
+        return [$intervenant?->getNumSalarie() ?? $id, $intervenant?->getEmail()];
     }
 }

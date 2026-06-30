@@ -1,4 +1,4 @@
-# Guide complet — La Maison des Chaudoudoux
+# Guide complet La Maison des Chaudoudoux
 
 Documentation complète de l'application de **suivi des heures** (garde d'enfants et ménage
 à domicile). Ce guide couvre **toutes les fonctionnalités**, par profil, avec les règles
@@ -40,7 +40,7 @@ Elle distingue **trois profils** :
 - **Garde (ENFA)** : du **1er au dernier jour** du mois.
 - **Ménage (MENA)** : du **25 du mois précédent au 24** du mois courant.
 
-**Notion clé — PREST vs mandataire :** seules les familles et intervenants en mode
+**Notion clé PREST vs mandataire :** seules les familles et intervenants en mode
 **prestataire (PREST)** dans le planning sont pris en compte. Les dossiers mandataires
 n'apparaissent ni dans les listes, ni dans les relevés.
 
@@ -110,10 +110,10 @@ Informations personnelles, numéro de salarié, coordonnées.
 Affiche les créneaux prévus de la semaine (issus du planning `proposer`).
 
 ### 3.6 Scanner QR / Pointage
-Voir [section 6 — Le pointage par QR code](#6-le-pointage-par-qr-code).
+Voir [section 6 Le pointage par QR code](#6-le-pointage-par-qr-code).
 
 ### 3.7 Mes relevés
-Voir [section 7 — Relevés, signature et PDF](#7-relevés-signature-et-pdf).
+Voir [section 7 Relevés, signature et PDF](#7-relevés-signature-et-pdf).
 
 ---
 
@@ -214,9 +214,9 @@ Vue d'ensemble de l'activité.
 ### 5.11 Modèles d'email (personnalisation)
 Menu **Configuration → Modèles d'email**.
 - L'admin modifie le **sujet** et le **message** de chaque email envoyé par l'application :
-  - **Code mot de passe oublié** — variables : `{identifiant}`, `{code}`.
-  - **Relevé signé (PDF)** — variable : `{libelle}` (Ménage / Garde d'enfants).
-  - **Rappel relevé à signer** (préparé pour un usage futur) — variables : `{nom}`, `{mois}`.
+  - **Code mot de passe oublié** variables : `{identifiant}`, `{code}`.
+  - **Relevé signé (PDF)** variable : `{libelle}` (Ménage / Garde d'enfants).
+  - **Rappel relevé à signer** (préparé pour un usage futur) variables : `{nom}`, `{mois}`.
 - Les **variables** entre accolades sont remplacées automatiquement à l'envoi ; elles sont
   **cliquables pour les copier**.
 - Bouton **« Revenir au texte par défaut »** par modèle.
@@ -378,15 +378,15 @@ routière ; les appels sont **espacés** (respect des quotas) et le résultat **
 
 ### API interne (espace intervenant)
 Utilisée par les écrans dynamiques (préfixe `/api/intervenants`) :
-- **`/releve/{id}`** *(GET)* — données du relevé (alimente l'aperçu éditable).
-- **`/{id}/signer`** *(GET)* — signature du relevé.
-- **`/{id}/signer-email`** *(POST)* — signe **et envoie le PDF par email**.
-- **`/{id}/ajout_heure_de_hors`** *(POST)* — enregistre les heures « hors structure ».
+- **`/releve/{id}`** *(GET)* données du relevé (alimente l'aperçu éditable).
+- **`/{id}/signer`** *(GET)* signature du relevé.
+- **`/{id}/signer-email`** *(POST)* signe **et envoie le PDF par email**.
+- **`/{id}/ajout_heure_de_hors`** *(POST)* enregistre les heures « hors structure ».
 
 ### Commandes d'administration (console)
-- **`app:generer-horaires-test`** — génère des heures de test à partir du planning
+- **`app:generer-horaires-test`** génère des heures de test à partir du planning
   (`--semaines=N`, `--dry-run` pour simuler).
-- **`app:calculer-distances`** — (re)calcule et **fige** les distances km des prestations.
+- **`app:calculer-distances`** (re)calcule et **fige** les distances km des prestations.
 
 ### Accessibilité
 Interface pensée pour un public **senior / novice** : libellés texte sur les menus,
@@ -412,5 +412,5 @@ non bloquantes (toasts) au lieu des alertes système.
 
 ---
 
-*Document de référence — pour toute question, contactez l'administration de
+*Document de référence pour toute question, contactez l'administration de
 La Maison des Chaudoudoux.*
