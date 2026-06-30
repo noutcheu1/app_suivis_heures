@@ -150,7 +150,17 @@
 
             renderPlanning(data.creneaux);
 
-            if (enCours) {
+            if (enCours && FORCE_TYPE) {
+                // Contexte GARDE : pour terminer/modifier, l'intervenant DOIT scanner le QR
+                // de la famille (preuve de présence sur place). On ne propose donc rien ici.
+                confirmSub.textContent = 'Pointage en cours. Pour le terminer ou le modifier, scannez le QR de la famille sur place.';
+                hide(btnDemarrer); hide(btnTerminer); hide(typeSection);
+                kmSection.classList.add('hidden');
+                document.getElementById('h-debut-label').textContent = 'Début';
+                document.getElementById('h-debut').textContent = data.debut || '—';
+                hide(document.getElementById('h-fin-line'));
+                show(horairesSec);
+            } else if (enCours) {
                 confirmSub.textContent = 'Pointage en cours vous pouvez le terminer.';
                 hide(btnDemarrer); show(btnTerminer);
                 hide(typeSection);
@@ -191,8 +201,9 @@
 
             // Début courant (enregistré) mémorisé pour le pop-up de modification.
             debutEnCours = data.debut || null;
-            // Le bouton « Modifier les heures » n'apparaît qu'une fois démarré (en cours).
-            btnModifier.classList.toggle('hidden', !enCours);
+            // « Modifier les heures » : visible une fois en cours, MAIS pas en contexte garde
+            // (terminer/modifier d'une garde exige le scan du QR famille sur place).
+            btnModifier.classList.toggle('hidden', !enCours || !!FORCE_TYPE);
 
             hide(etapeTel); show(etapeAction);
         } catch {
