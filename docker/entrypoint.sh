@@ -13,11 +13,11 @@ echo "Base de données disponible."
 php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
 
 # ── Compte admin par défaut (idempotent) ───────────────────────────────────
-# username : 9.99.99.99.999.999.99  /  password : admin
+# username : 9999999999  /  password : admin
 php -r "
 \$pdo = new PDO('mysql:host=${DB_HOST};port=${DB_PORT};dbname=${DB_NAME_SECONDAIRE}', '${DB_USER}', '${DB_PASSWORD}');
 \$pdo->exec(\"INSERT IGNORE INTO users_suivi (username, role, password) VALUES (
-    '9.99.99.99.999.999.99',
+    '9999999999',
     'admin',
     '\\\$2y\\\$13\\\$n1Nvk59rJbNfdEqLJ.ytJeJUWlOCaaJ3q1VAY8kPpChFONGsoc6FG'
 )\");

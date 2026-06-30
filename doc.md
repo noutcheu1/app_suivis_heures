@@ -86,7 +86,7 @@ Client bénéficiaire. Se connecte avec son **code client PM** (`famille.PM_Fami
 
 ### 3.3 Administrateur
 
-Personnel de l'association. Se connecte avec un **identifiant libre** (ex : `9.99.99.99.999.999.99`).
+Personnel de l'association. Se connecte avec un **identifiant libre** (ex : `9999999999`).
 
 **Droits :** accès complet à toutes les fonctionnalités ci-dessous.
 
@@ -110,7 +110,7 @@ Personnel de l'association. Se connecte avec un **identifiant libre** (ex : `9.9
 
 #### Compte admin par défaut
 ```
-username : 9.99.99.99.999.999.99
+username : 9999999999
 mot de passe : admin
 ```
 
@@ -421,7 +421,7 @@ Voir le fichier `schema.puml` pour le détail complet des colonnes.
 ```sql
 INSERT INTO users_suivi (username, role, mdp)
 VALUES (
-  '9.99.99.99.999.999.99',
+  '9999999999',
   'admin',
   '$2y$10$TeklSxuN91pAS7wiiUbuweakFvvsvNIg91XrCTAmY7vrPIkPC4WpS'
 );

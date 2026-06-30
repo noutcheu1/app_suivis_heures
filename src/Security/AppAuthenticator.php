@@ -37,12 +37,13 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
         $ip       = $request->getClientIp();
 
         // Intervenant : il saisit son TÉLÉPHONE (RGPD : ni numSS ni téléphone en bd horaire).
-        // On le VÉRIFIE sur chaudoudou et on en déduit le numSalarie = identifiant du compte.
-        // Si aucun (ou plusieurs) intervenant ne correspond, on laisse l'identifiant tel quel
-        // → le chargement échouera proprement (mauvais identifiants).
+        // 1) On NORMALISE en chiffres (le champ formate avec des espaces : « 06 12 … »).
+        // 2) On le VÉRIFIE sur chaudoudou → numSalarie = identifiant du compte.
+        // 3) Repli sur la valeur normalisée si aucun intervenant (cas admin « 9999999999 »).
         if ($type === 'INTER') {
-            $username = $this->intervenantRepository->findByTelephoneNormalise($username)?->getNumSalarie()
-                ?? $username;
+            $tel = \App\Repository\UserSuiviRepository::normaliserTel($username);
+            $username = $this->intervenantRepository->findByTelephoneNormalise($tel)?->getNumSalarie()
+                ?? $tel;
         }
 
         // Log de la tentative : on ne logue JAMAIS le mot de passe

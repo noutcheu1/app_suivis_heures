@@ -82,7 +82,7 @@ ON SAISI RAPIDE SUR LE TELEPHONE
 ## 🚀 Utilisation prévue
 
 1. Se connecter avec un compte Admin
-   - type intervenant login: 9.99.99.99.999.999.99 mdp: admin !!! penser a renforcer les mdp admins en production
+   - type intervenant login: 9999999999e mdp: admin !!! penser a renforcer les mdp admins en production
 2. Se connecter avec un compte intervenant
    - type intervenant login: numero securité social mdp: ?
 3. Se connecter avec un compte famille

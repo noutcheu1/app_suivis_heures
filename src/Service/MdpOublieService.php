@@ -117,7 +117,7 @@ class MdpOublieService
         }
 
         // Admin
-        if ($identifiant === '9.99.99.99.999.999.99') {
+        if ($identifiant === '9999999999') {
             return 'admin@chaudoudoux.fr';
         }
 

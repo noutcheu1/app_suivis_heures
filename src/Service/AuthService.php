@@ -14,7 +14,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 
 class AuthService
 {
-    public const ADMIN_IDENTIFIANT = '9.99.99.99.999.999.99';
+    public const ADMIN_IDENTIFIANT = '9999999999';
 
     public function __construct(
         private UserSuiviService $UserSuiviService,
