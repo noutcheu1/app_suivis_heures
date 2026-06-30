@@ -1,4 +1,4 @@
-/* Service worker Chaudoudoux — PWA installable.
+/* Service worker Chaudoudoux PWA installable.
  * Stratégie :
  *  - assets statiques (/assets/...) → cache-first (rapide, hors-ligne partiel)
  *  - navigation (pages HTML)        → network-first (jamais de page périmée)

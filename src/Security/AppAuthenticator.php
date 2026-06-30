@@ -26,6 +26,8 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
         private RouterInterface $router,
         // Symfony injecte automatiquement le logger via l'autowiring
         private LoggerInterface $logger,
+        private \App\Repository\IntervenantRepository $intervenantRepository,
+        private \App\Service\AuditLogger $audit,
     ) {}
 
     public function authenticate(Request $request): Passport
@@ -33,6 +35,15 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
         $username = $request->request->get('id', '');
         $type     = $request->request->get('type');
         $ip       = $request->getClientIp();
+
+        // Intervenant : il saisit son TÉLÉPHONE (RGPD : ni numSS ni téléphone en bd horaire).
+        // On le VÉRIFIE sur chaudoudou et on en déduit le numSalarie = identifiant du compte.
+        // Si aucun (ou plusieurs) intervenant ne correspond, on laisse l'identifiant tel quel
+        // → le chargement échouera proprement (mauvais identifiants).
+        if ($type === 'INTER') {
+            $username = $this->intervenantRepository->findByTelephoneNormalise($username)?->getNumSalarie()
+                ?? $username;
+        }
 
         // Log de la tentative : on ne logue JAMAIS le mot de passe
         $this->logger->info('Tentative de connexion', [
@@ -74,6 +85,12 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
             'firewall' => $firewallName,
         ]);
 
+        // AUDIT : connexion réussie (l'identifiant stocké = numSalarie/code, non sensible).
+        $this->audit->log('login_success', [
+            'actor'      => $username,
+            'actor_role' => implode(',', $roles),
+        ]);
+
         if (in_array('ROLE_ADMIN', $roles)) {
             $this->logger->debug('Redirection vers le tableau de bord admin', ['username' => $username]);
             return new RedirectResponse($this->router->generate('admin_dashboard_mvc'));
@@ -101,7 +118,7 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
         }
 
         // Aucun rôle connu : situation anormale, on logue en warning
-        $this->logger->warning('Connexion réussie mais aucun rôle reconnu — retour login', [
+        $this->logger->warning('Connexion réussie mais aucun rôle reconnu retour login', [
             'username' => $username,
             'roles'    => $roles,
         ]);
@@ -121,6 +138,14 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
             'type'     => $type,
             'ip'       => $request->getClientIp(),
             'raison'   => $exception->getMessageKey(),
+        ]);
+
+        // AUDIT : échec de connexion. L'identifiant tenté peut être un téléphone (sensible)
+        // → on ne stocke que son HASH, jamais en clair.
+        $this->audit->log('login_failed', [
+            'actor'  => \App\Service\AuditLogger::hashId($request->request->get('id')),
+            'type'   => $type,
+            'reason' => $exception->getMessageKey(),
         ]);
 
         // ✅ On stocke l'erreur en session comme Symfony le fait normalement

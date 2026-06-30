@@ -8,13 +8,13 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Tests unitaires pour TarifFamille.
- * Couvre la fonctionnalité exonereKm — exemption kilométrique par service.
+ * Couvre la fonctionnalité exonereKm exemption kilométrique par service.
  */
 #[CoversClass(TarifFamille::class)]
 class TarifFamilleTest extends TestCase
 {
     // ──────────────────────────────────────────────────────────────────────────
-    // Fonctionnalité 9 — Exemption kilométrique par famille / service
+    // Fonctionnalité 9 Exemption kilométrique par famille / service
     // ──────────────────────────────────────────────────────────────────────────
 
     public function testIsExonereKm_defaultFalse(): void
@@ -69,7 +69,7 @@ class TarifFamilleTest extends TestCase
 
     public function testTarifGE_exonereKm_independantDeTarifM(): void
     {
-        // L'exemption GE et M sont indépendantes — deux entités séparées
+        // L'exemption GE et M sont indépendantes deux entités séparées
         $tarifGE = new TarifFamille();
         $tarifGE->setTypePresta('GE');
         $tarifGE->setExonereKm(true);

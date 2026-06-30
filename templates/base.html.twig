@@ -642,7 +642,7 @@
                         <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_panel_mvc', {id: iid}) }}"><i class="fas fa-house me-1"></i>Accueil</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_suivie_mvc', {id: iid}) }}"><i class="fas fa-plus-circle me-1"></i>Saisir mes heures</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_qr_mvc', {id: iid}) }}"><i class="fas fa-qrcode me-1"></i>Scanner QR</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_planning_mvc', {id: iid}) }}"><i class="fas fa-calendar-days me-1"></i>Planning</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_planning_mvc', {id: iid}) }}"><i class="fas fa-calendar-days me-1"></i>Interventions</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_heures_mvc', {id: iid}) }}"><i class="fas fa-clock me-1"></i>Mes heures</a></li>
                         {% if iid %}<li class="nav-item"><a class="nav-link" href="{{ path('releves_intervenant_mvc', {intervenantId: iid}) }}"><i class="fas fa-file-invoice me-1"></i>Mes relevés</a></li>{% endif %}
                         <li class="nav-item"><a class="nav-link" href="{{ path('intervenant_profile_mvc', {id: iid}) }}"><i class="fas fa-user-circle me-1"></i>Mon profil</a></li>
@@ -761,7 +761,7 @@
 <script src="{{ asset('/assets/js/app.js') }}"></script>
 {% endblock %}
 
-{# ── Bannière « Installer l'app » (PWA) — responsive ──────────────── #}
+{# ── Bannière « Installer l'app » (PWA) responsive ──────────────── #}
 <style>
 #pwaInstallBanner{
     position:fixed; z-index:4000; display:none; align-items:center; gap:12px;
@@ -821,7 +821,7 @@
 
     let deferredPrompt = null;
 
-    // Vrai si l'app est déjà installée — y compris quand on est dans le navigateur
+    // Vrai si l'app est déjà installée y compris quand on est dans le navigateur
     // (et pas en mode standalone), via getInstalledRelatedApps().
     async function estInstallee() {
         if (isStandalone) return true;

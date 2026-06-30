@@ -17,7 +17,7 @@
  *   margin      {number}   Marges en mm (défaut 8)
  *   quality     {number}   Qualité JPEG 0–1 (défaut 0.92)
  *   onProgress  {Function} Callback(pageActuelle, totalPages)
- *   onError     {Function} Callback(erreur) — si absent, l'erreur est relancée
+ *   onError     {Function} Callback(erreur) si absent, l'erreur est relancée
  */
 async function pagesToPDF(selector, filename = 'document.pdf', options = {}) {
     const {
@@ -30,8 +30,8 @@ async function pagesToPDF(selector, filename = 'document.pdf', options = {}) {
         onError     = null,
     } = options;
 
-    if (!window.jspdf)      { const e = new Error('jsPDF non chargée — ajoutez le script jsPDF avant html-to-pdf.js');      if (onError) { onError(e); return; } throw e; }
-    if (!window.html2canvas){ const e = new Error('html2canvas non chargée — ajoutez le script html2canvas avant html-to-pdf.js'); if (onError) { onError(e); return; } throw e; }
+    if (!window.jspdf)      { const e = new Error('jsPDF non chargée ajoutez le script jsPDF avant html-to-pdf.js');      if (onError) { onError(e); return; } throw e; }
+    if (!window.html2canvas){ const e = new Error('html2canvas non chargée ajoutez le script html2canvas avant html-to-pdf.js'); if (onError) { onError(e); return; } throw e; }
 
     const elements = [...document.querySelectorAll(selector)];
     if (!elements.length) {

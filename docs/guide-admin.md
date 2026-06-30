@@ -1,4 +1,4 @@
-# Guide Administrateur — La Maison des Chaudoudoux
+# Guide Administrateur La Maison des Chaudoudoux
 
 Référence **complète** de l'espace administrateur. L'admin a tous les droits : il peut faire
 ce que font les intervenants et les familles, **plus** la gestion globale ci-dessous.
@@ -167,9 +167,9 @@ Messages d'information affichés selon des **périodes** (ex. fermeture vacances
 ### 8.4 Modèles d'email
 `/admin-mvc/emails` (+ `enregistrer`, `reinitialiser`)
 Personnalisation du **sujet** et du **message** de chaque email :
-- **Code mot de passe oublié** — `{identifiant}`, `{code}`,
-- **Relevé signé (PDF)** — `{libelle}`,
-- **Rappel relevé à signer** (préparé) — `{nom}`, `{mois}`.
+- **Code mot de passe oublié** `{identifiant}`, `{code}`,
+- **Relevé signé (PDF)** `{libelle}`,
+- **Rappel relevé à signer** (préparé) `{nom}`, `{mois}`.
 Variables cliquables pour copier ; bouton **« Revenir au texte par défaut »** ;
 repli automatique sur le texte par défaut si non personnalisé.
 

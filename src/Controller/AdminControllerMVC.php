@@ -913,7 +913,7 @@ final class AdminControllerMVC extends AbstractController
         $moisAnnee    = sprintf('%02d/%04d', $m, $y);
         $intervenants = $this->intervenantService->getTousLesIntervenants();
 
-        // Types de prestation par intervenant (depuis proposer actifs — connexion principal)
+        // Types de prestation par intervenant (depuis proposer actifs connexion principal)
         $typesParInter = [];
         $connPrincipal = $this->em->getConnection();
         // Utiliser la connexion principal via le registry

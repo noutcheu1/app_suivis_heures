@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Mes heures — {{ user.nom }} {{ user.prenom }}{% endblock %}
+{% block title %}Mes heures {{ user.nom }} {{ user.prenom }}{% endblock %}
 {% block page_title %}Mes heures{% endblock %}
 
 {% block body %}
@@ -18,7 +18,7 @@
     {% if isAdmin %}
     <div style="margin-top:12px;">
         <span style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;background:#fff7ed;color:#c2410c;font-weight:600;font-size:13px;border:1px dashed #fdba74;">
-            <i class="fas fa-user-shield"></i> Mode admin — vous pouvez consulter et modifier toutes les heures
+            <i class="fas fa-user-shield"></i> Mode admin vous pouvez consulter et modifier toutes les heures
         </span>
     </div>
     {% endif %}
@@ -96,7 +96,7 @@
         {% set dureeH = (presta.heureFinPresta|date('U') - presta.heureDebutPresta|date('U')) / 3600 %}
         <tr class="presta-row" data-group="{{ groupe.key }}" data-type="{{ presta.typePresta }}" data-hours="{{ dureeH > 0 ? dureeH : 0 }}"{% if verrouille %} style="opacity:.8;"{% endif %}>
             <td>
-                {% if presta.numFam and presta.numFam != '0' %}
+                {% if presta.numFam and presta.numFam != '0' and not presta.occasionnel %}
                     {% if isAdmin %}
                         <a href="{{ path('admin_famille_detail_mvc', {numFam: presta.numFam}) }}" style="font-weight:500;">
                             {{ famille_label(presta.numFam) }}
@@ -118,7 +118,7 @@
             </td>
             <td>
                 {% if verrouille %}
-                    <span class="badge badge-muted" title="Mois clôturé — modification impossible">
+                    <span class="badge badge-muted" title="Mois clôturé modification impossible">
                         <i class="fas fa-lock" style="font-size:9px;margin-right:3px;"></i>Clôturé
                     </span>
                 {% elseif presta.desactiver == 1 %}
@@ -183,7 +183,7 @@
         <div class="modal-content border-0" style="border-radius:var(--radius-lg);">
             <div class="modal-header border-0 pb-0">
                 <h6 class="modal-title fw-semibold">
-                    Détail — {{ (presta.numFam and presta.numFam != '0') ? famille_label(presta.numFam) : ('Famille occasionnelle' ~ (presta.nomFam ? ' ' ~ presta.nomFam : '')) }}
+                    Détail {{ (presta.numFam and presta.numFam != '0' and not presta.occasionnel) ? famille_label(presta.numFam) : ('Famille occasionnelle' ~ (presta.nomFam ? ' ' ~ presta.nomFam : '')) }}
                     {% if verrouille %}
                     <span class="badge badge-muted" style="margin-left:6px;font-size:10px;">
                         <i class="fas fa-lock" style="font-size:9px;"></i> Clôturé
@@ -195,7 +195,7 @@
             <div class="modal-body">
                 <dl style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13.5px;margin:0;">
                     <dt style="color:var(--text-muted);font-weight:500;">Famille</dt>
-                    <dd style="margin:0;">{{ (presta.numFam and presta.numFam != '0') ? famille_label(presta.numFam) : ('Famille occasionnelle' ~ (presta.nomFam ? ' ' ~ presta.nomFam : '')) }}</dd>
+                    <dd style="margin:0;">{{ (presta.numFam and presta.numFam != '0' and not presta.occasionnel) ? famille_label(presta.numFam) : ('Famille occasionnelle' ~ (presta.nomFam ? ' ' ~ presta.nomFam : '')) }}</dd>
                     <dt style="color:var(--text-muted);font-weight:500;">Date</dt>
                     <dd style="margin:0;">{{ presta.datePresta|date('d/m/Y') }}</dd>
                     <dt style="color:var(--text-muted);font-weight:500;">Début</dt>
@@ -265,7 +265,7 @@ function filterRows() {
         const moisLabel = document.querySelector('#moisSelect option:checked')?.textContent.trim() || currentMonth;
         const totalFmt  = totalHeures.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
         resume.innerHTML = `<i class="fas fa-clock"></i> <strong>${visibles}</strong> prestation(s) · `
-            + `<strong>${totalFmt} h</strong> au total — ${moisLabel} · ${SERVICE_LABEL[currentService] || currentService}`;
+            + `<strong>${totalFmt} h</strong> au total ${moisLabel} · ${SERVICE_LABEL[currentService] || currentService}`;
     }
 }
 
@@ -303,7 +303,7 @@ document.querySelectorAll('.btn-action-presta').forEach(btn => {
             if (result.success) {
                 window.location.reload();
             } else if (result.locked) {
-                toast('Ce mois est clôturé — la prestation ne peut plus être modifiée.');
+                toast('Ce mois est clôturé la prestation ne peut plus être modifiée.');
             } else {
                 toast('Erreur : ' + (result.error ?? 'Impossible d\'effectuer cette action.'));
             }
@@ -319,7 +319,7 @@ document.querySelectorAll('.voir-detail').forEach(btn => {
         modal.show();
     });
 });
-// Note : le tri par colonne a été retiré — les prestations sont regroupées par
+// Note : le tri par colonne a été retiré les prestations sont regroupées par
 // mois et filtrées par service via la zone de sélection en haut.
 
 // Au chargement : activer le service par défaut (selon le planning) + mois courant.

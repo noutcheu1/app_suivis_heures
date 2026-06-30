@@ -87,7 +87,7 @@
                 <div style="font-weight:700;font-size:13.5px;margin-bottom:8px;">
                     {{ parent.nomComplet }}
                     {% if parent.profession %}
-                        <span style="font-weight:400;font-size:11px;color:var(--text-muted);margin-left:6px;">— {{ parent.profession }}</span>
+                        <span style="font-weight:400;font-size:11px;color:var(--text-muted);margin-left:6px;">{{ parent.profession }}</span>
                     {% endif %}
                 </div>
                 <dl style="margin:0;display:grid;gap:4px;font-size:12.5px;">
@@ -135,7 +135,7 @@
                 <div>
                     <label class="form-label" style="font-size:12px;font-weight:600;">Intervenant</label>
                     <select name="numInter" class="form-control" required>
-                        <option value="">— Choisir —</option>
+                        <option value="">Choisir —</option>
                         {% for inter in intervenants %}
                         <option value="{{ inter.id }}">{{ inter.nomCompletInter }}</option>
                         {% endfor %}

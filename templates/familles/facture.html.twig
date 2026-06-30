@@ -532,7 +532,7 @@
       <div>
         <label>{{ crit.l }}</label>
         <select name="{{ crit.n }}">
-          <option value="">— Choisir —</option>
+          <option value="">Choisir —</option>
           {% for o in opts %}
           <option value="{{ o.v }}" {{ crit.cur == o.v ? 'selected' : '' }}>{{ o.l }}</option>
           {% endfor %}
@@ -542,7 +542,7 @@
       <div>
         <label>Mode de règlement</label>
         <select name="typeReglement" id="sel-reg" onchange="togglePay()">
-          <option value="">— Choisir —</option>
+          <option value="">Choisir —</option>
           {% for mode in ['Chèque','Prélèvement','CESU','Virement','Espèces'] %}
           <option value="{{ mode }}" {{ sr and sr.typeReglement == mode ? 'selected' : '' }}>{{ mode }}</option>
           {% endfor %}
@@ -689,7 +689,7 @@ async function genererPDF() {
       doc.setTextColor(0, 0, 0);
       let y = 8;
 
-      /* Alerte — double border, code client + nom + message centré */
+      /* Alerte double border, code client + nom + message centré */
       const alertEl = pages[i].querySelector('.alerte');
       if (alertEl) {
         const codeClient = alertEl.querySelector('#alter-info tr:first-child td')?.innerText?.trim() || '';
@@ -790,7 +790,7 @@ async function genererPDF() {
         y += lns.length * (size * 0.45) + 1.5;
       };
 
-      /* Tableau famille — 3 colonnes avec rowSpan/colSpan pour coller à l'HTML */
+      /* Tableau famille 3 colonnes avec rowSpan/colSpan pour coller à l'HTML */
       const infoTbl = pages[i].querySelector('table.info');
       if (infoTbl) {
         const lb = { fontStyle: 'bold', fillColor: [232,232,232], halign: 'left' };
@@ -889,7 +889,7 @@ async function genererPDF() {
         y += smicH + 2;
       }
 
-      /* Récapitulatif financier — construit manuellement pour éviter
+      /* Récapitulatif financier construit manuellement pour éviter
          les problèmes de colspan/rowspan avec autoTable */
       const recapTbl = pages[i].querySelector('table.recap');
       if (recapTbl) {

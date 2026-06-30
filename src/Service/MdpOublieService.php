@@ -23,6 +23,7 @@ class MdpOublieService
         private FamilleRepository    $familleRepository,
         private UserPasswordHasherInterface $passwordHasher,
         private EmailTemplateService $emailTemplates,
+        private AuditLogger $audit,
     ) {}
 
     /**
@@ -88,6 +89,12 @@ class MdpOublieService
         $user->setTokenReinit(null);
         $user->setTokenExpire(null);
         $this->em->flush();
+
+        // AUDIT : action sensible — réinitialisation du mot de passe.
+        $this->audit->log('password_change', [
+            'actor'  => $user->getUserIdentifier(),
+            'method' => 'reinitialisation',
+        ]);
 
         return true;
     }

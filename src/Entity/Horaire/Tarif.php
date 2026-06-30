@@ -15,15 +15,15 @@ class Tarif
     #[ORM\Column]
     private ?int $id = null;
 
-    /** Règles tarifaires garde d'enfants — JSON : [["condition", valeur], ...] */
+    /** Règles tarifaires garde d'enfants JSON : [["condition", valeur], ...] */
     #[ORM\Column(name: 'alheureGE', type: Types::TEXT)]
     private ?string $alheureGe = null;
 
-    /** Règles tarifaires ménage — JSON : [["condition", valeur], ...] */
+    /** Règles tarifaires ménage JSON : [["condition", valeur], ...] */
     #[ORM\Column(name: 'alheureM', type: Types::TEXT, nullable: true)]
     private ?string $alheureM = null;
 
-    /** Règles de frais de gestion — JSON : [["condition1", "condition2", valeur], ...] */
+    /** Règles de frais de gestion JSON : [["condition1", "condition2", valeur], ...] */
     #[ORM\Column(name: 'fraisGestion', type: Types::TEXT)]
     private ?string $fraisGestion = null;
 

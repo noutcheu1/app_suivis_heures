@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Connexion — La Maison des Chaudoudoux{% endblock %}
+{% block title %}Connexion La Maison des Chaudoudoux{% endblock %}
 
 {% block stylesheets %}
 {{ parent() }}
@@ -209,7 +209,7 @@
                 <button type="button" class="type-btn" onclick="choisir('INTER')">
                     <div class="type-btn-icon"><i class="fas fa-id-card"></i></div>
                     <span class="type-btn-label">Intervenant</span>
-                    <span class="type-btn-hint">Identifiant salarié</span>
+                    <span class="type-btn-hint">Numéro de téléphone</span>
                 </button>
                 <button type="button" class="type-btn" onclick="choisir('FAM')">
                     <div class="type-btn-icon"><i class="fas fa-users"></i></div>
@@ -238,18 +238,18 @@
 
                 <div class="mb-3">
                     <label class="field-label" id="labelId">
-                        {{ type == 'INTER' ? 'Identifiant salarié' : 'Code client (PM ou PGE)' }}
+                        {{ type == 'INTER' ? 'Numéro de téléphone' : 'Code client (PM ou PGE)' }}
                     </label>
                     <div class="input-wrap">
                         <i class="fas fa-id-badge input-icon" id="iconId"></i>
                         <input type="text" id="inputId" name="id"
                                value="{{ last_username ?? '' }}"
-                               maxlength="{{ type == 'INTER' ? '21' : '7' }}"
-                               placeholder="{{ type == 'INTER' ? '1.85.06.75.123.456.78' : 'PGE1234' }}"
+                               maxlength="{{ type == 'INTER' ? '14' : '7' }}"
+                               placeholder="{{ type == 'INTER' ? '06 12 34 56 78' : 'PGE1234' }}"
                                autocomplete="username" required autofocus>
                     </div>
                     <p class="field-hint" id="hintId">
-                        {{ type == 'INTER' ? 'Format : 9.xx.xx.xx.xxx.xxx.xx' : 'Format : PGE1234 ou PM1234' }}
+                        {{ type == 'INTER' ? 'Format : 06 12 34 56 78' : 'Format : PGE1234 ou PM1234' }}
                     </p>
                 </div>
 
@@ -285,7 +285,7 @@
 
     <div class="login-footer">
         <i class="fas fa-shield-alt"></i>
-        Connexion sécurisée — données chiffrées
+        Connexion sécurisée données chiffrées
     </div>
 
 </div>
@@ -295,7 +295,7 @@
 {{ parent() }}
 <script>
 const CONFIG = {
-    INTER: { label: 'Identifiant salarié', icon: 'fa-id-card', hint: 'Format : 9.xx.xx.xx.xxx.xxx.xx', max: 21, placeholder: '1.85.06.75.123.456.78', fmt: formatSS },
+    INTER: { label: 'Numéro de téléphone', icon: 'fa-phone', hint: 'Format : 06 12 34 56 78', max: 14, placeholder: '06 12 34 56 78', fmt: formatTel },
     FAM:   { label: 'Code client (PM ou PGE)',    icon: 'fa-users',   hint: 'Format : PGE1234 ou PM1234',    max: 7,  placeholder: 'PGE1234',              fmt: formatFAM }
 };
 
@@ -330,16 +330,10 @@ document.getElementById('inputId').addEventListener('input', () => {
     if (CONFIG[t]) CONFIG[t].fmt();
 });
 
-function formatSS() {
-    let v = document.getElementById('inputId').value.replace(/\D/g, '');
-    const b = [1,2,2,2,3,3,2];
-    let r = '', pos = 0;
-    for (let i = 0; i < b.length && pos < v.length; i++) {
-        if (i > 0) r += '.';
-        r += v.slice(pos, pos + b[i]);
-        pos += b[i];
-    }
-    document.getElementById('inputId').value = r;
+function formatTel() {
+    // Regroupe les chiffres par 2 : 06 12 34 56 78 (le serveur ne garde que les chiffres).
+    let v = document.getElementById('inputId').value.replace(/\D/g, '').slice(0, 10);
+    document.getElementById('inputId').value = (v.match(/.{1,2}/g) || []).join(' ');
 }
 
 function formatFAM() {

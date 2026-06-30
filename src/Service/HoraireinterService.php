@@ -57,7 +57,7 @@ class HoraireinterService
         }
 
         // NB : on n'exige plus que l'heure de fin soit déjà passée pour une prestation
-        // du jour — l'intervenant peut déclarer son créneau (planifié) même s'il finit
+        // du jour l'intervenant peut déclarer son créneau (planifié) même s'il finit
         // plus tôt que prévu. Les contrôles durée/10h/chevauchement restent appliqués.
 
         if ($this->repository->existsDoublon($numInter, $datePresta, $heureDebut, $typePresta)) {
@@ -107,12 +107,12 @@ class HoraireinterService
     }
 
     /**
-     * Pointage QR sans connexion — DÉMARRER.
+     * Pointage QR sans connexion DÉMARRER.
      * Crée une ligne horaireinter « en cours » (heure de début = maintenant arrondi
      * au quart d'heure, heure de fin NULL). Tant qu'elle n'a pas de fin, elle n'est
      * jamais comptée dans les relevés.
      */
-    public function demarrerPointage(int $numInter, ?string $numFam, string $nomFam, string $type, ?string $heure = null, ?string $heureReelle = null): Horaireinter
+    public function demarrerPointage(int $numInter, ?string $numFam, string $nomFam, string $type, ?string $heure = null, ?string $heureReelle = null, ?float $km = null): Horaireinter
     {
         if ($numInter <= 0) {
             throw new \LogicException('Intervenant non identifié.');
@@ -127,21 +127,35 @@ class HoraireinterService
         // (numFam vide) est aussi marquée occasionnelle (numFam stocké à NULL).
         $estVide      = ($numFam === null || $numFam === '' || $numFam === '0');
         $numFamStored = $estVide ? null : $numFam;
-        $occasionnel  = $estVide
-            ? true
-            : !$this->proposerRepository->isIntervenantAssignedToFamille($numInter, $numFam);
+        // Occasionnel = le couple (famille + CE service) n'est PAS au planning de
+        // l'intervenant. Ex. il fait habituellement la garde, sollicité pour du ménage
+        // chez la même famille → ménage occasionnel.
+        $famillesPlanifiees = $estVide ? [] : $this->proposerRepository->findFamilleIdsPrestByIntervenant($numInter, $type);
+        $occasionnel = $estVide || !in_array($numFam, $famillesPlanifiees, true);
 
-        if ($this->repository->findEnCours($numInter, $numFamStored)) {
-            throw new \LogicException('Un pointage est déjà en cours.');
+        // Règle PAR INTERVENANT : un seul pointage NON TERMINÉ à la fois POUR AUJOURD'HUI.
+        // (Un autre intervenant n'est pas concerné ; un en-cours d'un autre jour relève de
+        // la récupération d'oubli, pas du blocage.)
+        $todayStr = $today->format('Y-m-d');
+        foreach ($this->repository->findAllEnCours($numInter) as $ec) {
+            if ($ec->getDatePresta()?->format('Y-m-d') === $todayStr) {
+                $nom   = $ec->getNomFam() ?: 'une famille';
+                $debut = $ec->getHeureDebutPresta()?->format('H:i');
+                throw new \LogicException(sprintf(
+                    'Vous avez déjà un pointage en cours chez %s%s. Terminez-le avant d\'en démarrer un autre.',
+                    $nom,
+                    $debut ? ' (depuis ' . $debut . ')' : ''
+                ));
+            }
         }
 
-        if (!$estVide && $this->repository->existsDoublonFamilleDate($numInter, $numFam, $today, $type)) {
-            throw new \LogicException('Vous avez déjà pointé cette famille aujourd\'hui.');
-        }
+        // NB : on n'interdit PAS une 2e prestation chez la même famille le même jour
+        // (ex. ménage le matin puis l'après-midi). Le seul garde-fou horaire est le
+        // chevauchement, vérifié à la clôture (terminer/modifier).
 
-        // Heure arrondie (affichée au relevé) — heure du téléphone si fournie.
+        // Heure arrondie (affichée au relevé) heure du téléphone si fournie.
         $debutArrondi = $heure ? new \DateTime($heure) : $this->arrondiQuartHeure(new \DateTime());
-        // Heure RÉELLE (non arrondie) — trace du scan.
+        // Heure RÉELLE (non arrondie) trace du scan.
         $debutReel = $heureReelle ? new \DateTime($heureReelle) : clone $debutArrondi;
 
         $horaire = new Horaireinter();
@@ -158,10 +172,14 @@ class HoraireinterService
         $horaire->setDesactiver(false);
         $horaire->setDeclarerLeFam(null);
         $horaire->setHeuresTotal(0.0);
+        // Km avec enfant (garde) saisi dès le démarrage → conservé pour rechargement.
+        if ($type === 'ENFA' && $km !== null) {
+            $horaire->setKmAvecEnfant((string) $km);
+        }
 
         if (!$estVide) {
-            $km = $this->calculerKmTrajet($numInter, (string) $numFam);
-            $horaire->setKmTrajet($km !== null ? (string) $km : null);
+            $kmTrajet = $this->calculerKmTrajet($numInter, (string) $numFam);
+            $horaire->setKmTrajet($kmTrajet !== null ? (string) $kmTrajet : null);
         }
 
         $this->entityManager->persist($horaire);
@@ -172,7 +190,7 @@ class HoraireinterService
 
     /**
      * Indique s'il existe un pointage en cours (début sans fin) aujourd'hui pour
-     * cette famille — pour proposer « Terminer » plutôt que « Démarrer ».
+     * cette famille pour proposer « Terminer » plutôt que « Démarrer ».
      */
     public function aPointageEnCours(int $numInter, ?string $numFam): bool
     {
@@ -190,7 +208,7 @@ class HoraireinterService
     }
 
     /**
-     * Type (ENFA/MENA) du pointage en cours pour cette famille aujourd'hui — sert
+     * Type (ENFA/MENA) du pointage en cours pour cette famille aujourd'hui sert
      * à n'afficher le km « avec enfant » que pour la garde.
      */
     public function typeEnCours(int $numInter, ?string $numFam): ?string
@@ -198,21 +216,120 @@ class HoraireinterService
         return $this->repository->findEnCours($numInter, $numFam)?->getTypePresta();
     }
 
+    /** Km avec enfant déjà saisi sur le pointage en cours (pour recharger le champ). */
+    public function kmEnCours(int $numInter, ?string $numFam): ?string
+    {
+        return $this->repository->findEnCours($numInter, $numFam)?->getKmAvecEnfant();
+    }
+
     /**
-     * Pointage QR sans connexion — TERMINER.
+     * Tous les pointages en cours d'un intervenant (scan connecté), sous forme simple :
+     * sert à afficher « Terminer » au scan et à récupérer les oublis d'un autre jour.
+     *
+     * @return list<array{numFam:?string, nomFam:string, heureDebut:?string, type:?string, date:string, aujourdhui:bool}>
+     */
+    public function getPointagesEnCours(int $numInter): array
+    {
+        $today   = (new \DateTime())->format('Y-m-d');
+        $joursFr = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+        $out = [];
+        foreach ($this->repository->findAllEnCours($numInter) as $h) {
+            $date   = $h->getDatePresta()->format('Y-m-d');
+            $numFam = $h->getNumFam();
+            $type   = strtoupper((string) $h->getTypePresta());
+
+            // Heure de fin PRÉVUE au planning (proposer) pour ce jour → pré-remplir la clôture.
+            $finPrevue = null;
+            if ($numFam) {
+                $jour = $joursFr[(int) $h->getDatePresta()->format('w')];
+                foreach ($this->proposerRepository->findActivesByIntervenant($numInter) as $p) {
+                    if ((string) $p->getNumeroFamille() === (string) $numFam
+                        && mb_strtolower(trim($p->getJour())) === $jour
+                        && strtoupper($p->getTypePrestation()) === $type
+                        && $p->getHeureFin()) {
+                        $finPrevue = $p->getHeureFin()->format('H:i');
+                        break;
+                    }
+                }
+            }
+
+            $out[] = [
+                'id'         => $h->getId(),
+                'numFam'     => $numFam,
+                'nomFam'     => $h->getNomFam(),
+                'heureDebut' => $h->getHeureDebutPresta()?->format('H:i'),
+                'type'       => $h->getTypePresta(),
+                'date'       => $date,
+                'aujourdhui' => $date === $today,
+                'finPrevue'  => $finPrevue,
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Clôture d'un pointage NON TERMINÉ (oubli) par l'intervenant connecté, SANS le QR :
+     * il confirme l'heure de fin (pré-remplie avec l'heure prévue au planning).
+     */
+    public function cloturerPointageOublie(int $numInter, int $horaireId, string $heureFin, ?string $heureDebut = null): Horaireinter
+    {
+        $horaire = $this->repository->find($horaireId);
+        if (!$horaire || $horaire->getNumInter() !== $numInter) {
+            throw new \LogicException('Pointage introuvable.');
+        }
+        if ($horaire->getHeureFinReelle() !== null) {
+            throw new \LogicException('Ce pointage est déjà terminé.');
+        }
+        if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $heureFin)) {
+            throw new \LogicException('Heure de fin invalide.');
+        }
+
+        // Correction éventuelle de l'heure de début AFFICHÉE — la RÉELLE n'est pas touchée.
+        if ($heureDebut && preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $heureDebut)) {
+            $horaire->setHeureDebutPresta(new \DateTime($heureDebut));
+        }
+
+        $debut = $horaire->getHeureDebutPresta();
+        $fin   = new \DateTime($heureFin);
+        // Aligner début et fin sur la même date pour valider la durée correctement.
+        $debutCompare = (clone $fin)->setTime((int) $debut->format('H'), (int) $debut->format('i'), 0);
+        $this->validerCreneau($numInter, $horaire->getDatePresta(), $debutCompare, $fin, $horaire->getId());
+
+        $horaire->setHeureFinPresta($fin);
+        // Clôture d'un oubli = vraie fin → on pose aussi la fin RÉELLE (sinon il resterait
+        // détecté « en cours »). À défaut d'horodatage réel, on reprend la fin déclarée.
+        if ($horaire->getHeureFinReelle() === null) {
+            $horaire->setHeureFinReelle(clone $fin);
+        }
+        $horaire->setModifierLe(new \DateTime());
+        $horaire->setHeuresTotal($this->calculerHeures($debut->format('H:i:s'), $fin->format('H:i:s')));
+        $this->entityManager->flush();
+
+        return $horaire;
+    }
+
+    /**
+     * Pointage QR sans connexion TERMINER.
      * Renseigne l'heure de fin (maintenant arrondi) sur le pointage en cours du jour
      * pour cette famille : la ligne devient une heure déclarée complète.
      */
-    public function terminerPointage(int $numInter, ?string $numFam, ?float $km = null, ?string $heure = null, ?string $heureReelle = null): Horaireinter
+    public function terminerPointage(int $numInter, ?string $numFam, ?float $km = null, ?string $heure = null, ?string $heureReelle = null, ?string $heureDebut = null): Horaireinter
     {
         $horaire = $this->repository->findEnCours($numInter, $numFam);
         if (!$horaire) {
             throw new \LogicException('Aucun pointage en cours pour cette famille.');
         }
 
+        // Correction éventuelle du début DÉCLARÉ (le réel n'est jamais modifié).
+        if ($heureDebut) {
+            $horaire->setHeureDebutPresta(new \DateTime($heureDebut));
+        }
+
         $debut = $horaire->getHeureDebutPresta();
-        // Heure de fin arrondie (affichée au relevé) — heure du téléphone si fournie.
-        $fin   = $heure ? new \DateTime($heure) : $this->arrondiQuartHeure(new \DateTime());
+        // Heure de fin DÉCLARÉE : si elle a déjà été fixée via « Modifier », on la GARDE ;
+        // sinon = heure fournie (maintenant arrondi). C'est elle qui compte au relevé.
+        $fin = $horaire->getHeureFinPresta()
+            ?? ($heure ? new \DateTime($heure) : $this->arrondiQuartHeure(new \DateTime()));
 
         // L'heure de début vient d'un champ TIME (date époque 1970) ; on l'aligne sur
         // la même date que la fin avant validation, sinon l'écart de timestamps est
@@ -223,14 +340,46 @@ class HoraireinterService
         $this->validerCreneau($numInter, $horaire->getDatePresta(), $debutCompare, $fin, $horaire->getId());
 
         $horaire->setHeureFinPresta($fin);
-        // Heure de fin RÉELLE (non arrondie) — trace du scan.
-        $horaire->setHeureFinReelle($heureReelle ? new \DateTime($heureReelle) : clone $fin);
+        // Heure de fin RÉELLE = vraie clôture (maintenant réel) → marqueur « terminé ».
+        $horaire->setHeureFinReelle($heureReelle ? new \DateTime($heureReelle) : new \DateTime());
         if ($horaire->getTypePresta() === 'ENFA' && $km !== null) {
             $horaire->setKmAvecEnfant((string) $km);
         }
         $horaire->setModifierLe(new \DateTime());
         $horaire->setHeuresTotal($this->calculerHeures($debut->format('H:i:s'), $fin->format('H:i:s')));
 
+        $this->entityManager->flush();
+
+        return $horaire;
+    }
+
+    /**
+     * Met à jour les heures DÉCLARÉES (début + fin affichés) d'un pointage EN COURS,
+     * SANS le terminer : la fin RÉELLE reste NULL → le comptage continue. Les heures
+     * réelles ne sont jamais modifiées (elles servent de preuve).
+     */
+    public function modifierEnCours(int $numInter, ?string $numFam, string $heureDebut, string $heureFin): Horaireinter
+    {
+        $horaire = $this->repository->findEnCours($numInter, $numFam);
+        if (!$horaire) {
+            throw new \LogicException('Aucun pointage en cours pour cette famille.');
+        }
+        if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $heureDebut)
+            || !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $heureFin)) {
+            throw new \LogicException('Heures invalides.');
+        }
+
+        $debut = new \DateTime($heureDebut);
+        $fin   = new \DateTime($heureFin);
+        // Valide l'intervalle DÉCLARÉ (durée / 10h / chevauchement), ligne courante exclue.
+        $debutCompare = (clone $fin)->setTime((int) $debut->format('H'), (int) $debut->format('i'), 0);
+        $this->validerCreneau($numInter, $horaire->getDatePresta(), $debutCompare, $fin, $horaire->getId());
+
+        $horaire->setHeureDebutPresta($debut);
+        $horaire->setHeureFinPresta($fin);
+        $horaire->setModifierLe(new \DateTime());
+        $horaire->setHeuresTotal($this->calculerHeures($debut->format('H:i:s'), $fin->format('H:i:s')));
+        // PAS de heureFinReelle → le pointage reste EN COURS.
         $this->entityManager->flush();
 
         return $horaire;
@@ -260,9 +409,9 @@ class HoraireinterService
         $qb = $this->repository->createQueryBuilder('h')
             ->where('h.numInter = :numInter')
             ->andWhere('h.desactiver = :desactiver')
-            // Exclut les pointages en cours (début sans fin) : pas encore des heures
-            // déclarées, ils ne doivent apparaître ni dans les listes ni les stats.
-            ->andWhere('h.heureFinPresta IS NOT NULL')
+            // Exclut les pointages EN COURS : le marqueur « terminé » est la fin RÉELLE
+            // (posée au Terminer), pas la fin déclarée (modifiable pendant le comptage).
+            ->andWhere('h.heureFinReelle IS NOT NULL')
             ->setParameter('numInter', $numInter)
             ->setParameter('desactiver', false)
             ->orderBy('h.datePresta', 'DESC')
@@ -499,7 +648,7 @@ class HoraireinterService
                 throw new \LogicException('Vous avez déjà une prestation enregistrée pour cette famille ce jour-là.');
             }
 
-            // Durée nulle / max 10h / chevauchement — uniquement si les heures changent
+            // Durée nulle / max 10h / chevauchement uniquement si les heures changent
             // réellement (modifier le km ou la famille ne doit pas relancer ces contrôles).
             if (isset($donnees['heureFinPresta'])) {
                 $heureFin   = new \DateTime($donnees['heureFinPresta']);
@@ -716,6 +865,8 @@ class HoraireinterService
                 $famillesMap[$nom] = [
                     'nomFam'         => $nom,
                     'numFam'         => $numFam,
+                    // Prestation hors planning (scan) → affichée « Famille occasionnelle + nom ».
+                    'occasionnel'    => $p->isOccasionnel(),
                     'ville_Famille'  => $famille?->getVille() ?? '',
                     'distanceAller'  => $distanceAller,
                     'exonereKm'      => $estExonere,

@@ -145,7 +145,8 @@ final class IntervenantApiController extends AbstractController
 
         return $this->json($result, $result['success'] ? 200 : 400);
     }
-
+    
+    
     /**
      * Enregistre des heures travaillées hors structure pour un mois.
      * Corps JSON : { heure, minute, periodeFin (Y-m-d), type }

@@ -6,7 +6,7 @@
 
 {% if is_granted('ROLE_ADMIN') %}
 
-    {# Redirect handled by AppAuthenticator — this is a fallback #}
+    {# Redirect handled by AppAuthenticator this is a fallback #}
     {% set _ = '<script>window.location="' ~ path('admin_dashboard_mvc') ~ '"</script>' %}
     <meta http-equiv="refresh" content="0;url={{ path('admin_dashboard_mvc') }}">
 

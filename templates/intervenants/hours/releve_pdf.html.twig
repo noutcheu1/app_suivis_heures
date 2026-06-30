@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Relevé {{ typeLibelle }} — {{ intervenant.nom }} {{ intervenant.prenom }}{% endblock %}
+{% block title %}Relevé {{ typeLibelle }} {{ intervenant.nom }} {{ intervenant.prenom }}{% endblock %}
 {% block page_title %}Relevé d'heures{% endblock %}
 
 {% block stylesheets %}
@@ -98,7 +98,7 @@
                     <div style="display:flex; flex-direction:column; align-items:center; gap:4px; padding:4px 0;">
                         <span>{{ i + 1 }}</span>
                         {% if familles[i] is defined %}
-                            {% if familles[i].numFam and familles[i].numFam != '0' %}
+                            {% if familles[i].numFam and familles[i].numFam != '0' and not familles[i].occasionnel %}
                                 <span style="font-weight:bold;">{{ famille_label(familles[i].numFam) }}</span>
                             {% else %}
                                 <span style="font-weight:bold;">FAMILLE OCCASIONNELLE{% if familles[i].nomFam %} {{ familles[i].nomFam }}{% endif %}</span>

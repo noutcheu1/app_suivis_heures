@@ -296,7 +296,7 @@ class FamilleRepository extends ServiceEntityRepository
     /**
      * Familles ayant un planning actif PENDANT le mois sélectionné.
      * Contrairement à findWithActivePlanning(), ne compare pas à CURDATE()
-     * — utile pour les mois passés ou futurs. Exclut 9999.
+     * utile pour les mois passés ou futurs. Exclut 9999.
      *
      * @return Famille[]
      */

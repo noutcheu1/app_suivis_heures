@@ -1,5 +1,5 @@
 /* ===========================================================================
- * Relevés intervenants — filtres, sélection, tri, modales de téléchargement.
+ * Relevés intervenants filtres, sélection, tri, modales de téléchargement.
  * Le mois courant est exposé par le template via window.RELEVES_MOIS.
  * ======================================================================== */
 const RELEVES_MOIS = window.RELEVES_MOIS || '';
@@ -22,7 +22,7 @@ function getCheckedRowsOrdered() {
         .filter(tr => tr.style.display !== 'none' && tr.querySelector('.row-check')?.checked);
 }
 
-// Filtres actifs par groupe — combinables
+// Filtres actifs par groupe combinables
 const activeFilters = { heures: '', type: '', statut: '', pdf: '', progression: '', dlDate: '', volume: '' };
 
 function setFilter(groupe, val) {
@@ -244,7 +244,7 @@ function ouvrirModal(type) {
     currentType = type;
     const label = type === 'MENA' ? 'ménage' : type === 'ENFA' ? 'garde d\'enfant' : 'ménage + garde';
     document.getElementById('modalFormatSub').textContent =
-        checked.length + ' intervenant(s) sélectionné(s) — Type : ' + label;
+        checked.length + ' intervenant(s) sélectionné(s) Type : ' + label;
     document.getElementById('modalFormat').classList.add('open');
 }
 function fermerModal() {
@@ -338,7 +338,7 @@ function sortTable(col) {
 }
 
 // Tri dédié à la colonne « Type de prestation » (basé sur le planning proposer,
-// via data-type-mena / data-type-enfa de la ligne — pas de cellule numérique).
+// via data-type-mena / data-type-enfa de la ligne pas de cellule numérique).
 // Rang : Ménage seul (1) < Les deux (2) < Garde seule (3) < Aucun (4).
 let sortTypeDir = false;
 function sortType() {

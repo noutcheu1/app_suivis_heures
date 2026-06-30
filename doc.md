@@ -1,6 +1,6 @@
-# Cahier des charges — Application Suivi Heures
+# Cahier des charges Application Suivi Heures
 **Association Chaudoudoux**
-Version 1.0 — Mai 2026
+Version 1.0 Mai 2026
 
 ---
 
@@ -255,7 +255,7 @@ Grilles tarifaires horodatées pour le calcul des récapitulatifs.
 | `maxParIntervention` | decimal(5,2) | Plafond frais par intervention (€) |
 | `KMenfants` | decimal(5,2) | Remboursement km avec enfants (€/km) |
 | `abonnement` | decimal(5,2) | Frais abonnement mensuel (€) |
-| `dateDebut` | varchar(7) | Mois d'entrée en vigueur — format `YYYY-MM` |
+| `dateDebut` | varchar(7) | Mois d'entrée en vigueur format `YYYY-MM` |
 
 #### `horaireinter`
 Heures saisies par les intervenants, validées par les familles.
@@ -284,7 +284,7 @@ Relevé mensuel de l'intervenant (signature + heures hors structure).
 
 | Colonne | Type | Description |
 |---|---|---|
-| `moisannee` | varchar(7) PK | Mois concerné — format `MM-YYYY` |
+| `moisannee` | varchar(7) PK | Mois concerné format `MM-YYYY` |
 | `numInter` | int(5) PK FK | Référence `intervenants.numSalarie_Intervenants` |
 | `typePresta` | varchar(4) PK | `GE` ou `M` |
 | `heureDehors` | time | Heures travaillées hors structure |
@@ -298,7 +298,7 @@ Récapitulatif mensuel famille (règlement, avis, signature).
 | Colonne | Type | Description |
 |---|---|---|
 | `numFam` | varchar(10) PK FK | Référence `famille.numero_Famille` |
-| `moisannee` | varchar(7) PK | Mois concerné — format `MM-YYYY` |
+| `moisannee` | varchar(7) PK | Mois concerné format `MM-YYYY` |
 | `typePresta` | varchar(4) PK | `GE` ou `M` |
 | `typeReglement` | varchar(15) | Mode de règlement choisi |
 | `numCheque` | varchar(15) | Numéro de chèque |
@@ -437,8 +437,8 @@ VALUES (
 | Priorité | Description |
 |---|---|
 | Haute | Envoi d'emails désactivé pour familles/intervenants (`mdpOublier.php` ligne 62) |
-| Haute | Taux horaire > 16h récupéré manuellement depuis Microsoft Access — à automatiser |
-| Moyenne | Taux horaire masqué avant le 20 du mois — logique à revoir |
+| Haute | Taux horaire > 16h récupéré manuellement depuis Microsoft Access à automatiser |
+| Moyenne | Taux horaire masqué avant le 20 du mois logique à revoir |
 | Faible | CSS à améliorer : section "Frais / Remboursement" (admin) et "Questionnaire de satisfaction" (famille) |
 
 ### 9.2 Nouvelles fonctionnalités prévues
@@ -471,7 +471,7 @@ JOIN (
 
 ---
 
-*Document généré le mai 2026 — Association Chaudoudoux*
+*Document généré le mai 2026 Association Chaudoudoux*
 
 
 
@@ -485,4 +485,4 @@ Récapitulatif global heures + CSV	AdminControllerMVC::recapitulatifHeures/Csv �
 Préparation paie + CSV	AdminControllerMVC::preparationPaie/Csv → vide
 PDF relevés (intervenant + famille)	RelevesControllerMVC::*Pdf → texte brut
 PDF fiches vierges	AdminControllerMVC::fichesViergesPdf → texte brut
-Gestion tarifs admin	Aucun controller — TarifRepository existe mais pas de routes CRUD
+Gestion tarifs admin	Aucun controller TarifRepository existe mais pas de routes CRUD

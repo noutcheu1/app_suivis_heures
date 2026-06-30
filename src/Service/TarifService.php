@@ -132,7 +132,7 @@ class TarifService
 
     /**
      * Persist a new horodated tarif version from POST data.
-     * Never modifies an existing row — always inserts a new one.
+     * Never modifies an existing row always inserts a new one.
      */
     public function creerNouveauTarif(array $data): Tarif
     {

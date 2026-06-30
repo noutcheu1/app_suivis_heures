@@ -1,0 +1,84 @@
+{% extends 'base.html.twig' %}
+{% block title %}Signature du relevé{% endblock %}
+{% block page_title %}Signature du relevé{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .signe-wrap { max-width: 460px; margin: 48px auto; padding: 0 16px; text-align: center; }
+
+    /* ── Horloge animée ───────────────────────────────── */
+    .clock {
+        width: 96px; height: 96px; border-radius: 50%;
+        border: 5px solid var(--primary);
+        position: relative; margin: 0 auto 24px;
+        box-shadow: 0 4px 16px rgba(79,70,229,.18);
+    }
+    .clock::after { /* point central */
+        content: ''; position: absolute; top: 50%; left: 50%;
+        width: 8px; height: 8px; background: var(--primary); border-radius: 50%;
+        transform: translate(-50%, -50%); z-index: 2;
+    }
+    .clock .hand {
+        position: absolute; left: 50%; bottom: 50%;
+        transform-origin: bottom center; background: var(--primary); border-radius: 4px;
+    }
+    .clock .hand.minute { width: 3px; height: 40px; margin-left: -1.5px; animation: tourne 2s linear infinite; }
+    .clock .hand.hour   { width: 4px; height: 26px; margin-left: -2px;  animation: tourne 8s linear infinite; opacity:.8; }
+    @keyframes tourne { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    .signe-titre { font-size: 19px; margin: 0 0 8px; color: #1e1b4b; }
+    .signe-sous  { color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+    .signe-icon  { font-size: 52px; margin-bottom: 16px; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="signe-wrap"
+     id="signePage"
+     data-id="{{ id }}"
+     data-type="{{ type }}"
+     data-periode="{{ periode }}"
+     data-mois="{{ mois }}">
+
+    {# ── État : envoi en cours (horloge qui tourne) ── #}
+    <div id="etat-encours">
+        <div class="clock">
+            <span class="hand hour"></span>
+            <span class="hand minute"></span>
+        </div>
+        <h2 class="signe-titre">Signature en cours…</h2>
+        <p class="signe-sous">
+            Nous générons votre relevé et l'envoyons par email.<br>
+            Merci de patienter quelques instants.
+        </p>
+    </div>
+
+    {# ── État : succès ── #}
+    <div id="etat-ok" style="display:none;">
+        <div class="signe-icon" style="color:var(--success);"><i class="fas fa-circle-check"></i></div>
+        <h2 class="signe-titre" style="color:#15803d;">Relevé signé ✓</h2>
+        <p class="signe-sous" id="ok-msg"></p>
+        <div style="margin-top:20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            {# Bouton affiché uniquement si l'email n'a pas pu être envoyé #}
+            <button id="btn-renvoyer" class="btn btn-secondary" style="display:none;">
+                <i class="fas fa-paper-plane"></i> Réessayer l'envoi de l'email
+            </button>
+            <a href="{{ path('releves_intervenant_mvc', {intervenantId: id}) }}"
+               class="btn btn-primary">Retour à mes relevés</a>
+        </div>
+    </div>
+
+    {# ── État : échec ── #}
+    <div id="etat-ko" style="display:none;">
+        <div class="signe-icon" style="color:var(--danger);"><i class="fas fa-circle-exclamation"></i></div>
+        <h2 class="signe-titre" style="color:#dc2626;">Signature impossible</h2>
+        <p class="signe-sous" id="ko-msg"></p>
+        <button onclick="history.back()" class="btn btn-secondary" style="margin-top:20px;">Revenir</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="{{ asset('assets/js/releve-signe.js') }}?v={{ 'now'|date('YmdHis') }}" defer></script>
+{% endblock %}

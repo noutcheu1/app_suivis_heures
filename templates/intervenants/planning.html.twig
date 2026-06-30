@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
-{% block title %}Planning — {{ user.nom }} {{ user.prenom }}{% endblock %}
-{% block page_title %}Mon planning{% endblock %}
+{% block title %}Planning {{ user.nom }} {{ user.prenom }}{% endblock %}
+{% block page_title %}Mes interventions{% endblock %}
 
 {% block body %}
 
@@ -38,7 +38,7 @@
 <div class="page-header">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
-            <h1>Mon planning</h1>
+            <h1>Mes interventions</h1>
             <p>{{ planning|length }} jour{% if planning|length > 1 %}s{% endif %} de travail
                · 25 {{ moisLabels[prevMonthNum] }} → 24 {{ moisLabels[month] }} {{ year }}</p>
         </div>
@@ -58,8 +58,8 @@
 
     {# Navigation #}
     <div class="cal-nav">
-        <a href="{{ path('intervenant_planning_mvc', {id: user.id, mois: moisPrev}) }}" class="cal-nav-btn">
-            <i class="fas fa-chevron-left"></i>
+        <a >
+            
         </a>
         <div class="cal-nav-title">
             <span>{{ moisLabels[month] }} {{ year }}</span>
@@ -74,9 +74,8 @@
             <span class="cal-today-badge"><i class="fas fa-circle" style="font-size:7px;vertical-align:2px;"></i> Période courante</span>
             {% endif %}
         </div>
-        <a href="{{ path('intervenant_planning_mvc', {id: user.id, mois: moisNext}) }}" class="cal-nav-btn">
-            <i class="fas fa-chevron-right"></i>
-        </a>
+        <a ></a>
+       
     </div>
 
     {# Légende #}
@@ -87,8 +86,8 @@
         </span>
         {% endfor %}
         <span class="cal-legend-item" style="margin-left:auto;gap:10px;">
-            <span style="width:12px;height:10px;border-left:3px solid #555;background:#f2f2f2;border-radius:3px;display:inline-block;"></span><span style="font-size:11px;color:var(--text-muted);">Réel</span>
-            <span style="width:12px;height:10px;border-left:3px dashed #555;background:#f2f2f2;border-radius:3px;display:inline-block;margin-left:8px;opacity:.75;"></span><span style="font-size:11px;color:var(--text-muted);">Planifié</span>
+            <span style="width:12px;height:10px;border-left:3px solid #555;background:#f2f2f2;border-radius:3px;display:inline-block;"></span><span style="font-size:11px;color:var(--text-muted);">Declaré</span>
+            <span style="width:12px;height:10px;border-left:3px dashed #555;background:#f2f2f2;border-radius:3px;display:inline-block;margin-left:8px;opacity:.75;"></span><span style="font-size:11px;color:var(--text-muted);">A Declaré</span>
         </span>
     </div>
 
@@ -329,7 +328,7 @@
                 <button onclick="closeModal()" class="btn btn-secondary" style="flex:1;justify-content:center;">Fermer</button>
             </div>
             <div id="modalBtnConfirmedNote" style="display:none;margin-top:8px;font-size:11px;color:var(--text-muted);text-align:center;">
-                Prestation déjà saisie — cliquez pour voir ou modifier.
+                Prestation déjà saisie cliquez pour voir ou modifier.
             </div>
         </div>
     </div>
@@ -517,7 +516,7 @@
 <script>
 const SAISIR_URL = "{{ path('intervenant_suivie_mvc', {id: user.id}) }}";
 
-function openDay(dateKey) { /* cellule jour — ouverture possible future */ }
+function openDay(dateKey) { /* cellule jour ouverture possible future */ }
 
 function openPlanning(el) {
     const d = el.dataset;

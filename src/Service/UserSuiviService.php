@@ -46,15 +46,15 @@ class UserSuiviService
     /**
      * Crée un nouvel utilisateur
      */
-    public function creerUtilisateur(string $identifiant, string $motDePasse, string $role = 'intervenant'): UserSuivi
+    public function creerUtilisateur(string $identifiant, string $motDePasse, string $role = 'intervenant', ?string $email = null): UserSuivi
     {
         $user = new UserSuivi();
         $user->setUsername($identifiant);
         $user->setRole($role);
-        // L'email n'est récupéré que pour un intervenant, depuis la table Candidat
-        // (le login intervenant correspond au numSS, clé du candidat).
+        // Intervenant : l'identifiant stocké est le numSalarie (RGPD : ni numSS ni téléphone
+        // dans la bd horaire). L'email est résolu par l'appelant depuis le dossier chaudoudou.
         if ($role === 'intervenant') {
-            $user->setEmail($this->candidatRepository->findByNumSs($identifiant)?->getEmail());
+            $user->setEmail($email);
         }
         $user->setPassword($this->passwordHasher->hashPassword($user, $motDePasse));
 

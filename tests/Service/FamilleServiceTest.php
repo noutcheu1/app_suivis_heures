@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Tests unitaires pour FamilleService.
- * Couvre la fonctionnalité 3 — liste des familles dans le planning d'un intervenant.
+ * Couvre la fonctionnalité 3 liste des familles dans le planning d'un intervenant.
  */
 #[CoversClass(FamilleService::class)]
 class FamilleServiceTest extends TestCase
@@ -41,7 +41,7 @@ class FamilleServiceTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Fonctionnalité 3 — Liste des familles dans le planning
+    // Fonctionnalité 3 Liste des familles dans le planning
     // ──────────────────────────────────────────────────────────────────────────
 
     public function testGetFamillesDeIntervenant_returnsEmptyArray_whenNoFamilies(): void

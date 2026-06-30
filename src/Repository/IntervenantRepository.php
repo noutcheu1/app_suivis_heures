@@ -313,7 +313,7 @@ class IntervenantRepository extends ServiceEntityRepository
 
     /**
      * Compte les intervenants ayant un planning actif dans proposer.
-     * (Identique à countActifs — conservé pour compatibilité sémantique.)
+     * (Identique à countActifs conservé pour compatibilité sémantique.)
      */
     public function countAvecPlanningActif(): int
     {

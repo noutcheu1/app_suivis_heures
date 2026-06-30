@@ -1,4 +1,4 @@
-# docker/conf/sql/ — Scripts d'initialisation Docker
+# docker/conf/sql/ Scripts d'initialisation Docker
 
 Ce dossier est monté dans `docker-entrypoint-initdb.d/` du conteneur MariaDB.
 MariaDB exécute automatiquement tous les fichiers `.sql` et `.sh` au **premier démarrage**,
@@ -33,15 +33,15 @@ dans l'**ordre alphabétique** des noms de fichier.
 ### `02_horaire.sql`
 - S'exécute après l'import des dumps
 - Crée les nouvelles tables de l'application Symfony :
-  - `users_suivi` — authentification Symfony (remplace `users2`)
-  - `tarifs_suivi` — tarifs Doctrine (même structure que `tarifs2`)
+  - `users_suivi` authentification Symfony (remplace `users2`)
+  - `tarifs_suivi` tarifs Doctrine (même structure que `tarifs2`)
 - **Migre les données** :
   - `users2` → `users_suivi` (comptes existants, rôle détecté par le format de l'identifiant)
   - `tarifs2` → `tarifs_suivi` (données copiées à l'identique)
 
 ---
 
-## Prérequis — Dumps
+## Prérequis Dumps
 
 Placer les dumps dans `docker/conf/dumps/` avant le premier `docker compose up` :
 

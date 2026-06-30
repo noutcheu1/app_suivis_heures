@@ -53,7 +53,7 @@ class GenererHorairesTestCommand extends Command
             $dryRun ? '[DRY-RUN]' : '[INSERTION]',
         ]);
 
-        // Intervenants actifs (service) — puis expansion du planning via le service
+        // Intervenants actifs (service) puis expansion du planning via le service
         // expandForPeriodIntervenant() qui gère déjà jour + fréquence bi-hebdo.
         $intervenants = $this->familleIntervenantService->getIntervenantsActifs();
         $io->text(count($intervenants) . ' intervenant(s) actif(s)');

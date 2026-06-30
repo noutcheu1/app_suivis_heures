@@ -17,7 +17,7 @@ class UserSuivi implements UserInterface, PasswordAuthenticatedUserInterface
     private ?int $id = null;
 
     /**
-     * Login de connexion — contient selon le rôle :
+     * Login de connexion contient selon le rôle :
      *   admin       → identifiant libre
      *   intervenant → numéro SS (numSS_Candidats)
      *   famille     → code PM_Famille ou PGE_Famille
@@ -32,7 +32,7 @@ class UserSuivi implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(name: 'email', type: 'string', length: 180, nullable: true)]
     private ?string $email = null;
 
-    /** Téléphone normalisé (chiffres only) — sert au pointage QR sans connexion. */
+    /** Téléphone normalisé (chiffres only) sert au pointage QR sans connexion. */
     #[ORM\Column(name: 'telephone', type: 'string', length: 20, nullable: true)]
     private ?string $telephone = null;
 

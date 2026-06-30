@@ -40,7 +40,7 @@ class ReleveFamilleBuilder
         $periodeFin   = '24 ' . $moisFr . ' ' . $year;
         $dateLimite   = '30 ' . $moisFr . ' ' . $year;
 
-        // Enfants et tranche d'âge — priorité au plus jeune
+        // Enfants et tranche d'âge priorité au plus jeune
         $enfants = $this->familleService->getEnfantsByFamille($numFam, true);
         $refDate = new \DateTime($moisAnnee . '-01');
         $moins3 = $trois6 = $plus6 = [];
@@ -170,7 +170,7 @@ class ReleveFamilleBuilder
 
         if (empty($releves)) {
             $releves[] = $this->makeReleve(
-                '— Aucune prestation ce mois —',
+                'Aucune prestation ce mois —',
                 $moisFr, $year, $periodeDebut, $periodeFin, $dateLimite,
                 null,
                 array_merge($famBloc, ['codeClient' => $numFam]),

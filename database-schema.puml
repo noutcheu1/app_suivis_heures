@@ -1,9 +1,9 @@
 @startuml bdchaudoudoux
 
 ' ================================================================
-' SCHÉMA BASE DE DONNÉES — bdchaudoudoux
-' Application : Suivi Heures — Association Chaudoudoux
-' Version : 1.0 — Mai 2026
+' SCHÉMA BASE DE DONNÉES bdchaudoudoux
+' Application : Suivi Heures Association Chaudoudoux
+' Version : 1.0 Mai 2026
 '
 ' Convention de lecture :
 '   <<PK>>      = clé primaire
@@ -33,7 +33,7 @@ hide stereotypes
 
 
 ' ================================================================
-' PACKAGE 1 — Personnes
+' PACKAGE 1 Personnes
 ' Contient les données des familles, intervenants et candidats.
 ' Ce sont les acteurs principaux du métier de l'association.
 ' ================================================================
@@ -228,7 +228,7 @@ package "Personnes" #E8F8F0 {
 
 
 ' ================================================================
-' PACKAGE 2 — Planning & Activité
+' PACKAGE 2 Planning & Activité
 ' Gestion des créneaux, besoins, disponibilités et affectations.
 ' ================================================================
 
@@ -350,7 +350,7 @@ package "Planning & Activité" #FFF8E8 {
 
 
 ' ================================================================
-' PACKAGE 3 — Facturation & Tarifs
+' PACKAGE 3 Facturation & Tarifs
 ' Gestion des factures et des tarifs fixes libellés.
 ' À ne pas confondre avec tarifs_suivi (tranches horaires JSON).
 ' ================================================================
@@ -392,7 +392,7 @@ package "Facturation & Tarifs" #F0EEFA {
 
 
 ' ================================================================
-' PACKAGE 4 — Formation
+' PACKAGE 4 Formation
 ' Catalogue des formations et suivi par intervenant.
 ' ================================================================
 
@@ -431,7 +431,7 @@ package "Formation" #FEF0F0 {
 
 
 ' ================================================================
-' PACKAGE 5 — Authentification suivi heures
+' PACKAGE 5 Authentification suivi heures
 ' Table dédiée à l'app suivi heures, indépendante de users.
 ' ================================================================
 
@@ -468,7 +468,7 @@ package "Authentification suivi heures" #F5F5F5 {
 
 
 ' ================================================================
-' PACKAGE 6 — Suivi des heures
+' PACKAGE 6 Suivi des heures
 ' Tables métier de l'application suivi heures.
 ' ================================================================
 
