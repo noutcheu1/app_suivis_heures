@@ -1,3 +1,9 @@
+// Repli : si le helper global toast() n'est pas chargé sur cette page, on évite le crash
+// (« toast is not defined ») en retombant sur une notification simple.
+if (typeof window.toast !== 'function') {
+    window.toast = (msg) => alert(msg);
+}
+
 let scanning = true;
 let stream = null;
 let scanInterval = null;
@@ -381,12 +387,11 @@ function ouvrirFamillePreselectionnee(famCode) {
     return true;
 }
 
-const oubli   = trouverEnCoursOublie();
 const famParam = new URLSearchParams(location.search).get('fam');
 
-if (oubli) {
-    afficherRecuperation(oubli);
-} else if (famParam && ouvrirFamillePreselectionnee(famParam)) {
+// NB : la récupération d'oubli n'est PLUS gérée ici. Le scan redirige vers /pointage,
+// qui prend en charge les pointages non terminés (modal « Modifier et clôturer »).
+if (famParam && ouvrirFamillePreselectionnee(famParam)) {
     // compteur affiché directement, pas de caméra
 } else {
     demarrerFlux();
