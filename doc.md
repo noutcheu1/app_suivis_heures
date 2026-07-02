@@ -1,488 +1,578 @@
-# Cahier des charges Application Suivi Heures
-**Association Chaudoudoux**
-Version 1.0 Mai 2026
-
----
-
-## Table des matières
-
-1. [Contexte et objectifs](#1-contexte-et-objectifs)
-2. [Périmètre fonctionnel](#2-périmètre-fonctionnel)
-3. [Acteurs et rôles](#3-acteurs-et-rôles)
-4. [Fonctionnalités détaillées](#4-fonctionnalités-détaillées)
-5. [Modèle de données](#5-modèle-de-données)
-6. [Règles métier](#6-règles-métier)
-7. [Architecture technique](#7-architecture-technique)
-8. [Configuration](#8-configuration)
-9. [Points à améliorer et roadmap](#9-points-à-améliorer-et-roadmap)
-
----
-
-## 1. Contexte et objectifs
-
-### 1.1 Présentation
-
-L'association **Chaudoudoux** propose des services à domicile : garde d'enfants (GE) et ménage (M). Elle met en relation des **familles** bénéficiaires avec des **intervenants** salariés.
-
-L'application **Suivi Heures** est un outil web interne qui permet :
-- aux intervenants de déclarer leurs heures travaillées
-- aux familles de valider ces heures et de signer leur récapitulatif mensuel
-- à l'administration de superviser l'ensemble, gérer les tarifs et préparer la paie
-
-### 1.2 Contexte base de données
-
-L'application s'intègre dans la base de données existante `bdchaudoudoux`, partagée avec d'autres applications de l'association. Les tables existantes (`famille`, `intervenants`, `candidats`, etc.) **ne doivent pas être modifiées**. Les nouvelles tables sont préfixées ou nommées de façon explicite pour éviter tout conflit.
-
-### 1.3 Objectifs principaux
-
-- Remplacer la saisie papier des relevés d'heures
-- Automatiser le calcul des récapitulatifs et estimations de facture
-- Conserver une traçabilité complète des heures validées et signalées
-- Faciliter la préparation de la paie mensuelle
-
----
-
-## 2. Périmètre fonctionnel
-
-| Module | Description | Rôles concernés |
-|---|---|---|
-| Authentification | Connexion / déconnexion / mot de passe oublié | Tous |
-| Saisie des heures | Déclaration des heures travaillées par jour | Intervenant |
-| Validation des heures | Validation ou signalement par la famille | Famille |
-| Relevé mensuel intervenant | Récapitulatif signable et téléchargeable | Intervenant, Admin |
-| Récapitulatif mensuel famille | Estimation facture, paiement, avis, signature | Famille, Admin |
-| Gestion intervenants | Profil, heures, relevés, préparation paie | Admin |
-| Gestion familles | Profil, récapitulatifs, exceptions de facturation | Admin |
-| Gestion tarifs | Modification des grilles tarifaires horodatées | Admin |
-| Signalements | Visualisation et résolution des heures contestées | Admin |
-| Export | CSV préparation paie, PDF relevés et récapitulatifs | Admin, Intervenant, Famille |
-
----
-
-## 3. Acteurs et rôles
-
-### 3.1 Intervenant
-
-Salarié de l'association. Se connecte avec son **numéro de sécurité sociale** (15 chiffres, stocké dans `candidats.numSS_Candidats`).
-
-**Droits :**
-- Saisir ses heures dans la limite du délai configuré (`nbrJourSaisie`)
-- Voir la liste des familles de son planning
-- Consulter et signer ses relevés mensuels (mois actuel et précédent)
-- Ajouter des heures travaillées hors structure
-- Télécharger ses relevés en PDF
-
-### 3.2 Famille
-
-Client bénéficiaire. Se connecte avec son **code client PM** (`famille.PM_Famille`) ou son **code PGE** (`famille.PGE_Famille`).
-
-**Droits :**
-- Valider ou signaler les heures saisies par l'intervenant
-- Consulter ses récapitulatifs mensuels
-- Voir l'estimation de sa facture
-- Choisir son mode de règlement
-- Donner un avis sur les interventions et signer le récapitulatif
-- Télécharger ses récapitulatifs en PDF
-
-### 3.3 Administrateur
-
-Personnel de l'association. Se connecte avec un **identifiant libre** (ex : `9999999999`).
-
-**Droits :** accès complet à toutes les fonctionnalités ci-dessous.
-
----
-
-## 4. Fonctionnalités détaillées
-
-### 4.1 Authentification
-
-#### Connexion
-- Formulaire `username` + `mot de passe`
-- Le `username` est interprété selon le rôle stocké dans `users_suivi`
-- Mot de passe hashé en **bcrypt** (`$2y$10$…`)
-
-#### Mot de passe oublié
-- L'utilisateur saisit son `username`
-- Un **token temporaire** (64 caractères) est généré et stocké dans `users_suivi.tokenReinit`
-- Ce token expire après **1 heure** (`users_suivi.tokenExpire`)
-- Un email est envoyé à l'adresse correspondante (intervenant ou famille) via SMTP Gmail
-- ⚠️ **Note :** l'envoi d'email est actuellement désactivé côté familles/intervenants (ligne 62 de `mdpOublier.php`)
-
-#### Compte admin par défaut
-```
-username : 9999999999
-mot de passe : admin
-```
-
----
-
-### 4.2 Module Intervenant
-
-#### Saisie des heures
-- L'intervenant sélectionne une famille parmi celles de son planning (`proposer`)
-- Il saisit : date, heure début, heure fin, type de prestation (GE ou M), kilomètres avec enfants
-- **Contrainte :** saisie impossible au-delà de `nbrJourSaisie` jours après la date de la prestation
-- Une confirmation supplémentaire est demandée avant validation
-- Les heures saisies sont enregistrées dans `horaireinter`
-
-#### Heures hors structure
-- L'intervenant peut déclarer des heures effectuées en dehors du cadre habituel
-- Ces heures sont stockées dans `relevemensuelinter.heureDehors`
-
-#### Relevé mensuel
-- Vue mensuelle regroupant toutes les heures saisies
-- L'intervenant peut **signer** le relevé du mois actuel et du mois précédent
-- Signature enregistrée dans `relevemensuelinter.signer` + `signerLe`
-- Téléchargement en **PDF**
-
----
-
-### 4.3 Module Famille
-
-#### Validation des heures
-- La famille consulte la liste des heures saisies par l'intervenant, regroupées par jour
-- Pour chaque ligne, elle peut :
-  - **Valider** → `horaireinter.validerFam = 1`, `validerLe = now()`
-  - **Signaler** → `horaireinter.remarque` renseigné, les heures signalées apparaissent dans un tableau séparé
-- Les jours avec des heures en attente de validation sont mis en évidence
-
-#### Récapitulatif mensuel
-- Vue mensuelle avec :
-  - Total des heures validées
-  - Estimation de facture calculée à partir de `tarifs_suivi`
-  - Section règlement : type (`typeReglement`), numéro de chèque, nombre de CESU, montant CESU complémentaire
-  - Exceptions de facturation (montants supplémentaires ou remises)
-- Questionnaire de satisfaction : ponctualité, régularité/relation, respect des horaires, qualité du travail (note sur 5)
-- Signature de la famille (`relevemensuelfam.signerLe`)
-- Téléchargement en **PDF**
-
----
-
-### 4.4 Module Administration
-
-#### Gestion des intervenants
-- Liste complète des intervenants avec accès au profil détaillé
-- Le profil affiche les données de `intervenants` + `candidats` (via `vue_intervenants`)
-- Consultation des heures saisies avec possibilité de **modifier**, **supprimer** et **ajouter** (sans limitation de délai)
-- Consultation des relevés mensuels avec visualisation des **km de trajet** et téléchargement PDF
-
-#### Récapitulatif global des heures
-- Vue synthétique de toutes les heures saisies par mois
-- Exportable en **CSV**
-
-#### Préparation à la paie
-- Vue dédiée regroupant les données nécessaires au calcul de la paie
-- Exportable en **CSV**
-
-#### Fiches de relevé vierges
-- Génération de fiches vierges pour une tranche de mois (par défaut : 1 an)
-- Téléchargement en PDF (génération côté serveur, quelques secondes)
-
-#### Gestion des familles
-- Liste complète des familles avec accès au profil détaillé
-- Consultation des récapitulatifs mensuels avec :
-  - Ajout et modification d'**exceptions de facturation**
-  - Téléchargement PDF
-
-#### Gestion des signalements
-- Vue des heures signalées par les familles sur les déclarations des intervenants
-- L'admin peut modifier les déclarations contestées (la famille doit revalider ensuite)
-- Historique des anciens signalements
-
-#### Exceptions de facturation
-- Liste globale de toutes les exceptions
-- L'admin peut en ajouter pour n'importe quelle famille
-- La modification d'une exception renvoie directement vers le récapitulatif mensuel concerné
-
-#### Gestion des tarifs
-- Modification des grilles tarifaires (taux horaires GE et M, frais de gestion, km, abonnement)
-- Les tarifs sont **horodatés** : chaque modification crée une nouvelle entrée dans `tarifs_suivi` avec une `dateDebut`
-- Le tarif appliqué à un récapitulatif est celui dont la `dateDebut` est la plus récente ≤ au mois du récapitulatif
-- Le nombre de tranches horaires est configurable via `configuration.json` (`nbrPalierTarifGE`, `nbrPalierTarifM`)
-
----
-
-## 5. Modèle de données
-
-### 5.1 Tables existantes (ne pas modifier)
-
-| Table | Rôle |
-|---|---|
-| `famille` | Données des familles bénéficiaires |
-| `intervenants` | Données des intervenants salariés |
-| `candidats` | Dossiers de candidature (liés aux intervenants) |
-| `enfants` | Enfants rattachés à une famille |
-| `parents` | Contacts adultes rattachés à une famille |
-| `proposer` | Planning : affectation intervenant/famille/créneau |
-| `prestations` | Référentiel types de prestations (GE, M…) |
-| `typeadh` | Référentiel types d'adhésion |
-| `factures` | Factures émises aux familles |
-| `tarifs` | Tarifs fixes libellés (frais dossier, adhésion…) |
-| `formations` | Catalogue des formations |
-| `suivre` | Liaison intervenant ↔ formation |
-| `partage` | Garde partagée entre deux familles |
-| `antimatching` | Paires famille/intervenant incompatibles |
-| `besoinsfamille` | Créneaux souhaités par les familles |
-| `disponibilitesintervenants` | Disponibilités des candidats/intervenants |
-| `users` | Comptes utilisateurs des autres applications |
-| `publipostagecontrats` | Données publipostage contrats |
-
-### 5.2 Nouvelles tables (app suivi heures)
-
-#### `users_suivi`
-Comptes de connexion propres à l'application suivi heures.
-
-| Colonne | Type | Description |
-|---|---|---|
-| `id` | int(11) PK AUTO | Identifiant technique |
-| `username` | varchar(255) UNIQUE | Login : numéro SS (intervenant), code PM/PGE (famille), libre (admin) |
-| `role` | enum | `admin` / `intervenant` / `famille` |
-| `mdp` | varchar(255) | Hash bcrypt |
-| `tokenReinit` | varchar(64) | Token temporaire mot de passe oublié |
-| `tokenExpire` | datetime | Expiration du token (+1h) |
-| `creeLe` | datetime | Date de création du compte |
-
-#### `tarifs_suivi`
-Grilles tarifaires horodatées pour le calcul des récapitulatifs.
-
-| Colonne | Type | Description |
-|---|---|---|
-| `id` | int(15) PK AUTO | Identifiant technique |
-| `alheureGE` | text | JSON des tranches taux horaire garde enfants |
-| `alheureM` | text | JSON des tranches taux horaire ménage |
-| `fraisGestion` | text | JSON frais de gestion (selon âge et heures) |
-| `parIntervention` | decimal(5,2) | Frais fixes par intervention (€) |
-| `maxParIntervention` | decimal(5,2) | Plafond frais par intervention (€) |
-| `KMenfants` | decimal(5,2) | Remboursement km avec enfants (€/km) |
-| `abonnement` | decimal(5,2) | Frais abonnement mensuel (€) |
-| `dateDebut` | varchar(7) | Mois d'entrée en vigueur format `YYYY-MM` |
-
-#### `horaireinter`
-Heures saisies par les intervenants, validées par les familles.
-
-| Colonne | Type | Description |
-|---|---|---|
-| `id` | int(15) PK AUTO | Identifiant technique |
-| `numFam` | varchar(10) FK | Référence `famille.numero_Famille` |
-| `nomFam` | varchar(50) | Nom famille (dénormalisé pour affichage) |
-| `numInter` | int(5) FK | Référence `intervenants.numSalarie_Intervenants` |
-| `datePresta` | date | Date de la prestation |
-| `heureDebutPresta` | time | Heure de début |
-| `heureFinPresta` | time | Heure de fin |
-| `typePresta` | varchar(4) | `GE` (garde enfants) ou `M` (ménage) |
-| `kmAvecEnfant` | decimal(5,1) | Km parcourus avec enfants (remboursés) |
-| `ajouterLe` | datetime | Date de saisie |
-| `modifierLe` | datetime | Date de dernière modification |
-| `desactiver` | tinyint(1) | 1 = ligne supprimée logiquement |
-| `validerFam` | tinyint(1) | 1 = validée par la famille |
-| `validerLe` | datetime | Date de validation famille |
-| `remarque` | text | Texte du signalement famille |
-| `remarqueLe` | datetime | Date du signalement |
-
-#### `relevemensuelinter`
-Relevé mensuel de l'intervenant (signature + heures hors structure).
-
-| Colonne | Type | Description |
-|---|---|---|
-| `moisannee` | varchar(7) PK | Mois concerné format `MM-YYYY` |
-| `numInter` | int(5) PK FK | Référence `intervenants.numSalarie_Intervenants` |
-| `typePresta` | varchar(4) PK | `GE` ou `M` |
-| `heureDehors` | time | Heures travaillées hors structure |
-| `heureDehorsAjouterLe` | datetime | Date d'ajout des heures hors structure |
-| `signer` | tinyint(1) | 1 = relevé signé par l'intervenant |
-| `signerLe` | datetime | Date de signature |
-
-#### `relevemensuelfam`
-Récapitulatif mensuel famille (règlement, avis, signature).
-
-| Colonne | Type | Description |
-|---|---|---|
-| `numFam` | varchar(10) PK FK | Référence `famille.numero_Famille` |
-| `moisannee` | varchar(7) PK | Mois concerné format `MM-YYYY` |
-| `typePresta` | varchar(4) PK | `GE` ou `M` |
-| `typeReglement` | varchar(15) | Mode de règlement choisi |
-| `numCheque` | varchar(15) | Numéro de chèque |
-| `nbrCESU` | int(11) | Nombre de CESU |
-| `montantPrincipal` | decimal(5,2) | Montant principal (€) |
-| `complementCESU` | varchar(15) | Type de complément CESU |
-| `montantComplement` | decimal(5,2) | Montant complément (€) |
-| `libelerSupl` | text | Libellé exception de facturation |
-| `montantSupl` | decimal(5,2) | Montant exception (€) |
-| `avisPonctualite` | int(11) | Note ponctualité (1-5) |
-| `avisReguRela` | int(11) | Note régularité / relation (1-5) |
-| `avisRespectHo` | int(11) | Note respect des horaires (1-5) |
-| `avisQualiteTr` | int(11) | Note qualité du travail (1-5) |
-| `signerLe` | datetime | Date de signature famille |
-
----
-
-## 6. Règles métier
-
-### 6.1 Délai de saisie des heures
-Un intervenant peut saisir ses heures jusqu'à **N jours** après la date de prestation, où N est défini dans `configuration.json` (`nbrJourSaisie`, défaut : 7).
-
-### 6.2 Application des tarifs
-Le tarif appliqué à un récapitulatif du mois `M` est celui dont la `dateDebut` dans `tarifs_suivi` est **la plus récente ≤ M**.
-
-```sql
-SELECT t.* FROM tarifs_suivi t
-JOIN (
-  SELECT dateDebut, MAX(id) AS max_id
-  FROM tarifs_suivi
-  GROUP BY dateDebut
-) AS latest ON t.id = latest.max_id
-ORDER BY t.dateDebut DESC;
-```
-
-### 6.3 Taux horaire variable (GE > 16h)
-Lorsque le nombre d'heures mensuel dépasse 16h, le taux horaire est spécifique à chaque famille et provient d'une source externe (Microsoft Access). Ce taux doit idéalement être importé dans `tarifs_suivi` ou dans une future table dédiée.
-
-### 6.4 Affichage du taux horaire
-Le taux horaire ne s'affiche sur la fiche récap famille qu'**après le 20 du mois** en cours.
-
-### 6.5 Signalement
-Quand une famille signale des heures, elles apparaissent dans un tableau séparé. L'admin peut les modifier ; la famille doit ensuite les revalider.
-
-### 6.6 Revalidation après modification admin
-Toute modification admin d'une heure signalée remet `horaireinter.validerFam` à `0` pour forcer une nouvelle validation famille.
-
----
-
-## 7. Architecture technique
-
-### 7.1 Stack
-
-| Composant | Technologie |
-|---|---|
-| Backend | PHP (fichiers `.php`) |
-| Base de données | MySQL / MariaDB via phpMyAdmin |
-| Serveur local | XAMPP (Apache + PHP + MySQL) |
-| Envoi d'emails | SMTP Gmail via `sendmail` (XAMPP) |
-| Génération PDF | Côté serveur PHP |
-| Configuration | `app-suivis-heures/configuration.json` |
-
-### 7.2 Configuration email (XAMPP)
-
-**`php.ini` :**
-```ini
-[mail function]
-SMTP = smtp.gmail.com
-smtp_port = 587
-sendmail_from = noreplychaudoudoux@gmail.com
-sendmail_path = "C:\xampp\sendmail\sendmail.exe" -t
-```
-
-**`sendmail.ini` :**
-```ini
-[sendmail]
-smtp_server=smtp.gmail.com
-smtp_port=587
-smtp_ssl=tls
-auth_username=noreplychaudoudoux@gmail.com
-auth_password=maiq shik xooh sbzw
-force_sender=noreplychaudoudoux@gmail.com
-```
-
-### 7.3 Fichier de configuration applicative
-
-`app-suivis-heures/configuration.json` :
-```json
-{
-  "nbrJourSaisie": 7,
-  "nbrPalierTarifGE": 4,
-  "nbrPalierTarifM": 0
+\documentclass[a4paper,12pt]{article}
+
+% ==================== PAQUETS ====================
+\usepackage[french]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{margin=2cm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
 }
-```
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{xcolor}
+\usepackage{amssymb}
 
-| Paramètre | Description |
-|---|---|
-| `nbrJourSaisie` | Délai max (en jours) pour saisir une heure après la prestation |
-| `nbrPalierTarifGE` | Nombre de tranches horaires pour le tarif garde enfants |
-| `nbrPalierTarifM` | Nombre de tranches horaires pour le tarif ménage |
+% ==================== VARIABLES GLOBALES ====================
+\newcommand{\contactmail}{administration@maisondeschaudoudoux.fr}
+\newcommand{\contacttel}{01 23 45 67 89} % À remplacer par le vrai numéro
 
----
+% ==================== BOÎTES RÉUTILISABLES ====================
 
-## 8. Configuration
+% Boîte "Étapes" numérotées, très visuelle
+\newtcolorbox{etapes}[1]{
+    colback=blue!4!white, colframe=blue!55!black,
+    boxrule=1.2pt, arc=2mm,
+    title={\textbf{#1}},
+    fonttitle=\large\bfseries,
+    breakable
+}
 
-### 8.1 Installation base de données
+% Boîte "Important" — rouge, grande, pour les pièges qui font perdre de l'argent/du temps
+\newtcolorbox{important}[1][Important]{
+    colback=red!6!white, colframe=red!60!black,
+    boxrule=1.5pt, arc=2mm,
+    title={\Large \textbf{\textcolor{white}{$\star$~#1~$\star$}}},
+    coltitle=white, colbacktitle=red!60!black,
+    fonttitle=\bfseries,
+    breakable
+}
 
-Exécuter dans `bdchaudoudoux` les `CREATE TABLE` suivants :
+% Boîte "Si..." — jaune, pour les cas particuliers / dépannage
+\newtcolorbox{siboite}[1]{
+    colback=yellow!8!white, colframe=orange!70!black,
+    boxrule=1pt, arc=2mm,
+    title={\textbf{Si #1}},
+    fonttitle=\bfseries,
+    breakable
+}
 
-- `users_suivi`
-- `tarifs_suivi`
-- `horaireinter`
-- `relevemensuelinter`
-- `relevemensuelfam`
+% Boîte "Bon à savoir" — verte, information rassurante
+\newtcolorbox{bonasavoir}{
+    colback=green!5!white, colframe=green!45!black,
+    boxrule=1pt, arc=2mm,
+    title={\textbf{Bon à savoir}},
+    fonttitle=\bfseries,
+    breakable
+}
 
-Voir le fichier `schema.puml` pour le détail complet des colonnes.
+% Repère photo — remplace une vraie capture d'écran par un cadre gris à compléter
+\newcommand{\photo}[2]{%
+\begin{center}
+\fbox{\includegraphics[width=#1\textwidth]{#2}}
+\end{center}
+}
 
-### 8.2 Compte admin par défaut
+% ==================== EN-TÊTE / PIED DE PAGE ====================
+\setlength{\headheight}{14pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Guide Espace Intervenant·e}
+\fancyhead[R]{\thepage}
+\fancyfoot[C]{\small Besoin d'aide ? \contacttel\ -- \contactmail}
 
-```sql
-INSERT INTO users_suivi (username, role, mdp)
-VALUES (
-  '9999999999',
-  'admin',
-  '$2y$10$TeklSxuN91pAS7wiiUbuweakFvvsvNIg91XrCTAmY7vrPIkPC4WpS'
-);
--- mot de passe en clair : admin
-```
+% ==================== DOCUMENT ====================
+\begin{document}
 
----
+% ============================================================
+% PAGE DE TITRE
+% ============================================================
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    {\Huge \textbf{Guide d'utilisation}} \\[0.5cm]
+    {\Large \textbf{Espace Intervenant·e}} \\[0.3cm]
+    {\large \textit{Pas à pas, avec des images à chaque étape}} \\[1.5cm]
+    \includegraphics[width=0.4\textwidth]{images/logo-exemple.png} \\[1cm] % À remplacer par le vrai logo
+    \vfill
+    \begin{tcolorbox}[colback=blue!4!white, colframe=blue!55!black, width=0.8\textwidth, arc=2mm]
+        \centering
+        \textbf{Une question en cours de route ?}\\
+        Appelez-nous au \textbf{\contacttel}\\
+        ou écrivez à \textbf{\contactmail}\\
+        \textit{Personne ne vous en voudra de nous appeler.}
+    \end{tcolorbox}
+    \vfill
+    {\large Version 3.0 -- \today}
+\end{titlepage}
 
-## 9. Points à améliorer et roadmap
+% ============================================================
+% LES 4 CHOSES À RETENIR — résumé ultra-court, en tout premier
+% ============================================================
+\thispagestyle{empty}
+\section*{Les 4 choses à retenir}
 
-### 9.1 Bugs et limitations connues
+\begin{center}
+\textit{Si vous ne devez retenir que 4 choses de tout ce guide, ce sont celles-ci.\\
+Le reste du guide n'est là que pour vous aider si vous êtes bloqué·e.}
+\end{center}
 
-| Priorité | Description |
-|---|---|
-| Haute | Envoi d'emails désactivé pour familles/intervenants (`mdpOublier.php` ligne 62) |
-| Haute | Taux horaire > 16h récupéré manuellement depuis Microsoft Access à automatiser |
-| Moyenne | Taux horaire masqué avant le 20 du mois logique à revoir |
-| Faible | CSS à améliorer : section "Frais / Remboursement" (admin) et "Questionnaire de satisfaction" (famille) |
+\vspace{0.5cm}
 
-### 9.2 Nouvelles fonctionnalités prévues
+\begin{etapes}{Le rythme de tous les jours}
+\begin{enumerate}[label=\Large\textbf{\arabic*.}, leftmargin=1.2cm, itemsep=12pt]
+    \item \large \textbf{Vous vous connectez} avec votre numéro de téléphone et votre mot de passe.
+    \item \large \textbf{En arrivant chez une famille}, vous appuyez sur \textbf{Démarrer}.
+    \item \large \textbf{En partant de chez une famille}, vous appuyez sur \textbf{Terminer}.\\
+    \textcolor{red!70!black}{\textbf{Sans ce bouton, vos heures ne sont pas enregistrées.}}
+    \item \large \textbf{À la fin du mois}, vous vérifiez vos heures et vous les \textbf{signez}.
+\end{enumerate}
+\end{etapes}
 
-#### Congés et vacances
-- Intervenants et familles pourront saisir leurs dates de vacances
-- Ces dates s'afficheraient dans les fiches relevé intervenant et récap famille
+\vspace{0.3cm}
+\begin{center}
+\textit{C'est tout. Avec ces 4 étapes, vous pouvez déjà utiliser l'application.}\\
+\textit{La suite du guide explique chaque étape en détail, avec des images.}
+\end{center}
 
-#### Rappels automatiques par email
-- **Familles GE :** email de rappel tous les weekends + fin de mois pour valider les heures
-- **Familles M :** email de rappel en fin de mois uniquement
-- Condition : envoyer uniquement s'il y a des heures en attente de validation
+\newpage
 
-#### Affichage des tarifs enregistrés
-- Afficher la liste des tarifs avec déduplication par mois (un seul par `dateDebut`)
-- Requête suggérée :
-```sql
-SELECT t.* FROM tarifs_suivi t
-JOIN (
-  SELECT dateDebut, MAX(id) AS max_id
-  FROM tarifs_suivi GROUP BY dateDebut
-) AS latest ON t.id = latest.max_id
-```
+% ============================================================
+% TABLE DES MATIÈRES
+% ============================================================
+\tableofcontents
+\newpage
 
-#### Fiche vierge famille
-- Génération d'une fiche récap vierge pour les familles
-- Bloquée par la problématique du taux horaire Access
-- Les sections règlement et questionnaire doivent revenir à leur format d'origine
-- Deux lignes de tarification : une issue de l'Access, une avec les tranches horaires
+% ============================================================
+\section{Comment lire ce guide}
+\label{sec:conventions}
+% ============================================================
 
----
+\begin{itemize}[itemsep=6pt]
+    \item Chaque action que vous devez faire est écrite en \textbf{gras}, par exemple : appuyez sur \textbf{Démarrer}.
+    \item Une capture d'écran (une photo de ce que vous voyez à l'écran) accompagne presque chaque étape. Repérez-vous d'abord avec l'image, lisez le texte seulement si besoin.
+    \item Les encadrés \textcolor{orange!70!black}{\textbf{orange « Si... »}} répondent aux questions les plus courantes.
+    \item Les encadrés \textcolor{red!60!black}{\textbf{rouges}} signalent une information très importante à ne pas oublier.
+    \item Vous ne trouvez pas la réponse à votre question ? Appelez-nous au \textbf{\contacttel}. C'est plus rapide que de chercher seul·e.
+\end{itemize}
 
-*Document généré le mai 2026 Association Chaudoudoux*
+% ============================================================
+\section{Se repérer sur l'écran}
+\label{sec:menu}
+% ============================================================
 
+Sur toutes les pages de l'application, vous retrouvez la même barre en haut de l'écran. C'est votre point de repère.
 
+\photo{1}{images/intervenant-00-menu.png}
 
-Fonctionnalité	Fichier
-Estimation facture famille (calcul tarifs)	FamilleService::calculerMontantDu → return 0.0 toujours
-Questionnaire satisfaction + sauvegarde avis	FamillesControllerMVC::donnerAvis → flash sans save
-Calcul km trajet intervenant	RelevesControllerMVC::kmIntervenant → $kmTotal = 0
-Signalements admin (tous)	AdminControllerMVC::signalements → $signalements = []
-Exceptions facturation admin	AdminControllerMVC::exceptionsFacturation → $exceptions = []
-Récapitulatif global heures + CSV	AdminControllerMVC::recapitulatifHeures/Csv → vide
-Préparation paie + CSV	AdminControllerMVC::preparationPaie/Csv → vide
-PDF relevés (intervenant + famille)	RelevesControllerMVC::*Pdf → texte brut
-PDF fiches vierges	AdminControllerMVC::fichesViergesPdf → texte brut
-Gestion tarifs admin	Aucun controller TarifRepository existe mais pas de routes CRUD
+\begin{siboite}{vous êtes perdu·e}
+\textbf{\textbf{$\rightarrow$} Appuyez toujours sur Accueil ou sur chadoudoux} en haut de l'écran. Vous revenez à la page de départ, et vous pouvez recommencer.
+\end{siboite}
+
+% ============================================================
+\section{Se connecter}
+\label{sec:connexion}
+% ============================================================
+
+\subsection{La toute première fois}
+
+Cette étape ne se fait \textbf{qu'une seule fois}, quand vous utilisez l'application pour la première fois.
+
+\begin{etapes}{Pour créer votre compte Intervenant}
+\begin{enumerate}[itemsep=8pt]
+    \item Ouvrez l'application.
+    \item Appuyez sur \textbf{Intervenant}.
+\end{enumerate}
+\end{etapes}
+
+\photo{0.6}{images/intervenant-01a-choix-profil.png}
+
+\begin{etapes}{}
+\begin{enumerate}[itemsep=8pt, start=3]
+    \item Appuyez sur \textbf{Créer un compte}.
+    \item Écrivez votre \textbf{numéro de téléphone} (celui utilisé avec l'entreprise).
+    \item Choisissez un \textbf{mot de passe} (au moins 8 lettres ou chiffres).
+    \item Écrivez ce même mot de passe une deuxième fois, pour confirmer.
+    \item Appuyez sur \textbf{Valider l'inscription}.
+\end{enumerate}
+\end{etapes}
+
+\photo{0.6}{images/intervenant-01b-inscription.png}
+
+\begin{bonasavoir}
+Votre compte est prêt. La prochaine fois, vous n'aurez plus besoin de vous inscrire : vous vous connecterez directement (voir ci-dessous).
+\end{bonasavoir}
+
+\subsection{Tous les jours}
+
+\begin{etapes}{Pour vous connecter}
+\begin{enumerate}[itemsep=8pt]
+    \item Ouvrez l'application.
+    \item Écrivez votre \textbf{numéro de téléphone}.
+    \item Écrivez votre \textbf{mot de passe}.
+    \item Appuyez sur \textbf{Connexion}.
+\end{enumerate}
+\end{etapes}
+
+\photo{0.6}{images/intervenant-01c-connexion.png}
+
+\begin{siboite}{vous avez oublié votre mot de passe}
+\textbf{\textbf{$\rightarrow$} Appuyez sur « Mot de passe oublié ? »}. Un message est envoyé sur votre e-mail avec un nouveau code. Ce code est valable 1 heure.\\[4pt]
+Vous ne trouvez pas le message ? Regardez dans le dossier \textbf{« Indésirables »} ou \textbf{« Spam »} de votre boîte mail.
+\end{siboite}
+
+% ============================================================
+\section{La page d'accueil}
+\label{sec:accueil}
+% ============================================================
+
+C'est la page que vous voyez juste après vous être connecté·e. C'est votre tableau de bord : elle résume votre mois.
+
+\photo{1}{images/intervenant-02-accueil.png}
+
+Vous y trouvez :
+\begin{itemize}[itemsep=6pt]
+    \item En haut : votre nom, avec un accès à \textbf{Mon profil}.
+    \item Au milieu : quelques chiffres qui résument votre mois (total d'heures, heures déjà validées, etc.).
+    \item Des raccourcis vers les actions les plus utiles : \textbf{Pointer} (qui regroupe la saisie manuelle, le scan QR et la garde d'enfant), \textbf{Scanner QR}, votre planning.
+\end{itemize}
+
+\begin{siboite}{un message d'alerte s'affiche en haut de l'écran}
+C'est probablement pour vous rappeler de signer votre relevé du mois précédent. \textbf{\textbf{$\rightarrow$} Appuyez sur le bouton du message} pour être amené·e directement à la bonne page.
+\end{siboite}
+
+% ============================================================
+\section{Pointer votre arrivée et votre départ}
+\label{sec:qrcode}
+\index{QR}
+% ============================================================
+
+C'est la façon la plus simple et la plus fiable de déclarer vos heures. Chaque famille a une petite affiche avec un \textbf{QR Code} (une image carrée avec un motif, qui se lit avec l'appareil photo de votre téléphone).
+
+\begin{important}[Un seul geste à ne jamais oublier]
+Vous devez appuyer sur \textbf{Terminer} quand vous partez. \\[6pt]
+\Large \textbf{Si vous oubliez, vos heures ne seront pas enregistrées, et vous risquez de ne pas être payé·e pour cette intervention.}\\[6pt]
+\normalsize En cas de doute, contactez-nous au \textbf{\contacttel} : nous pourrons corriger l'oubli.
+\end{important}
+
+\subsection{Pour commencer une intervention (à votre arrivée)}
+
+\begin{etapes}{À faire dès que vous arrivez chez la famille}
+\begin{enumerate}[itemsep=10pt]
+    \item Ouvrez l'appareil photo de votre téléphone, ou appuyez sur \textbf{Scanner QR} dans l'application.
+    \item Visez le QR Code affiché chez la famille.
+\end{enumerate}
+\end{etapes}
+
+\photo{0.55}{images/intervenant-03a-scan.png}
+
+\begin{etapes}{}
+\begin{enumerate}[itemsep=10pt, start=3]
+    \item Vérifiez que le \textbf{nom de la famille} qui s'affiche est le bon.
+     \item Sélectionnez le type de prestation \textbf{Ménage ou Garde} : par défaut, c'est votre prestation habituelle (vous pouvez changer si besoin).
+    \item Appuyez sur \textbf{Démarrer}.
+\end{enumerate}
+\end{etapes}
+
+% \photo{0.55}{images/intervenant-03b-demarrer.png}
+
+\begin{bonasavoir}
+C'est fait ! Un compteur se met en route. Vous n'avez plus rien à faire jusqu'à votre départ.
+\end{bonasavoir}
+
+\subsection{Pour terminer une intervention (à votre départ)}
+
+\begin{etapes}{À faire juste avant de partir de chez la famille}
+\begin{enumerate}[itemsep=10pt]
+    \item Ouvrez de nouveau l'appareil photo, ou appuyez sur \textbf{Scanner QR}.
+    \item Visez le même QR Code que tout à l'heure.
+\end{enumerate}
+\end{etapes}
+
+\photo{0.55}{images/intervenant-04a-rescan.png}
+
+\begin{etapes}{}
+\begin{enumerate}[itemsep=10pt, start=3]
+    \item Vérifiez l'heure de début affichée : c'est bien l'heure de votre arrivée.
+    \item Appuyez sur \textbf{Terminer}.
+\end{enumerate}
+\end{etapes}
+
+\photo{0.55}{images/intervenant-04b-terminer.png}
+
+\begin{bonasavoir}
+Une heure de début ou de fin à corriger ? Appuyez sur \textbf{Modifier les heures} : vous ajustez le début et la fin affichés, sans interrompre le comptage.
+\end{bonasavoir}
+
+\begin{siboite}{le QR Code ne se scanne pas}
+\begin{itemize}[itemsep=4pt]
+    \item Éloignez ou rapprochez légèrement votre téléphone.
+    \item Allumez plus de lumière si la pièce est sombre.
+    \item Toujours bloqué ? \textbf{\textbf{$\rightarrow$} Utilisez la saisie manuelle} (section~\ref{sec:saisie-manuelle}).
+\end{itemize}
+\end{siboite}
+
+\begin{siboite}{vous intervenez plusieurs fois chez la même famille le même jour}
+C'est possible (par exemple un ménage le matin et un autre l'après-midi) : faites simplement \textbf{Démarrer} puis \textbf{Terminer} à chaque passage. La seule règle : \textbf{terminez un pointage avant d'en démarrer un nouveau} (l'application vous prévient si un pointage est encore en cours).
+\end{siboite}
+
+% ============================================================
+\section{Déclarer une garde d'enfant}
+\label{sec:pointage-tel}
+% ============================================================
+
+Pour la \textbf{garde d'enfant}, une méthode spéciale vous montre directement \textbf{votre planning de garde du jour} : vous n'avez qu'à choisir la famille, sans scanner de QR Code à l'arrivée.
+
+\photo{0.6}{images/intervenant-05-pointage-tel.png}
+
+\begin{etapes}{À votre arrivée -- démarrer la garde}
+\begin{enumerate}[itemsep=10pt]
+    \item Ouvrez la page \textbf{Garde d'enfant} (depuis \textbf{Pointer}, ou en scannant le QR « Garde »).
+    \item Écrivez votre \textbf{numéro de téléphone}, puis appuyez sur \textbf{Voir mes gardes du jour}.
+    \item La liste de vos \textbf{gardes prévues aujourd'hui} s'affiche (famille + horaires).
+    \item \textbf{Appuyez sur la famille} chez qui vous intervenez.
+    \item Vérifiez les informations, puis appuyez sur \textbf{Démarrer}.
+\end{enumerate}
+\end{etapes}
+
+\begin{important}[Pour terminer une garde]
+Pour \textbf{Terminer} (ou modifier) une garde, vous devez \textbf{scanner le QR Code de la famille} sur place. \\[4pt]
+\normalsize C'est ce qui prouve que vous étiez bien présent·e à la fin de l'intervention. Le bouton Terminer n'apparaît donc qu'après avoir scanné le QR de la famille.
+\end{important}
+
+\begin{bonasavoir}
+Vous pouvez commencer la garde depuis cette page, et la terminer en scannant le QR de la famille — même avec un autre téléphone. Ce n'est pas un problème.
+\end{bonasavoir}
+
+% ============================================================
+\section{Écrire vos heures vous-même}
+\label{sec:saisie-manuelle}
+% ============================================================
+
+Utilisez cette méthode si vous avez oublié de pointer, ou si vous n'avez pas pu scanner le QR Code.
+
+\begin{etapes}{Pour accéder à l'écran de saisie}
+\begin{enumerate}[itemsep=8pt]
+    \item Depuis l'accueil, appuyez sur \textbf{Saisir mes heures}.
+\end{enumerate}
+\end{etapes}
+
+\photo{0.7}{images/intervenant-06-saisie.png}
+
+\begin{etapes}{Pour remplir l'écran}
+\begin{enumerate}[itemsep=8pt, start=2]
+    \item Choisissez le type d'intervention : \textbf{Garde d'enfants} ou \textbf{Ménage}.
+    \item Choisissez la \textbf{famille} dans la liste.
+    \item Choisissez la \textbf{date}.
+    \item Choisissez l'\textbf{heure de début}.
+    \item Choisissez l'\textbf{heure de fin}.
+    \item Si vous avez conduit avec un enfant, écrivez le nombre de \textbf{kilomètres parcourus}.
+    \item Appuyez sur \textbf{Valider}.
+\end{enumerate}
+\end{etapes}
+
+\begin{siboite}{l'application refuse votre saisie}
+Un message rouge explique pourquoi. Les raisons les plus courantes :
+\begin{itemize}[itemsep=4pt]
+    \item Vous avez déjà une intervention à cette heure-là ce jour-là.
+    \item La date que vous avez choisie n'est pas encore arrivée.
+    \item Le mois est déjà \textbf{terminé} : vous ne pouvez plus le changer. Contactez-nous.
+\end{itemize}
+\end{siboite}
+
+% ============================================================
+\section{Voir et changer vos heures}
+\label{sec:mes-heures}
+% ============================================================
+
+\begin{etapes}{Pour accéder à la liste de vos heures}
+\begin{enumerate}[itemsep=8pt]
+    \item Depuis le menu en haut, appuyez sur \textbf{Mes heures}.
+\end{enumerate}
+\end{etapes}
+
+\photo{1}{images/intervenant-07-mes-heures.png}
+
+Vous voyez la liste de toutes vos interventions, classées par mois. Le mois en cours s'affiche déjà ouvert.
+
+\begin{siboite}{vous vous êtes trompé·e}
+\textbf{\textbf{$\rightarrow$} Appuyez sur la ligne concernée} pour changer les horaires ou la supprimer.
+\end{siboite}
+
+\begin{siboite}{vous ne pouvez plus changer une ligne}
+Le mois est déjà terminé, ou vous avez déjà signé votre relevé (section~\ref{sec:releve}). \textbf{\textbf{$\rightarrow$} Contactez-nous} au \textbf{\contacttel} pour une correction.
+\end{siboite}
+
+% ============================================================
+\section{Votre planning}
+\label{sec:planning}
+% ============================================================
+
+\begin{etapes}{Pour voir votre planning de la semaine}
+\begin{enumerate}[itemsep=8pt]
+    \item Depuis le menu en haut, appuyez sur \textbf{Planning}.
+\end{enumerate}
+\end{etapes}
+
+\photo{1}{images/intervenant-08-planning.png}
+
+Chaque jour de la semaine est affiché avec les interventions prévues (famille, horaires). Le jour d'aujourd'hui est mis en évidence.
+
+\begin{bonasavoir}
+En appuyant sur une intervention prévue, une petite fenêtre s'ouvre avec un bouton \textbf{Saisir}. Cela vous évite de tout réécrire à la main.
+\end{bonasavoir}
+
+% ============================================================
+\section{Signer votre relevé -- pour être payé·e}
+\label{sec:releve}
+% ============================================================
+
+\begin{important}[Une étape indispensable]
+\Large\textbf{Chaque mois, vous devez signer votre relevé pour être payé·e.}\\[6pt]
+\normalsize Sans signature, l'administration ne peut pas valider votre paie.\\[4pt]
+\textcolor{red!70!black}{\textbf{Une fois signé, vous ne pourrez plus changer les heures de ce mois.}} Vérifiez bien avant de signer.
+\end{important}
+
+\subsection{Comment y accéder}
+
+\begin{etapes}{}
+\begin{enumerate}[itemsep=8pt]
+    \item Depuis le menu en haut, appuyez sur \textbf{Mes relevés}.
+    \item Choisissez le \textbf{mois}.
+    \item Choisissez le \textbf{type} : Garde d'enfants ou Ménage.
+\end{enumerate}
+\end{etapes}
+
+\photo{1}{images/intervenant-09-releve-signer.png}
+
+\subsection{Vous vous êtes trompé·e dans une ligne ?}
+
+\begin{etapes}{Pour changer une heure avant de signer}
+\begin{enumerate}[itemsep=8pt]
+    \item Appuyez sur la case qui contient déjà des heures.
+    \item Une petite fenêtre s'ouvre : changez l'heure de début et l'heure de fin.
+    \item Appuyez sur l'icône \textbf{\checkmark} (la coche) pour enregistrer.
+    \item Appuyez sur \textbf{Fermer}.
+\end{enumerate}
+\end{etapes}
+
+\begin{siboite}{vous voulez supprimer une intervention}
+\textbf{\textbf{$\rightarrow$} Dans la même petite fenêtre}, appuyez sur l'icône \textbf{corbeille}.
+\end{siboite}
+
+\begin{siboite}{une journée est vide et vous voulez y ajouter une intervention}
+Les cases vides ne s'ouvrent pas au clic. \textbf{\textbf{$\rightarrow$} Utilisez « Saisir mes heures »} (section~\ref{sec:saisie-manuelle}), puis revenez sur cette page : la ligne apparaîtra automatiquement.
+\end{siboite}
+
+\subsection{Heures faites en dehors de l'association}
+
+Si vous avez aussi travaillé pour d'autres employeurs ce mois-ci (hors association), vous pouvez le signaler tout en bas de la page.
+
+\begin{etapes}{}
+\begin{enumerate}[itemsep=8pt]
+    \item Tout en bas de la page, écrivez le nombre d'\textbf{heures} effectuées ailleurs.
+    \item Appuyez sur \textbf{Sauvegarder heures hors Chaudoudoux}.
+\end{enumerate}
+\end{etapes}
+
+\subsection{La dernière étape : signer}
+
+\begin{etapes}{Une fois que tout est correct}
+\begin{enumerate}[itemsep=8pt]
+    \item Relisez une dernière fois toutes vos heures.
+    \item Appuyez sur \textbf{Signer}.
+    \item Une fenêtre de confirmation apparaît : appuyez de nouveau sur \textbf{Signer}.
+\end{enumerate}
+\end{etapes}
+
+\begin{bonasavoir}
+C'est terminé ! Votre relevé signé vous est automatiquement envoyé par e-mail, au format PDF (un fichier que vous pouvez ouvrir, imprimer ou garder).
+\end{bonasavoir}
+
+\begin{siboite}{un message « Ce mois est clôturé » apparaît}
+Le délai pour signer ce mois est passé. \textbf{\textbf{$\rightarrow$} Contactez-nous} au \textbf{\contacttel} : nous réglerons cela ensemble.
+\end{siboite}
+
+% ============================================================
+\section{Votre profil -- vos informations personnelles}
+\label{sec:profil}
+% ============================================================
+
+\begin{etapes}{Pour accéder à votre profil}
+\begin{enumerate}[itemsep=8pt]
+    \item Depuis le menu en haut, appuyez sur \textbf{Mon profil}.
+\end{enumerate}
+\end{etapes}
+
+\photo{0.8}{images/intervenant-10-profil.png}
+
+Vous y voyez votre nom, votre numéro de téléphone, votre e-mail, votre téléphone et votre adresse.
+
+\begin{important}[À vérifier de temps en temps]
+Votre \textbf{e-mail} doit être juste : c'est là que vous recevez vos relevés et vos codes en cas de mot de passe oublié.\\[4pt]
+Votre \textbf{téléphone} doit être juste : c'est ce numéro qui sert pour le pointage sans connexion.
+\end{important}
+
+% ============================================================
+\section{Si quelque chose ne va pas}
+\label{sec:depannage}
+% ============================================================
+
+\begin{center}
+\textit{Vous trouverez ici les questions les plus fréquentes. Si votre problème n'y est pas, appelez-nous au \textbf{\contacttel} : c'est toujours plus simple d'en parler.}
+\end{center}
+
+\vspace{0.3cm}
+
+\begin{siboite}{vos heures n'apparaissent pas}
+Avez-vous bien appuyé sur \textbf{Terminer} à la fin de votre intervention (section~\ref{sec:qrcode}) ? Un pointage non terminé n'est jamais enregistré.
+\end{siboite}
+
+\begin{siboite}{vous ne pouvez plus changer une heure}
+Le mois est terminé, ou vous avez déjà signé votre relevé. \textbf{\textbf{$\rightarrow$} Contactez-nous} pour une correction.
+\end{siboite}
+
+\begin{siboite}{vous n'avez pas reçu l'e-mail pour retrouver votre mot de passe}
+Regardez dans vos \textbf{spams / indésirables}. Vérifiez que votre e-mail est correct dans \textbf{Mon profil} (section~\ref{sec:profil}). Toujours rien après 5 minutes ? Réessayez une nouvelle demande.
+\end{siboite}
+
+\begin{siboite}{la mention « Famille occasionnelle » s'affiche}
+C'est normal : cette famille n'est pas dans votre planning habituel. Vous pouvez tout de même enregistrer vos heures.
+\end{siboite}
+
+\begin{siboite}{le QR Code ne veut pas se scanner}
+Approchez ou éloignez votre téléphone, ou allumez la lumière. Toujours bloqué·e ? Utilisez la saisie manuelle (section~\ref{sec:saisie-manuelle}).
+\end{siboite}
+
+\begin{siboite}{votre compte est bloqué}
+Après plusieurs mots de passe incorrects, l'accès se bloque \textbf{quelques minutes} par sécurité. Attendez un peu, puis réessayez, ou utilisez \textbf{« Mot de passe oublié ? »}.
+\end{siboite}
+
+% ============================================================
+\section{Pour résumer -- votre mois en 4 étapes}
+\label{sec:resume}
+% ============================================================
+
+\begin{etapes}{Ce qu'il faut faire, et quand}
+\begin{enumerate}[itemsep=10pt]
+    \item \textbf{À chaque intervention} : scannez le QR Code (section~\ref{sec:qrcode}). Appuyez sur \textbf{Démarrer} en arrivant, sur \textbf{Terminer} en partant.
+    \item \textbf{En cas d'oubli} : utilisez la saisie manuelle (section~\ref{sec:saisie-manuelle}).
+    \item \textbf{À la fin du mois} : allez dans \textbf{Mes relevés} (section~\ref{sec:releve}), vérifiez toutes les lignes, puis \textbf{signez}.
+    \item \textbf{De temps en temps} : vérifiez votre e-mail et votre téléphone dans \textbf{Mon profil} (section~\ref{sec:profil}).
+\end{enumerate}
+\end{etapes}
+
+% ============================================================
+\section*{Une question ? Nous sommes là}
+% ============================================================
+
+\begin{center}
+\begin{tcolorbox}[colback=blue!4!white, colframe=blue!55!black, width=0.85\textwidth, arc=2mm]
+\centering
+\Large \textbf{N'hésitez jamais à nous appeler.}\\[8pt]
+\normalsize
+Téléphone : \textbf{\contacttel}\\
+E-mail : \textbf{\contactmail}
+\end{tcolorbox}
+\end{center}
+
+\end{document}

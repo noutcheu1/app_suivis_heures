@@ -79,6 +79,21 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
         $roles    = $token->getRoleNames();
         $username = $token->getUserIdentifier();
 
+        // Nom d'affichage pour l'audit (plus lisible que le numSalarie). On le résout UNE
+        // fois ici et on le mémorise en session → réutilisé sans requête à chaque action.
+        $nomAffiche = $username;
+        if (in_array('ROLE_ADMIN', $roles)) {
+            $nomAffiche = 'Administrateur';
+        } elseif (in_array('ROLE_INTERVENANT', $roles)) {
+            $inter = $this->intervenantRepository->findByNumSalarie($username);
+            if ($inter) {
+                $nomAffiche = trim($inter->getPrenom() . ' ' . $inter->getNom()) ?: $username;
+            }
+        }
+        if ($request->hasSession()) {
+            $request->getSession()->set('audit_nom', $nomAffiche);
+        }
+
         $this->logger->info('Connexion réussie', [
             'username' => $username,
             'roles'    => $roles,
@@ -86,9 +101,10 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
             'firewall' => $firewallName,
         ]);
 
-        // AUDIT : connexion réussie (l'identifiant stocké = numSalarie/code, non sensible).
+        // AUDIT : connexion réussie. Acteur = nom lisible ; on garde le compte (numSalarie).
         $this->audit->log('login_success', [
-            'actor'      => $username,
+            'actor'      => $nomAffiche,
+            'compte'     => $username,
             'actor_role' => implode(',', $roles),
         ]);
 

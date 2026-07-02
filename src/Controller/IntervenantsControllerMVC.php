@@ -51,6 +51,22 @@ final class IntervenantsControllerMVC extends AbstractController
 
     // ── Dashboard intervenant ─────────────────────────────────────────────────
 
+    #[Route('/intervenants-mvc/{id}/pointer', name: 'intervenant_pointer_mvc')]
+    public function pointer(int $id): Response
+    {
+        if ($redirect = $this->guardIntervenantAccess()) {
+            return $redirect;
+        }
+        $id = $this->resolveId($id);
+
+        return $this->render('intervenants/pointer.html.twig', [
+            'auth' => $this->authService->check(),
+            'user' => $this->intervenantService->getInfosIntervenant($id),
+            // Pointages NON terminés → bouton « Clôturer » (sans QR, l'intervenant est connecté).
+            'pointagesEnCours' => $this->horaireService->getPointagesEnCours($id),
+        ]);
+    }
+
     #[Route('/intervenants-mvc/{id}/panel', name: 'intervenant_panel_mvc')]
     public function intervenantPanel(int $id, Request $request): Response
     {
@@ -314,45 +330,24 @@ final class IntervenantsControllerMVC extends AbstractController
             throw $this->createNotFoundException('Intervenant introuvable');
         }
 
-        $now       = new \DateTime();
-        $moisParam = $request->query->get('mois');
-        if ($moisParam && preg_match('/^\d{4}-\d{2}$/', $moisParam)) {
-            [$year, $month] = array_map('intval', explode('-', $moisParam));
-        } else {
-            // Période de facturation courante : si on est après le 24, la nouvelle période
-            // a commencé le 25 du mois courant, donc le mois de référence est le mois suivant.
-            $nowDay = (int)$now->format('d');
-            if ($nowDay >= 25) {
-                $billingRef = (clone $now)->modify('+1 month');
-            } else {
-                $billingRef = clone $now;
-            }
-            $year  = (int)$billingRef->format('Y');
-            $month = (int)$billingRef->format('m');
-        }
+        $now   = new \DateTime();
+        $year  = (int)$now->format('Y');
+        $month = (int)$now->format('m');
 
-        // Plage de facturation : 25 du mois M-1 → 24 du mois M
-        $periodStart = (new \DateTime(sprintf('%04d-%02d-01', $year, $month)))
-            ->modify('-1 month')
-            ->modify('+24 days'); // = 25 du mois précédent
-        $periodEnd = new \DateTime(sprintf('%04d-%02d-24', $year, $month));
+        // Affichage limité à la SEMAINE COURANTE (lundi → dimanche).
+        $periodStart = (clone $now)->modify('monday this week');
+        $periodStart->setTime(0, 0, 0);
+        $periodEnd = (clone $now)->modify('sunday this week');
+        $periodEnd->setTime(0, 0, 0);
 
-        // Grille : du lundi de la semaine contenant periodStart
-        //          au dimanche de la semaine contenant periodEnd
-        $startDow  = (int)$periodStart->format('N'); // 1=Lun … 7=Dim
-        $gridStart = (clone $periodStart)->modify('-' . ($startDow - 1) . ' days');
-        $endDow    = (int)$periodEnd->format('N');
-        $gridEnd   = (clone $periodEnd)->modify('+' . (7 - $endDow) . ' days');
-        $nbGridDays = ((int)$gridStart->diff($gridEnd)->days) + 1;
+        // Grille = exactement la semaine courante (7 jours).
+        $gridStart  = clone $periodStart;
+        $nbGridDays = 7;
 
         $moisOffset  = sprintf('%04d-%02d', $year, $month);
-        $moisPrev    = (new \DateTime(sprintf('%04d-%02d-01', $year, $month)))->modify('-1 month')->format('Y-m');
-        $moisNext    = (new \DateTime(sprintf('%04d-%02d-01', $year, $month)))->modify('+1 month')->format('Y-m');
-
-        // Période de facturation "courante" pour le badge "Période courante"
-        $nowDay2 = (int)$now->format('d');
-        $nowRef  = $nowDay2 >= 25 ? (clone $now)->modify('+1 month') : clone $now;
-        $moisCourant = $nowRef->format('Y-m');
+        $moisPrev    = (clone $now)->modify('-1 week')->format('Y-m-d');
+        $moisNext    = (clone $now)->modify('+1 week')->format('Y-m-d');
+        $moisCourant = $moisOffset;
 
         $planning = $this->familleIntervenantService->getPlanningMensuel($periodStart, $periodEnd, $id);
         $familles = $this->familleIntervenantService->getFamillesForIntervenant($id);

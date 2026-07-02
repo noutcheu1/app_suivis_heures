@@ -36,9 +36,15 @@ class AuditLogger
         $token = $this->security->getToken();
         $user  = $this->security->getUser();
 
+        // Nom lisible mémorisé en session au login (prénom nom / « Administrateur »).
+        $nomSession = ($req && $req->hasSession() && $req->getSession()->isStarted())
+            ? $req->getSession()->get('audit_nom')
+            : null;
+
         $this->auditLogger->info($event, array_merge([
             'event'      => $event,
-            'actor'      => $user?->getUserIdentifier() ?? 'anonyme',
+            'actor'      => $nomSession ?? $user?->getUserIdentifier() ?? 'anonyme',
+            'compte'     => $user?->getUserIdentifier(),
             'actor_role' => $token ? implode(',', $token->getRoleNames()) : 'anonyme',
             'ip'         => $req?->getClientIp(),
             'user_agent' => $req?->headers->get('User-Agent'),
