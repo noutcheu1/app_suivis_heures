@@ -1344,10 +1344,14 @@ class HoraireinterService
      */
     private function geocodeAddressesBatch(array $addresses): array
     {
+        // curl indisponible (extension non chargée) → pas de géocodage, pas de crash.
+        if (!\function_exists('curl_multi_init')) {
+            return [];
+        }
         $addresses = array_unique(array_filter($addresses));
         if (!$addresses) return [];
 
-        $mh      = curl_multi_init();
+        $mh      = \curl_multi_init();
         $handles = [];
 
         foreach ($addresses as $addr) {
@@ -1399,8 +1403,12 @@ class HoraireinterService
     private function getDistancesBatch(array $pairs): array
     {
         if (!$pairs) return [];
+        // curl indisponible → pas de calcul de distance, pas de crash.
+        if (!\function_exists('curl_multi_init')) {
+            return [];
+        }
 
-        $mh      = curl_multi_init();
+        $mh      = \curl_multi_init();
         $handles = [];
 
         foreach ($pairs as $key => $pair) {
