@@ -34,16 +34,26 @@
                 </a>
             </div>
 
-            {# Navigation mois #}
-            <div style="display:flex;gap:8px;">
+            {# Navigation mois : on affiche le NOM du mois ciblé (plus parlant) #}
+            {% set moisFr = {1:'Janvier',2:'Février',3:'Mars',4:'Avril',5:'Mai',6:'Juin',7:'Juillet',8:'Août',9:'Septembre',10:'Octobre',11:'Novembre',12:'Décembre'} %}
+            {% set base   = 'now'|date('Y-m-15') %}
+            {% set dCur   = base|date_modify(moisOffset ~ ' month') %}
+            {% set dPrev  = base|date_modify((moisOffset - 1) ~ ' month') %}
+            {% set dNext  = base|date_modify((moisOffset + 1) ~ ' month') %}
+            <div style="display:flex;gap:8px;align-items:center;">
                 <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: user.id, type: type, mois: moisOffset - 1}) }}"
-                   class="btn btn-secondary btn-sm">
-                    <i class="fas fa-chevron-left"></i> Mois précédent
+                   class="btn btn-secondary btn-sm" title="Voir {{ moisFr[dPrev|date('n')] }} {{ dPrev|date('Y') }}">
+                    <i class="fas fa-chevron-left"></i> {{ moisFr[dPrev|date('n')] }} {{ dPrev|date('Y') }}
                 </a>
+
+                <span style="font-weight:700;color:var(--primary);white-space:nowrap;">
+                    {{ moisFr[dCur|date('n')] }} {{ dCur|date('Y') }}
+                </span>
+
                 {% if moisOffset < 0 %}
                 <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: user.id, type: type, mois: moisOffset + 1}) }}"
-                   class="btn btn-secondary btn-sm">
-                    Mois suivant <i class="fas fa-chevron-right"></i>
+                   class="btn btn-secondary btn-sm" title="Voir {{ moisFr[dNext|date('n')] }} {{ dNext|date('Y') }}">
+                    {{ moisFr[dNext|date('n')] }} {{ dNext|date('Y') }} <i class="fas fa-chevron-right"></i>
                 </a>
                 {% endif %}
             </div>

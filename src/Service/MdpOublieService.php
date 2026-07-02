@@ -31,6 +31,10 @@ class MdpOublieService
      */
     public function envoyerCodeReinitialisation(string $identifiant): bool
     {
+        // L'intervenant saisit son TÉLÉPHONE → on le résout en identifiant de compte
+        // (numSalarie). Famille/admin : leur identifiant est utilisé tel quel.
+        $identifiant = $this->resoudreUsername($identifiant);
+
         $user = $this->userRepository->findByIdentifiant($identifiant);
         if (!$user) {
             return false;
@@ -55,6 +59,8 @@ class MdpOublieService
      */
     public function verifierCode(string $identifiant, string $code): bool
     {
+        $identifiant = $this->resoudreUsername($identifiant);
+
         $user = $this->userRepository->findByIdentifiant($identifiant);
         if (!$user) {
             return false;
@@ -80,6 +86,7 @@ class MdpOublieService
             return false;
         }
 
+        $identifiant = $this->resoudreUsername($identifiant);
         $user = $this->userRepository->findByIdentifiant($identifiant);
         if (!$user) {
             return false;
@@ -97,6 +104,21 @@ class MdpOublieService
         ]);
 
         return true;
+    }
+
+    /**
+     * Résout la valeur SAISIE en identifiant de compte (users_suivi.username) :
+     *  - si elle correspond déjà à un compte (famille, admin, numSalarie) → telle quelle ;
+     *  - sinon, l'intervenant a saisi son TÉLÉPHONE → on le résout en numSalarie.
+     * Retourne la valeur d'origine si rien ne correspond (l'appelant échoue proprement).
+     */
+    private function resoudreUsername(string $saisi): string
+    {
+        if ($this->userRepository->findByIdentifiant($saisi)) {
+            return $saisi;
+        }
+        $intervenant = $this->intervenantRepository->findByTelephoneNormalise($saisi);
+        return $intervenant?->getNumSalarie() ?? $saisi;
     }
 
     /**

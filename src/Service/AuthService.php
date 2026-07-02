@@ -50,6 +50,39 @@ class AuthService
         return $this->security->isGranted('ROLE_FAMILLE');
     }
 
+    /**
+     * Nom lisible de l'utilisateur connecté (« Prénom Nom », « Administrateur »…),
+     * pour le menu et le journal d'audit. Résolu une fois puis mis en cache en session
+     * (marche sans reconnexion ; repli sur l'identifiant si non résolu).
+     */
+    public function nomAffichage(): string
+    {
+        $session = $this->getSession();
+        if ($session && ($cache = $session->get('audit_nom'))) {
+            return $cache;
+        }
+
+        $nom = $this->getUser()?->getUserIdentifier() ?? '';
+        if ($this->isAdmin()) {
+            $nom = 'Administrateur';
+        } elseif ($this->isIntervenant()) {
+            $i = $this->getIntervenant();
+            if ($i) {
+                $nom = trim($i->getPrenom() . ' ' . $i->getNom()) ?: $nom;
+            }
+        } elseif ($this->isFamille()) {
+            $f = $this->getFamille();
+            if ($f && $f->getNom()) {
+                $nom = $f->getNom();
+            }
+        }
+
+        if ($session) {
+            $session->set('audit_nom', $nom);
+        }
+        return $nom;
+    }
+
     public function getRole(): ?string
     {
         if ($this->isAdmin())       return 'admin';

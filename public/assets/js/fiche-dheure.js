@@ -116,7 +116,21 @@ async function chargerReleve() {
             msg.textContent = 'Aucune prestation enregistrée pour ce mois.';
             msg.style.padding = '1rem';
             container.appendChild(msg);
+            // Rien à signer → on désactive le bouton Signer.
+            if (_signerBtn) {
+                _signerBtn.disabled = true;
+                _signerBtn.style.opacity = '0.5';
+                _signerBtn.style.cursor = 'not-allowed';
+                _signerBtn.title = 'Aucune prestation à signer pour ce mois.';
+            }
         } else {
+            // Il y a des prestations → bouton Signer réactivé.
+            if (_signerBtn) {
+                _signerBtn.disabled = false;
+                _signerBtn.style.opacity = '';
+                _signerBtn.style.cursor = '';
+                _signerBtn.title = '';
+            }
             // Max 5 familles par fiche → meilleur rendu responsive sur mobile.
             const chunks = chunkArray(data.familles, 5);
             const grandTotalSecondes = data.familles.reduce((s, f) => s + (f.totalSecondes ?? 0), 0);

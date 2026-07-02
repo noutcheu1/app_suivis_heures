@@ -383,11 +383,17 @@ class HoraireinterRepository extends ServiceEntityRepository
      */
     public function findAllEnCours(int $numInter): array
     {
+        // Un pointage réellement « en cours » est RÉCENT (démarré via le pointage, non
+        // terminé). On borne à quelques jours pour ne pas remonter de vieilles lignes
+        // incomplètes (données historiques jamais clôturées) comme de faux oublis.
         return $this->createQueryBuilder('h')
             ->where('h.numInter = :numInter')
             ->andWhere('h.heureFinReelle IS NULL')
+            ->andWhere('h.heureDebutReelle IS NOT NULL')
+            ->andWhere('h.datePresta >= :depuis')
             ->andWhere('h.desactiver = :desactiver')
             ->setParameter('numInter', $numInter)
+            ->setParameter('depuis', new \DateTime('today -2 days'))
             ->setParameter('desactiver', false)
             ->orderBy('h.datePresta', 'ASC')
             ->addOrderBy('h.heureDebutPresta', 'ASC')

@@ -14,7 +14,7 @@
             </div>
             <div>
                 <h1>{{ user.titre in ['MME','Mel'] ? 'Bonjour Mme' : 'Bonjour M.' }} {{ user.prenom }} {{ user.nom }}</h1>
-                <p>N° salarié {{ user.numSalarie ?? '—' }}</p>
+                <p>{{ user.prenom ?? '' }} {{ user.nom ?? '' }}</p>
             </div>
         </div>
         <a href="{{ path('intervenant_profile_mvc', {id: user.id}) }}" class="btn btn-secondary btn-sm">
@@ -75,13 +75,13 @@
 
 <div class="action-grid" style="margin-bottom:28px;">
 
-    <a class="action-card" href="{{ path('intervenant_suivie_mvc', {id: user.id}) }}">
+    <a class="action-card" href="{{ path('intervenant_pointer_mvc', {id: user.id}) }}">
         <div class="action-card-icon" style="background:#eef2ff;">
-            <i class="fas fa-plus-circle" style="color:#4f46e5;"></i>
+            <i class="fas fa-stopwatch" style="color:#4f46e5;"></i>
         </div>
         <div>
-            <p class="action-card-label">Saisir des heures</p>
-            <p class="action-card-desc">Enregistrer une prestation</p>
+            <p class="action-card-label">Pointer</p>
+            <p class="action-card-desc">Manuel, scan QR ou garde d'enfant</p>
         </div>
     </a>
 
