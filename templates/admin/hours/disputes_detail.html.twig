@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Écarts — {{ famille.nomFamille ?? famille.numeroFamille }}{% endblock %}
+{% block title %}Écarts {{ famille.nomFamille ?? famille.numeroFamille }}{% endblock %}
 {% block page_title %}Prestations par famille{% endblock %}
 
 {% block body %}
@@ -12,7 +12,7 @@
                 <i class="fas fa-chevron-left"></i> Toutes les familles
             </a>
             <h1 style="margin-top:6px;">{{ famille_label(famille) }}</h1>
-            <p>Prestations avec écart — les plus récentes en premier</p>
+            <p>Prestations avec écart les plus récentes en premier</p>
         </div>
     </div>
 </div>

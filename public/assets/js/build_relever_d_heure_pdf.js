@@ -187,7 +187,7 @@ async function genererPDF(type_de_garde, anne_file) {
  * @param {string} filename  ex: 'Fiches_Vierges_GardeEnfants.pdf'
  */
 function genererFichesPDF(filename) {
-    if (!window.jspdf) { alert('jsPDF non chargée'); return; }
+    if (!window.jspdf) { toast('jsPDF non chargée'); return; }
     const { jsPDF } = window.jspdf;
 
     const fiches = document.querySelectorAll('.fiche-page');
@@ -336,6 +336,17 @@ function genererFichesPDF(filename) {
             doc.setTextColor(0, 0, 0);
         }
     });
+
+    // Mode "email" (page chargée dans une iframe cachée par la fiche relevé) :
+    // on renvoie le PDF en base64 au parent au lieu de le télécharger.
+    const pdfMode = new URLSearchParams(location.search).get('pdfmode');
+    if (pdfMode === 'email' && window.parent && window.parent !== window) {
+        window.parent.postMessage(
+            { type: 'relevePdfBase64', filename, data: doc.output('datauristring') },
+            '*'
+        );
+        return;
+    }
 
     doc.save(filename);
 }

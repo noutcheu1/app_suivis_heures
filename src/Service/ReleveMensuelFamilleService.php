@@ -45,7 +45,7 @@ class ReleveMensuelFamilleService
 
     /**
      * Crée une nouvelle version du taux horaire pour une famille.
-     * Ne modifie jamais une entrée existante — toujours une nouvelle ligne horodatée.
+     * Ne modifie jamais une entrée existante toujours une nouvelle ligne horodatée.
      */
     public function creerTarifFamille(string $numFam, string $typePresta, float $taux, string $dateDebut): TarifFamille
     {

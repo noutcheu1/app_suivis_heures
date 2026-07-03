@@ -1,15 +1,31 @@
 {
-  "name": "Mon app Chaudoudoux",
-  "short_name": "App Chaudoudoux",
+  "name": "Chaudoudoux Suivi des heures",
+  "short_name": "Chaudoudoux",
+  "description": "Pointage et déclaration des heures pour les intervenants Chaudoudoux.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#111111",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
   "theme_color": "#11DC32",
   "icons": [
     {
-      "src": "/icons/logo.png",
+      "src": "/assets/icons/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icons/logo.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icons/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

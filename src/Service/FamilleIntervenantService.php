@@ -36,6 +36,65 @@ class FamilleIntervenantService
         return $this->proposerRepository->findTypesParFamilleForIntervenant($numSalarie);
     }
 
+    /**
+     * Créneaux PRÉVUS au planning (proposer) pour cet intervenant, cette famille,
+     * et le jour de la semaine d'AUJOURD'HUI. Sert à afficher l'horaire prévu lors
+     * du pointage QR.
+     *
+     * @return list<array{type:string, heureDebut:string, heureFin:?string}>
+     */
+    public function getCreneauxDuJour(int $numSalarie, string $numFam): array
+    {
+        $joursFr = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+        $jourAuj = $joursFr[(int) (new \DateTime())->format('N') - 1];
+
+        $creneaux = [];
+        foreach ($this->proposerRepository->findActivesByIntervenant($numSalarie) as $p) {
+            if ((string) $p->getNumeroFamille() !== $numFam) {
+                continue;
+            }
+            if (mb_strtolower(trim($p->getJour())) !== $jourAuj) {
+                continue;
+            }
+            $creneaux[] = [
+                'type'       => strtoupper($p->getTypePrestation()),
+                'heureDebut' => $p->getHeureDebut()->format('H:i'),
+                'heureFin'   => $p->getHeureFin()?->format('H:i'),
+            ];
+        }
+
+        return $creneaux;
+    }
+
+    /**
+     * Créneaux GARDE D'ENFANT (ENFA) prévus AUJOURD'HUI pour cet intervenant,
+     * toutes familles confondues. Sert à la page de déclaration garde sans QR :
+     * l'intervenant choisit la famille dans cette liste.
+     *
+     * @return list<array{numFam:string, heureDebut:string, heureFin:?string}>
+     */
+    public function getCreneauxGardeDuJour(int $numSalarie): array
+    {
+        $joursFr = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+        $jourAuj = $joursFr[(int) (new \DateTime())->format('N') - 1];
+
+        $out = [];
+        foreach ($this->proposerRepository->findActivesByIntervenant($numSalarie) as $p) {
+            if (strtoupper($p->getTypePrestation()) !== 'ENFA') {
+                continue; // garde d'enfant uniquement
+            }
+            if (mb_strtolower(trim($p->getJour())) !== $jourAuj) {
+                continue; // créneaux d'aujourd'hui uniquement
+            }
+            $out[] = [
+                'numFam'     => (string) $p->getNumeroFamille(),
+                'heureDebut' => $p->getHeureDebut()->format('H:i'),
+                'heureFin'   => $p->getHeureFin()?->format('H:i'),
+            ];
+        }
+        return $out;
+    }
+
     // ── Listes globales (filtrées sur le planning actif) ──────────────────────
 
     /**

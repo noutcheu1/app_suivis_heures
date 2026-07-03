@@ -16,7 +16,7 @@ function login_js(e) {
     const password2 = passwordVerifyBtn.value;
 
     if (!id || !password || !password2) {
-        alert("Tous les champs sont obligatoires");
+        toast("Tous les champs sont obligatoires");
         return;
     }
 
@@ -40,12 +40,12 @@ function login_js(e) {
         if (data.success) {
             window.location.href = "/login";
         } else {
-            alert(data.error);
+            toast(data.error, 'error');
         }
     })
     .catch(err => {
         console.error(err);
-        alert(err.message);
+        toast(err.message);
     });
 
 }

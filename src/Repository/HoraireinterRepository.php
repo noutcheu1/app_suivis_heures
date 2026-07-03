@@ -328,6 +328,9 @@ class HoraireinterRepository extends ServiceEntityRepository
             ->andWhere('h.datePresta BETWEEN :startDate AND :endDate')
             ->andWhere('h.typePresta = :type')
             ->andWhere('h.desactiver = :desactiver')
+            // Exclut les pointages encore EN COURS : le marqueur « terminé » est la
+            // fin RÉELLE (posée au Terminer), pas la fin déclarée (qui peut être modifiée).
+            ->andWhere('h.heureFinReelle IS NOT NULL')
             ->setParameter('numInter', $numInter)
             ->setParameter('startDate', $startDate)
             ->setParameter('endDate', $endDate)
@@ -335,6 +338,85 @@ class HoraireinterRepository extends ServiceEntityRepository
             ->setParameter('desactiver', false)
             ->orderBy('h.datePresta', 'ASC')
             ->addOrderBy('h.heureDebutPresta', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Retourne le pointage « en cours » d'un intervenant pour une famille aujourd'hui :
+     * une ligne démarrée (heureDebutPresta rempli) mais pas encore terminée
+     * (heureFinPresta NULL). Sert au pointage QR sans connexion (Démarrer/Terminer).
+     */
+    public function findEnCours(int $numInter, ?string $numFam): ?Horaireinter
+    {
+        $debutJour = new \DateTime('today 00:00:00');
+        $finJour   = new \DateTime('today 23:59:59');
+
+        $qb = $this->createQueryBuilder('h')
+            ->where('h.numInter = :numInter')
+            ->andWhere('h.datePresta BETWEEN :debut AND :fin')
+            ->andWhere('h.heureFinReelle IS NULL')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('numInter', $numInter)
+            ->setParameter('debut', $debutJour)
+            ->setParameter('fin', $finJour)
+            ->setParameter('desactiver', false)
+            ->orderBy('h.heureDebutPresta', 'DESC')
+            ->setMaxResults(1);
+
+        // Occasionnel : numFam null/0 → on cherche les pointages sans famille rattachée.
+        if ($numFam === null || $numFam === '' || $numFam === '0') {
+            $qb->andWhere('h.numFam IS NULL OR h.numFam = :zero')->setParameter('zero', '0');
+        } else {
+            $qb->andWhere('h.numFam = :numFam')->setParameter('numFam', $numFam);
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * Tous les pointages « en cours » (début sans fin) d'un intervenant sert au scan
+     * connecté pour savoir, à l'affichage, quelles familles ont un pointage à terminer
+     * (et récupérer les oublis d'un autre jour).
+     *
+     * @return Horaireinter[]
+     */
+    public function findAllEnCours(int $numInter): array
+    {
+        // Un pointage réellement « en cours » est RÉCENT (démarré via le pointage, non
+        // terminé). On borne à quelques jours pour ne pas remonter de vieilles lignes
+        // incomplètes (données historiques jamais clôturées) comme de faux oublis.
+        return $this->createQueryBuilder('h')
+            ->where('h.numInter = :numInter')
+            ->andWhere('h.heureFinReelle IS NULL')
+            ->andWhere('h.heureDebutReelle IS NOT NULL')
+            ->andWhere('h.datePresta >= :depuis')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('numInter', $numInter)
+            ->setParameter('depuis', new \DateTime('today -2 days'))
+            ->setParameter('desactiver', false)
+            ->orderBy('h.datePresta', 'ASC')
+            ->addOrderBy('h.heureDebutPresta', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Tous les pointages « en cours » du JOUR, tous intervenants confondus.
+     * Sert à la commande de rappels (cron) : notifier l'oubli / la fin imminente.
+     *
+     * @return Horaireinter[]
+     */
+    public function findEnCoursAujourdhuiTous(): array
+    {
+        return $this->createQueryBuilder('h')
+            ->where('h.datePresta BETWEEN :debut AND :fin')
+            ->andWhere('h.heureFinReelle IS NULL')
+            ->andWhere('h.desactiver = :desactiver')
+            ->setParameter('debut', new \DateTime('today 00:00:00'))
+            ->setParameter('fin', new \DateTime('today 23:59:59'))
+            ->setParameter('desactiver', false)
+            ->orderBy('h.numInter', 'ASC')
             ->getQuery()
             ->getResult();
     }
@@ -440,6 +522,7 @@ class HoraireinterRepository extends ServiceEntityRepository
               AND h.numInter > 0
               AND h.heureDebutPresta IS NOT NULL
               AND h.heureFinPresta IS NOT NULL
+              AND h.heureFinReelle IS NOT NULL
               $familleWhere
               $typeWhere
             GROUP BY h.numInter, h.typePresta

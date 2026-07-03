@@ -106,9 +106,13 @@
             {% for p in prestations %}
             <tr>
                 <td>
-                    <a href="{{ path('admin_famille_detail_mvc', {numFam: p.numFam}) }}" style="font-weight:500;">
-                        {{ famille_label(p.numFam) }}
-                    </a>
+                    {% if p.numFam and p.numFam != '0' %}
+                        <a href="{{ path('admin_famille_detail_mvc', {numFam: p.numFam}) }}" style="font-weight:500;">
+                            {{ famille_label(p.numFam) }}
+                        </a>
+                    {% else %}
+                        <span style="font-weight:500;">{{ p.nomFam ?: 'Occasionnelle' }}</span>
+                    {% endif %}
                 </td>
                 <td>{{ p.datePresta|date('d/m/Y') }}</td>
                 <td>{{ p.heureDebutPresta ? p.heureDebutPresta|date('H:i') : '—' }}</td>

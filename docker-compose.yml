@@ -10,7 +10,7 @@ services:
       - "8032:80"
     volumes:
       - .:/var/www/html
-      - app_var:/var/www/html/var
+     
     depends_on:
       db:
         condition: service_healthy
@@ -24,7 +24,8 @@ services:
       DB_PASSWORD: root
       DB_NAME_PRINCIPAL: bdchaudoudoux
       DB_NAME_SECONDAIRE: bdchaudoudoux_horaire
-      MAILER_DSN: smtp://noreplychaudoudoux@gmail.com:password@smtp.gmail.com:587
+      # MAILER_DSN n'est PAS défini ici : il est chargé depuis les fichiers .env
+      # (.env.dev en dev → Mailtrap, .env en prod → SMTP réel) par Symfony.
     restart: unless-stopped
     networks:
       - chaudoudoux_net

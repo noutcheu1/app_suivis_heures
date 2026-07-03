@@ -142,7 +142,7 @@ async function sendData(route, data) {
         } else if (result.locked) {
             showModal({
                 title: "Mois clôturé",
-                body: "Ce mois est clôturé — la prestation ne peut plus être modifiée ni supprimée.",
+                body: "Ce mois est clôturé la prestation ne peut plus être modifiée ni supprimée.",
                 buttons: [{text: "Ok", class: "btn btn-secondary", dismiss: true}]
             });
         } else {
@@ -426,7 +426,7 @@ if (params.has('edite')) {
     const nomDbg    = params.get('nom');
     console.log('[suivie] params:', {famParam, typeParam, dateParam, hdebParam, hfinParam, nom: nomDbg});
     if (famParam || typeParam) {
-        // Pré-remplissage depuis le planning — valeurs fixées directement,
+        // Pré-remplissage depuis le planning valeurs fixées directement,
         // sans déclencher les filtres en cascade.
         Array.from(typeSelect.options).forEach(o => { o.hidden = false; });
         if (typeParam) typeSelect.value = typeParam;
@@ -445,7 +445,7 @@ if (params.has('edite')) {
 
         updateVisibility();
 
-        // Famille occasionnelle (famille=0) + nom pré-rempli — APRÈS updateVisibility
+        // Famille occasionnelle (famille=0) + nom pré-rempli APRÈS updateVisibility
         // (qui affiche le conteneur occasionnel) pour que la valeur ne soit pas écrasée.
         const nomParam = params.get('nom');
         if (famParam === '0' && nomParam) {

@@ -1,5 +1,16 @@
-
+.env
+.env.dev
+.env.prod
+.env.test
+.env.local
+.env.dev.local
+.env.prod.local
+.claude
+.env
+.claude
 ###> symfony/framework-bundle ###
+/.env
+/.env.test
 /.env.local
 /.env.local.php
 /.env.*.local
@@ -14,9 +25,6 @@ migrations/
 /phpunit.xml
 /.phpunit.cache/
 ###< phpunit/phpunit ###
-<<<<<<< HEAD
-migrations/.gitignore
-=======
 *.sql
 */*.sql
 docker/conf/dumps/*.sql
@@ -98,7 +106,6 @@ install-log.txt
 .env.dev.local
 .env.prod.local
 
->>>>>>> feature/intervention
 *.sql
 */*.sql
 docker/conf/dumps/*.sql
@@ -172,11 +179,3 @@ manifest/tmp/
 symphony/
 workspace/uploads/
 install-log.txt
-.env
-.env.dev
-.env.prod
-.env.test
-.env.local
-.env.dev.local
-.env.prod.local
-

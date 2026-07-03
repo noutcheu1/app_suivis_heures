@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Estimation facture — {{ mois ?? '' }}{% endblock %}
+{% block title %}Estimation facture {{ mois ?? '' }}{% endblock %}
 {% block page_title %}Estimation de facture{% endblock %}
 
 {% block body %}
@@ -11,7 +11,7 @@
             <p>
                 {{ famille_label(famille) }}
                 {% if estimation.mois is defined and estimation.mois %}
-                — <strong>{{ estimation.mois }}</strong>
+                <strong>{{ estimation.mois }}</strong>
                 {% endif %}
             </p>
         </div>

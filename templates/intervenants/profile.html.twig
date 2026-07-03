@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Profil — {{ user.nom }} {{ user.prenom }}{% endblock %}
+{% block title %}Profil {{ user.nom }} {{ user.prenom }}{% endblock %}
 {% block page_title %}Mon profil{% endblock %}
 
 {% block body %}
@@ -15,7 +15,7 @@
                 <p>
                     {{ user.titre in ['MME', 'Mel'] ? 'Intervenante' : 'Intervenant' }}
                     {% if user.archive is defined and user.archive %}
-                        — <span class="badge badge-danger">Archivé</span>
+                        <span class="badge badge-danger">Archivé</span>
                     {% endif %}
                 </p>
             </div>

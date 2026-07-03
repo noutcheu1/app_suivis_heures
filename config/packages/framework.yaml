@@ -9,6 +9,10 @@ framework:
         cookie_samesite: lax
         cookie_httponly: true
         cookie_path: /
+        # Durée de session explicite (sinon défaut PHP = 24 min d'inactivité → déconnexion
+        # « trop rapide »). 30 jours ; au-delà, le remember-me (1 an) prend le relais.
+        cookie_lifetime: 2592000   # 30 jours (cookie de session persistant)
+        gc_maxlifetime: 2592000    # 30 jours (données de session côté serveur)
     
         # cookie_secure: auto
         # cookie_httponly: auto

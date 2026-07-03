@@ -10,6 +10,7 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\AbstractLoginFormAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\CsrfTokenBadge;
+use Symfony\Component\Security\Http\Authenticator\Passport\Badge\RememberMeBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Credentials\PasswordCredentials;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
@@ -25,13 +26,26 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
         private RouterInterface $router,
         // Symfony injecte automatiquement le logger via l'autowiring
         private LoggerInterface $logger,
+        private \App\Repository\IntervenantRepository $intervenantRepository,
+        private \App\Service\AuditLogger $audit,
     ) {}
 
     public function authenticate(Request $request): Passport
     {
-        $username = $request->request->get('id', '');
+        $saisi    = $request->request->get('id', ''); // ce que l'utilisateur a réellement tapé
+        $username = $saisi;
         $type     = $request->request->get('type');
         $ip       = $request->getClientIp();
+
+        // Intervenant : il saisit son TÉLÉPHONE (RGPD : ni numSS ni téléphone en bd horaire).
+        // 1) On NORMALISE en chiffres (le champ formate avec des espaces : « 06 12 … »).
+        // 2) On le VÉRIFIE sur chaudoudou → numSalarie = identifiant du compte.
+        // 3) Repli sur la valeur normalisée si aucun intervenant (cas admin « 9999999999 »).
+        if ($type === 'INTER') {
+            $tel = \App\Repository\UserSuiviRepository::normaliserTel($saisi);
+            $username = $this->intervenantRepository->findByTelephoneNormalise($tel)?->getNumSalarie()
+                ?? $tel;
+        }
 
         // Log de la tentative : on ne logue JAMAIS le mot de passe
         $this->logger->info('Tentative de connexion', [
@@ -40,9 +54,11 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
             'ip'       => $ip,
         ]);
 
+        // On ré-affiche EXACTEMENT ce que l'utilisateur a tapé (jamais une valeur résolue
+        // en base : évite d'exposer un identifiant interne après un échec).
         $request->getSession()->set(
             \Symfony\Component\Security\Http\SecurityRequestAttributes::LAST_USERNAME,
-            $username
+            $saisi
         );
         $request->getSession()->set('type', $type);
 
@@ -51,6 +67,9 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
             new PasswordCredentials($request->request->get('password', '')),
             [
                 new CsrfTokenBadge('authenticate', $request->request->get('_csrf_token')),
+                // Active le cookie « se souvenir de moi » (cf. remember_me dans security.yaml,
+                // always_remember_me: true → session longue, l'intervenant ne se reconnecte presque jamais).
+                new RememberMeBadge(),
             ]
         );
     }
@@ -63,11 +82,33 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
         $roles    = $token->getRoleNames();
         $username = $token->getUserIdentifier();
 
+        // Nom d'affichage pour l'audit (plus lisible que le numSalarie). On le résout UNE
+        // fois ici et on le mémorise en session → réutilisé sans requête à chaque action.
+        $nomAffiche = $username;
+        if (in_array('ROLE_ADMIN', $roles)) {
+            $nomAffiche = 'Administrateur';
+        } elseif (in_array('ROLE_INTERVENANT', $roles)) {
+            $inter = $this->intervenantRepository->findByNumSalarie($username);
+            if ($inter) {
+                $nomAffiche = trim($inter->getPrenom() . ' ' . $inter->getNom()) ?: $username;
+            }
+        }
+        if ($request->hasSession()) {
+            $request->getSession()->set('audit_nom', $nomAffiche);
+        }
+
         $this->logger->info('Connexion réussie', [
             'username' => $username,
             'roles'    => $roles,
             'ip'       => $request->getClientIp(),
             'firewall' => $firewallName,
+        ]);
+
+        // AUDIT : connexion réussie. Acteur = nom lisible ; on garde le compte (numSalarie).
+        $this->audit->log('login_success', [
+            'actor'      => $nomAffiche,
+            'compte'     => $username,
+            'actor_role' => implode(',', $roles),
         ]);
 
         if (in_array('ROLE_ADMIN', $roles)) {
@@ -97,7 +138,7 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
         }
 
         // Aucun rôle connu : situation anormale, on logue en warning
-        $this->logger->warning('Connexion réussie mais aucun rôle reconnu — retour login', [
+        $this->logger->warning('Connexion réussie mais aucun rôle reconnu retour login', [
             'username' => $username,
             'roles'    => $roles,
         ]);
@@ -117,6 +158,14 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
             'type'     => $type,
             'ip'       => $request->getClientIp(),
             'raison'   => $exception->getMessageKey(),
+        ]);
+
+        // AUDIT : échec de connexion. L'identifiant tenté peut être un téléphone (sensible)
+        // → on ne stocke que son HASH, jamais en clair.
+        $this->audit->log('login_failed', [
+            'actor'  => \App\Service\AuditLogger::hashId($request->request->get('id')),
+            'type'   => $type,
+            'reason' => $exception->getMessageKey(),
         ]);
 
         // ✅ On stocke l'erreur en session comme Symfony le fait normalement

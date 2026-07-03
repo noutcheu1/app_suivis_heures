@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Facture — {{ famille ? famille.nomFamille : facture.numFam }} — {{ moisAnnee }}</title>
+<title>Facture {{ famille ? famille.nomFamille : facture.numFam }} {{ moisAnnee }}</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #1a1a1a; background: #f3f4f6; }
@@ -96,7 +96,7 @@ tbody td { padding: 4px 7px; border-bottom: 1px solid #f3f4f6; }
 .btn-pdf:hover { background: #1d3a9a; }
 .btn-pdf:disabled { background: #9ca3af; cursor: not-allowed; }
 
-/* Tables hidden on screen — PDF source only */
+/* Tables hidden on screen PDF source only */
 .pdf-only { display: none; }
 </style>
 </head>
@@ -119,7 +119,7 @@ tbody td { padding: 4px 7px; border-bottom: 1px solid #f3f4f6; }
     <div class="doc-header">
         <div>
             <div class="doc-title">Facture mensuelle</div>
-            <div class="doc-subtitle">Association Chaudoudoux — Service à domicile</div>
+            <div class="doc-subtitle">Association Chaudoudoux Service à domicile</div>
         </div>
         <div class="doc-meta">
             <div>Période : <strong>{{ moisAnnee|date('F Y', null, 'fr')|capitalize }}</strong></div>
@@ -138,7 +138,7 @@ tbody td { padding: 4px 7px; border-bottom: 1px solid #f3f4f6; }
             {% if famille.adresse %}{{ famille.adresse }}{% if famille.codePostal or famille.ville %}, {% endif %}{% endif %}
             {% if famille.codePostal %}{{ famille.codePostal }} {% endif %}
             {% if famille.ville %}{{ famille.ville }}{% endif %}
-            {% if famille.telDom %} — Tél : {{ famille.telDom }}{% endif %}
+            {% if famille.telDom %} Tél : {{ famille.telDom }}{% endif %}
         </div>
         {% endif %}
     </div>
@@ -171,7 +171,7 @@ tbody td { padding: 4px 7px; border-bottom: 1px solid #f3f4f6; }
     {% if facture.prestationsGE is not empty %}
     <div class="section">
         <div class="section-title">
-            Garde d'enfants — {{ facture.heuresGE }} h × {{ facture.tauxGE|number_format(2, ',') }} €/h
+            Garde d'enfants {{ facture.heuresGE }} h × {{ facture.tauxGE|number_format(2, ',') }} €/h
             = {{ facture.montantGE|number_format(2, ',') }} €
         </div>
         <table id="pdf-table-ge">
@@ -209,7 +209,7 @@ tbody td { padding: 4px 7px; border-bottom: 1px solid #f3f4f6; }
     {% if facture.prestationsMENA is not empty %}
     <div class="section">
         <div class="section-title">
-            Ménage — {{ facture.heuresMENA }} h × {{ facture.tauxMENA|number_format(2, ',') }} €/h
+            Ménage {{ facture.heuresMENA }} h × {{ facture.tauxMENA|number_format(2, ',') }} €/h
             = {{ facture.montantMENA|number_format(2, ',') }} €
         </div>
         <table id="pdf-table-mena">
@@ -248,7 +248,7 @@ tbody td { padding: 4px 7px; border-bottom: 1px solid #f3f4f6; }
             <tbody>
             {% if facture.montantGE > 0 %}
             <tr>
-                <td>Garde d'enfants ({{ facture.heuresGE }} h × {{ facture.tauxGE|number_format(2, ',') }} €/h{% if facture.tauxGESource == 'famille' %} — taux famille{% endif %})</td>
+                <td>Garde d'enfants ({{ facture.heuresGE }} h × {{ facture.tauxGE|number_format(2, ',') }} €/h{% if facture.tauxGESource == 'famille' %} taux famille{% endif %})</td>
                 <td>{{ facture.montantGE|number_format(2, ',', ' ') }} €</td>
             </tr>
             {% endif %}
@@ -298,7 +298,7 @@ tbody td { padding: 4px 7px; border-bottom: 1px solid #f3f4f6; }
     {% set releve = facture.releveGE ?? facture.releveMENA %}
     <div class="section">
         <div class="section-title">
-            Questionnaire de satisfaction — {{ moisAnnee|date('F Y', null, 'fr')|capitalize }}
+            Questionnaire de satisfaction {{ moisAnnee|date('F Y', null, 'fr')|capitalize }}
             {% if releve and releve.signerLe %}
             <span style="color:#059669;font-size:10px;font-weight:400;margin-left:8px;">
                 ✓ Signé le {{ releve.signerLe|date('d/m/Y') }}
@@ -380,7 +380,7 @@ tbody td { padding: 4px 7px; border-bottom: 1px solid #f3f4f6; }
 
     {# ── Pied de page ─────────────────────────────────────── #}
     <div class="doc-footer" style="margin-top:16px;">
-        Association Chaudoudoux — Document généré automatiquement — {{ "now"|date('d/m/Y H:i') }}
+        Association Chaudoudoux Document généré automatiquement {{ "now"|date('d/m/Y H:i') }}
     </div>
 
 </div>{# /page #}
@@ -521,7 +521,7 @@ async function genererFacturePDF() {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         doc.setTextColor(...GRAY);
-        doc.text('Association Chaudoudoux — Service à domicile', 14, 24);
+        doc.text('Association Chaudoudoux Service à domicile', 14, 24);
 
         // Méta (droite)
         doc.setFontSize(9);
@@ -553,7 +553,7 @@ async function genererFacturePDF() {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         doc.setTextColor(...GRAY);
-        const famDetails = [FAM_ADR, FAM_TEL ? 'Tél : ' + FAM_TEL : ''].filter(Boolean).join(' — ');
+        const famDetails = [FAM_ADR, FAM_TEL ? 'Tél : ' + FAM_TEL : ''].filter(Boolean).join(' ');
         if (famDetails) doc.text(famDetails, 21, 42);
 
         let y = 50;
@@ -591,7 +591,7 @@ async function genererFacturePDF() {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(9);
             doc.setTextColor(...BLUE);
-            doc.text("GARDE D'ENFANTS — {{ facture.heuresGE }} h × {{ facture.tauxGE|number_format(2, ',') }} €/h = {{ facture.montantGE|number_format(2, ',') }} €", 14, y);
+            doc.text("GARDE D'ENFANTS {{ facture.heuresGE }} h × {{ facture.tauxGE|number_format(2, ',') }} €/h = {{ facture.montantGE|number_format(2, ',') }} €", 14, y);
             y += 3;
             doc.setDrawColor(...BLUE);
             doc.setLineWidth(0.2);
@@ -623,7 +623,7 @@ async function genererFacturePDF() {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(9);
             doc.setTextColor(...BLUE);
-            doc.text("MÉNAGE — {{ facture.heuresMENA }} h × {{ facture.tauxMENA|number_format(2, ',') }} €/h = {{ facture.montantMENA|number_format(2, ',') }} €", 14, y);
+            doc.text("MÉNAGE {{ facture.heuresMENA }} h × {{ facture.tauxMENA|number_format(2, ',') }} €/h = {{ facture.montantMENA|number_format(2, ',') }} €", 14, y);
             y += 3;
             doc.setDrawColor(...BLUE);
             doc.setLineWidth(0.2);
@@ -689,7 +689,7 @@ async function genererFacturePDF() {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
         doc.setTextColor(...BLUE);
-        doc.text('QUESTIONNAIRE DE SATISFACTION — ' + MOIS_LABEL.toUpperCase(), 14, y);
+        doc.text('QUESTIONNAIRE DE SATISFACTION ' + MOIS_LABEL.toUpperCase(), 14, y);
         y += 3;
         doc.setDrawColor(...BLUE);
         doc.setLineWidth(0.2);
@@ -762,7 +762,7 @@ async function genererFacturePDF() {
             doc.setFontSize(7.5);
             doc.setTextColor(...GRAY);
             doc.text(
-                'Association Chaudoudoux — Document généré automatiquement — ' + new Date().toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+                'Association Chaudoudoux Document généré automatiquement ' + new Date().toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),
                 14, 291
             );
             doc.text('Page ' + p + ' / ' + pageCount, 196, 291, {align: 'right'});

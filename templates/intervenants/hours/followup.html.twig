@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}{{ isAdmin ? 'Admin — Saisie heures' : 'Saisir mes heures' }}{% endblock %}
+{% block title %}{{ isAdmin ? 'Admin Saisie heures' : 'Saisir mes heures' }}{% endblock %}
 {% block page_title %}{{ isAdmin ? 'Saisie admin' : 'Saisir des heures' }}{% endblock %}
 
 {% block body %}
@@ -76,7 +76,7 @@
                 </select>
             </div>
 
-            {# Famille — filtrée selon le type sélectionné #}
+            {# Famille filtrée selon le type sélectionné #}
             <div style="margin-bottom:16px;">
                 <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
                     Famille
@@ -110,7 +110,7 @@
                 <input type="hidden" id="nomRemplacement" name="nomRemplacement" value="">
             </div>
 
-            {# Trajet km — visible uniquement pour ENFA #}
+            {# Trajet km visible uniquement pour ENFA #}
             <div id="trajetContainer" hidden style="margin-bottom:16px;">
                 <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);display:block;margin-bottom:6px;">
                     Trajet avec enfants (km)
@@ -121,7 +121,7 @@
                        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
             </div>
 
-            {# Heures — sélecteurs 24h modernes #}
+            {# Heures sélecteurs 24h modernes #}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
 
                 <!-- Heure de début -->

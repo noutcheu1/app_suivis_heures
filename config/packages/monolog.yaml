@@ -1,9 +1,21 @@
 monolog:
+    # Canal dédié à l'audit de sécurité (traçabilité).
+    channels: ['audit']
     handlers:
         main:
             type: stream
             path: "%kernel.logs_dir%/%kernel.environment%.log"
             level: debug   # ← doit être debug ou info pour voir tes logs
+            channels: ['!audit']   # le log principal n'inclut PAS l'audit
         console:
             type: console
             level: debug
+        # Journal d'AUDIT : fichier séparé, 1 fichier/jour, conservé ~1 an, format JSON.
+        # Chaque ligne est horodatée (date + heure) automatiquement par Monolog.
+        audit:
+            type: rotating_file
+            path: "%kernel.logs_dir%/audit.log"
+            level: info
+            channels: ['audit']
+            max_files: 365
+            formatter: monolog.formatter.json

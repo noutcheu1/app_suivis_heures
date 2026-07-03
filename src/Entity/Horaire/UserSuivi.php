@@ -17,7 +17,7 @@ class UserSuivi implements UserInterface, PasswordAuthenticatedUserInterface
     private ?int $id = null;
 
     /**
-     * Login de connexion — contient selon le rôle :
+     * Login de connexion contient selon le rôle :
      *   admin       → identifiant libre
      *   intervenant → numéro SS (numSS_Candidats)
      *   famille     → code PM_Famille ou PGE_Famille
@@ -27,6 +27,14 @@ class UserSuivi implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column(type: 'string', length: 20)]
     private string $role; // 'admin' | 'intervenant' | 'famille'
+
+    /** Email du dossier (candidat / famille), renseigné à l'inscription. */
+    #[ORM\Column(name: 'email', type: 'string', length: 180, nullable: true)]
+    private ?string $email = null;
+
+    /** Téléphone normalisé (chiffres only) sert au pointage QR sans connexion. */
+    #[ORM\Column(name: 'telephone', type: 'string', length: 20, nullable: true)]
+    private ?string $telephone = null;
 
     #[ORM\Column(type: 'string', length: 255)]
     private string $password;
@@ -60,6 +68,12 @@ class UserSuivi implements UserInterface, PasswordAuthenticatedUserInterface
         };
     }
     public function setRole(string $role): static { $this->role = $role; return $this; }
+
+    public function getEmail(): ?string { return $this->email; }
+    public function setEmail(?string $email): static { $this->email = $email; return $this; }
+
+    public function getTelephone(): ?string { return $this->telephone; }
+    public function setTelephone(?string $telephone): static { $this->telephone = $telephone; return $this; }
 
     public function getPassword(): string { return $this->password; }
     public function setPassword(string $password): static { $this->password = $password; return $this; }

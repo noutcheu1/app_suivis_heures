@@ -54,7 +54,7 @@ class HoraireinterServiceTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Fonctionnalité 1 — Ajouter des heures travaillées
+    // Fonctionnalité 1 Ajouter des heures travaillées
     // ──────────────────────────────────────────────────────────────────────────
 
     public function testAjouterPrestation_persistsEntityAndReturnsIt(): void
@@ -131,7 +131,7 @@ class HoraireinterServiceTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Fonctionnalité 2 — Limite de jours (nbrJourSaisie)
+    // Fonctionnalité 2 Limite de jours (nbrJourSaisie)
     // ──────────────────────────────────────────────────────────────────────────
 
     public function testPeutSaisirHeures_dateAujourdHui_returnsTrue(): void
@@ -160,7 +160,7 @@ class HoraireinterServiceTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Fonctionnalité 5 — Relevé mensuel : structure JSON correcte
+    // Fonctionnalité 5 Relevé mensuel : structure JSON correcte
     // ──────────────────────────────────────────────────────────────────────────
 
     public function testGetReleveData_returnsExpectedTopLevelKeys(): void
@@ -278,7 +278,7 @@ class HoraireinterServiceTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Fonctionnalité 6 — Heures hors structure
+    // Fonctionnalité 6 Heures hors structure
     // ──────────────────────────────────────────────────────────────────────────
 
     public function testAjouterHeuresHorsStructure_callsRepositoryWithCorrectMoisAnnee(): void
@@ -310,7 +310,7 @@ class HoraireinterServiceTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Fonctionnalité 7 — Signer le relevé
+    // Fonctionnalité 7 Signer le relevé
     // ──────────────────────────────────────────────────────────────────────────
 
     public function testSignerReleve_moisCourant_returnsSuccess(): void
@@ -361,7 +361,7 @@ class HoraireinterServiceTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Fonctionnalité 8 — Verrouillage basé sur nbrJourSaisie (non plus Y-m)
+    // Fonctionnalité 8 Verrouillage basé sur nbrJourSaisie (non plus Y-m)
     // ──────────────────────────────────────────────────────────────────────────
 
     public function testIsVerrouille_prestationAujourdHui_returnsFalse(): void
@@ -373,7 +373,7 @@ class HoraireinterServiceTest extends TestCase
 
     public function testIsVerrouille_prestationHier_returnsFalse(): void
     {
-        // nbrJourSaisie = 10 par défaut — hier est dans la limite
+        // nbrJourSaisie = 10 par défaut hier est dans la limite
         $h = new Horaireinter();
         $h->setDatePresta((new \DateTime())->modify('-1 day'));
         $this->assertFalse($this->service->isVerrouille($h));
@@ -381,7 +381,7 @@ class HoraireinterServiceTest extends TestCase
 
     public function testIsVerrouille_prestationHorsLimite_returnsTrue(): void
     {
-        // nbrJourSaisie = 10 par défaut — 30 jours dépasse la limite
+        // nbrJourSaisie = 10 par défaut 30 jours dépasse la limite
         $h = new Horaireinter();
         $h->setDatePresta((new \DateTime())->modify('-30 days'));
         $this->assertTrue($this->service->isVerrouille($h));
@@ -455,7 +455,7 @@ class HoraireinterServiceTest extends TestCase
 
     public function testIsVerrouille_coherenceAvecPeutSaisirHeures(): void
     {
-        // isVerrouille et peutSaisirHeures sont cohérents — même date → même résultat inversé
+        // isVerrouille et peutSaisirHeures sont cohérents même date → même résultat inversé
         $dateAncienne = (new \DateTime())->modify('-30 days');
 
         $h = new Horaireinter();

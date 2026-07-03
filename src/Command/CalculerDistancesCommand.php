@@ -56,7 +56,7 @@ class CalculerDistancesCommand extends Command
             return Command::SUCCESS;
         }
 
-        $io->title(sprintf('Calcul des distances — %d prestation(s)%s', $total, $dryRun ? ' (DRY-RUN)' : ''));
+        $io->title(sprintf('Calcul des distances %d prestation(s)%s', $total, $dryRun ? ' (DRY-RUN)' : ''));
 
         // Cache des distances déjà calculées par couple (intervenant|famille)
         // → on n'appelle les API qu'une fois par couple, même sur N prestations.

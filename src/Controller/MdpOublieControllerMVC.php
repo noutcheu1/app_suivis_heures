@@ -27,10 +27,14 @@ final class MdpOublieControllerMVC extends AbstractController
             $identifiant = $request->request->get('identifiant') ?? '';
 
             if ($identifiant && $this->mdpOublieService->envoyerCodeReinitialisation($identifiant)) {
-                $success = 'Un code de réinitialisation a été envoyé à votre adresse email.';
-            } else {
-                $error = 'Identifiant introuvable.';
+                // On redirige vers la saisie du code EN GARDANT l'identifiant
+                // (sinon le code ne peut pas être validé).
+                return $this->redirectToRoute('mdp_oublie_verification_mvc', [
+                    'identifiant' => $identifiant,
+                    'envoye'      => 1,
+                ]);
             }
+            $error = 'Identifiant introuvable.';
         }
 
         return $this->render('mdp_oublie/demande.html.twig', [
@@ -64,6 +68,7 @@ final class MdpOublieControllerMVC extends AbstractController
         return $this->render('mdp_oublie/verification.html.twig', [
             'error' => $error,
             'identifiant' => $identifiant,
+            'envoye' => $request->query->get('envoye'),
         ]);
     }
 

@@ -84,6 +84,44 @@ final class AdminControllerMVC extends AbstractController
         ]);
     }
 
+    #[Route('/admin-mvc/intervenants-familles', name: 'admin_intervenants_familles_mvc')]
+    public function intervenantsFamilles(Request $request): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $intervenants = $this->intervenantService->getTousLesIntervenants();
+
+        // Pour chaque intervenant : les familles pour lesquelles il a un planning PREST,
+        // avec le(s) type(s) de prestation (Ménage / Garde).
+        $lignes = [];
+        foreach ($intervenants as $inter) {
+            $typesMap = $this->proposerRepo->findTypesParFamilleForIntervenant((int) $inter->getId());
+            if (empty($typesMap)) {
+                continue; // pas de famille → on n'affiche pas l'intervenant
+            }
+            $familles = [];
+            foreach ($typesMap as $numFam => $types) {
+                $familles[] = [
+                    'numFam' => (string) $numFam,
+                    'mena'   => in_array('MENA', $types, true),
+                    'enfa'   => in_array('ENFA', $types, true),
+                ];
+            }
+            $lignes[] = [
+                'intervenant' => $inter,
+                'familles'    => $familles,
+                'nbFamilles'  => count($familles),
+            ];
+        }
+
+        return $this->render('admin/intervenants/familles.html.twig', [
+            'auth'   => $this->authService->check(),
+            'lignes' => $lignes,
+        ]);
+    }
+
     #[Route('/admin-mvc/familles', name: 'admin_familles_mvc')]
     public function listeFamilles(Request $request): Response
     {
@@ -145,19 +183,9 @@ final class AdminControllerMVC extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
-        $intervenant = $this->intervenantService->getIntervenantParId($id);
-        
-        if (!$intervenant) {
-            throw $this->createNotFoundException('Intervenant introuvable');
-        }
-
-        $prestations = $this->horaireService->getPrestationsParIntervenant($id);
-
-        return $this->render('admin/intervenant_detail.html.twig', [
-            'auth' => $this->authService->check(),
-            'intervenant' => $intervenant,
-            'prestations' => $prestations,
-        ]);
+        // Page unifiée : on réutilise le tableau de bord intervenant (dashboard riche),
+        // déjà accessible à l'admin (resolveId conserve l'id de l'URL pour un admin).
+        return $this->redirectToRoute('intervenant_panel_mvc', ['id' => $id]);
     }
 
     #[Route('/admin-mvc/famille/{numFam}', name: 'admin_famille_detail_mvc')]
@@ -844,6 +872,7 @@ final class AdminControllerMVC extends AbstractController
             $config->setNbrJourSaisie((int)$request->request->get('nbrJourSaisie', 10));
             $config->setNbrPalierTarifGE((int)$request->request->get('nbrPalierTarifGE', 4));
             $config->setNbrPalierTarifM((int)$request->request->get('nbrPalierTarifM', 0));
+            $config->setNbJoursFenetreSignature((int)$request->request->get('nbJoursFenetreSignature', 3));
             $config->touch();
             $this->em->flush();
             $this->addFlash('success', 'Configuration enregistrée.');
@@ -884,7 +913,7 @@ final class AdminControllerMVC extends AbstractController
         $moisAnnee    = sprintf('%02d/%04d', $m, $y);
         $intervenants = $this->intervenantService->getTousLesIntervenants();
 
-        // Types de prestation par intervenant (depuis proposer actifs — connexion principal)
+        // Types de prestation par intervenant (depuis proposer actifs connexion principal)
         $typesParInter = [];
         $connPrincipal = $this->em->getConnection();
         // Utiliser la connexion principal via le registry

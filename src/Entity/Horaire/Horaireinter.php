@@ -66,11 +66,28 @@ class Horaireinter
     #[ORM\Column(name: 'declarerLeFam', type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $declarerLeFam = null;
 
-    /** 'inter' | 'fam' | null — choix admin pour la facturation */
+    /** 'inter' | 'fam' | null choix admin pour la facturation */
     #[ORM\Column(name: 'sourceFacturation', length: 5, nullable: true)]
     private ?string $sourceFacturation = null;
 
-    /** Computed field — not stored in DB */
+    /** Prestation pointée par scan pour une famille HORS planning (occasionnelle). */
+    #[ORM\Column(name: 'occasionnel', options: ['default' => 0])]
+    private bool $occasionnel = false;
+
+    /** Heure de début RÉELLE du pointage (non arrondie) renseignée par le scan. */
+    #[ORM\Column(name: 'heureDebutReelle', type: 'time', nullable: true)]
+    private ?\DateTimeInterface $heureDebutReelle = null;
+
+    /** Heure de fin RÉELLE du pointage (non arrondie) renseignée par le scan. */
+    #[ORM\Column(name: 'heureFinReelle', type: 'time', nullable: true)]
+    private ?\DateTimeInterface $heureFinReelle = null;
+
+    /** Rappels déjà envoyés pour ce pointage (clés séparées par des virgules) →
+     *  garantit qu'un même rappel n'est envoyé qu'UNE fois. */
+    #[ORM\Column(name: 'rappel_envoye', length: 60, nullable: true)]
+    private ?string $rappelEnvoye = null;
+
+    /** Computed field not stored in DB */
     private float $heuresTotal = 0.0;
 
     public function getId(): ?int
@@ -251,6 +268,34 @@ class Horaireinter
     public function setSourceFacturation(?string $sourceFacturation): static
     {
         $this->sourceFacturation = $sourceFacturation;
+        return $this;
+    }
+
+    public function isOccasionnel(): bool { return $this->occasionnel; }
+    public function setOccasionnel(bool $v): static { $this->occasionnel = $v; return $this; }
+
+    public function getHeureDebutReelle(): ?\DateTimeInterface { return $this->heureDebutReelle; }
+    public function setHeureDebutReelle(?\DateTimeInterface $v): static { $this->heureDebutReelle = $v; return $this; }
+
+    public function getHeureFinReelle(): ?\DateTimeInterface { return $this->heureFinReelle; }
+    public function setHeureFinReelle(?\DateTimeInterface $v): static { $this->heureFinReelle = $v; return $this; }
+
+    public function getRappelEnvoye(): ?string { return $this->rappelEnvoye; }
+
+    /** Un rappel de cette clé a-t-il déjà été envoyé pour ce pointage ? */
+    public function aDejaRappel(string $cle): bool
+    {
+        return in_array($cle, array_filter(explode(',', (string) $this->rappelEnvoye)), true);
+    }
+
+    /** Marque ce rappel comme envoyé (idempotent). */
+    public function ajouteRappel(string $cle): static
+    {
+        if (!$this->aDejaRappel($cle)) {
+            $cles = array_filter(explode(',', (string) $this->rappelEnvoye));
+            $cles[] = $cle;
+            $this->rappelEnvoye = implode(',', $cles);
+        }
         return $this;
     }
 

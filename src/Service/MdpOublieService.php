@@ -22,6 +22,8 @@ class MdpOublieService
         private IntervenantRepository $intervenantRepository,
         private FamilleRepository    $familleRepository,
         private UserPasswordHasherInterface $passwordHasher,
+        private EmailTemplateService $emailTemplates,
+        private AuditLogger $audit,
     ) {}
 
     /**
@@ -29,6 +31,10 @@ class MdpOublieService
      */
     public function envoyerCodeReinitialisation(string $identifiant): bool
     {
+        // L'intervenant saisit son TÉLÉPHONE → on le résout en identifiant de compte
+        // (numSalarie). Famille/admin : leur identifiant est utilisé tel quel.
+        $identifiant = $this->resoudreUsername($identifiant);
+
         $user = $this->userRepository->findByIdentifiant($identifiant);
         if (!$user) {
             return false;
@@ -53,6 +59,8 @@ class MdpOublieService
      */
     public function verifierCode(string $identifiant, string $code): bool
     {
+        $identifiant = $this->resoudreUsername($identifiant);
+
         $user = $this->userRepository->findByIdentifiant($identifiant);
         if (!$user) {
             return false;
@@ -78,6 +86,7 @@ class MdpOublieService
             return false;
         }
 
+        $identifiant = $this->resoudreUsername($identifiant);
         $user = $this->userRepository->findByIdentifiant($identifiant);
         if (!$user) {
             return false;
@@ -88,7 +97,28 @@ class MdpOublieService
         $user->setTokenExpire(null);
         $this->em->flush();
 
+        // AUDIT : action sensible — réinitialisation du mot de passe.
+        $this->audit->log('password_change', [
+            'actor'  => $user->getUserIdentifier(),
+            'method' => 'reinitialisation',
+        ]);
+
         return true;
+    }
+
+    /**
+     * Résout la valeur SAISIE en identifiant de compte (users_suivi.username) :
+     *  - si elle correspond déjà à un compte (famille, admin, numSalarie) → telle quelle ;
+     *  - sinon, l'intervenant a saisi son TÉLÉPHONE → on le résout en numSalarie.
+     * Retourne la valeur d'origine si rien ne correspond (l'appelant échoue proprement).
+     */
+    private function resoudreUsername(string $saisi): string
+    {
+        if ($this->userRepository->findByIdentifiant($saisi)) {
+            return $saisi;
+        }
+        $intervenant = $this->intervenantRepository->findByTelephoneNormalise($saisi);
+        return $intervenant?->getNumSalarie() ?? $saisi;
     }
 
     /**
@@ -109,7 +139,7 @@ class MdpOublieService
         }
 
         // Admin
-        if ($identifiant === '9.99.99.99.999.999.99') {
+        if ($identifiant === '9999999999') {
             return 'admin@chaudoudoux.fr';
         }
 
@@ -119,30 +149,17 @@ class MdpOublieService
     private function envoyerEmail(string $destinataire, string $identifiant, string $code): bool
     {
         try {
-            $html = "
-            <div style='font-family:Inter,sans-serif;max-width:480px;margin:0 auto;'>
-                <h2 style='color:#1e1b4b;'>Réinitialisation de votre mot de passe</h2>
-                <p>Bonjour,</p>
-                <p>Vous avez demandé la réinitialisation du mot de passe pour le compte&nbsp;:
-                   <strong>{$identifiant}</strong></p>
-                <p>Votre code de réinitialisation&nbsp;:</p>
-                <div style='background:#f1f5f9;border-radius:10px;padding:16px;text-align:center;
-                            font-size:32px;font-weight:700;letter-spacing:8px;
-                            color:#4f46e5;font-family:monospace;margin:16px 0;'>
-                    {$code}
-                </div>
-                <p style='font-size:13px;color:#64748b;'>
-                    Ce code est valable <strong>1 heure</strong>.<br>
-                    Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
-                </p>
-                <p style='font-size:12px;color:#94a3b8;'>— L'équipe La Maison des Chaudoudoux</p>
-            </div>";
+            // Modèle personnalisable par l'admin (repli sur le texte par défaut).
+            $tpl = $this->emailTemplates->resoudre('mdp_oublie', [
+                'identifiant' => $identifiant,
+                'code'        => $code,
+            ]);
 
             $email = (new Email())
                 ->from(self::EMAIL_NOREPLY)
                 ->to($destinataire)
-                ->subject('Chaudoudoux — Code de réinitialisation')
-                ->html($html);
+                ->subject($tpl['sujet'])
+                ->html($tpl['html']);
 
             $this->mailer->send($email);
             return true;

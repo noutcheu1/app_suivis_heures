@@ -7,7 +7,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Ligne de la table `proposer` — liaison Famille ↔ Intervenant.
+ * Ligne de la table `proposer` liaison Famille ↔ Intervenant.
  * PK composite : prestation + salarié + famille + typeAdh + jour + heureDebut.
  */
 #[ORM\Entity(repositoryClass: ProposerRepository::class)]

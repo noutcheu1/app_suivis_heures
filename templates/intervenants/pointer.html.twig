@@ -1,0 +1,84 @@
+{% extends 'base.html.twig' %}
+{% block title %}Pointer{% endblock %}
+{% block page_title %}Pointer{% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <h1><i class="fas fa-stopwatch" style="color:var(--primary);"></i> Déclarer mes heures</h1>
+    <p>Choisissez votre méthode de pointage.</p>
+</div>
+
+{# ── Pointage(s) NON terminé(s) : à clôturer ─────────── #}
+{% if pointagesEnCours is defined and pointagesEnCours is not empty %}
+<div style="margin-bottom:20px;">
+    {% for p in pointagesEnCours %}
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--radius);padding:12px 16px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;margin-bottom:8px;">
+            <i class="fas fa-stopwatch" style="color:#ea580c;flex-shrink:0;"></i>
+            <div style="flex:1;">
+                Pointage <strong>en cours</strong> chez
+                <strong>{{ (p.numFam and p.numFam != '0') ? famille_label(p.numFam) : (p.nomFam ?: 'Famille occasionnelle') }}</strong>
+                — démarré à <strong>{{ p.heureDebut }}</strong>
+                {% if not p.aujourdhui %}<span style="color:var(--text-muted);">(le {{ p.date|date('d/m/Y') }})</span>{% endif %}
+            </div>
+        </div>
+        <form method="POST" action="{{ path('intervenant_cloturer_pointage_mvc', {id: user.id}) }}"
+              style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('cloturer') }}">
+            <input type="hidden" name="horaireId" value="{{ p.id }}">
+            <label style="font-size:13px;color:var(--text-muted);">Heure de fin :</label>
+            <input type="time" name="heure" value="{{ p.finPrevue ?: p.heureDebut }}" required
+                   style="height:38px;padding:0 10px;border:1.5px solid var(--border-strong);border-radius:8px;font-size:14px;">
+            {% if p.finPrevue %}<span style="font-size:12px;color:var(--text-muted);">(prévu : {{ p.finPrevue }})</span>{% endif %}
+            <button type="submit" class="btn btn-success btn-sm">
+                <i class="fas fa-check"></i> Terminer
+            </button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="action-grid" style="margin-top:12px;">
+
+    {# Saisie manuelle #}
+    <a class="action-card" href="{{ path('intervenant_suivie_mvc', {id: user.id}) }}">
+        <div class="action-card-icon" style="background:#eef2ff;">
+            <i class="fas fa-keyboard" style="color:#4f46e5;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Saisie manuelle</p>
+            <p class="action-card-desc">Enregistrer une prestation à la main</p>
+        </div>
+    </a>
+
+    {# Scan QR (auto) #}
+    <a class="action-card" href="{{ path('intervenant_qr_mvc', {id: user.id}) }}">
+        <div class="action-card-icon" style="background:#f0fdf4;">
+            <i class="fas fa-qrcode" style="color:#10b981;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Scan QR (auto)</p>
+            <p class="action-card-desc">Pointage rapide en scannant la famille</p>
+        </div>
+    </a>
+
+    {# Garde d'enfant #}
+    <a class="action-card" href="{{ path('garde_saisie') }}">
+        <div class="action-card-icon" style="background:#fff7ed;">
+            <i class="fas fa-child" style="color:#f59e0b;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Garde d'enfant</p>
+            <p class="action-card-desc">Planning garde du jour → démarrer</p>
+        </div>
+    </a>
+
+</div>
+
+<div style="margin-top:20px;">
+    <a href="{{ path('intervenant_panel_mvc', {id: user.id}) }}" class="btn btn-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+    </a>
+</div>
+{% endblock %}

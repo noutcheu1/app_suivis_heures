@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 02-import-dumps.sh — Import du dump de la base PRINCIPALE uniquement
+# 02-import-dumps.sh Import du dump de la base PRINCIPALE uniquement
 # S'exécute après 01-init.sql
 #
 # IMPORTANT :

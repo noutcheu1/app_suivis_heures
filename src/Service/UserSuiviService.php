@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\Horaire\UserSuivi;
+use App\Repository\CandidatRepository;
 use App\Repository\UserSuiviRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -13,6 +14,7 @@ class UserSuiviService
         private UserSuiviRepository $repository,
         private EntityManagerInterface $entityManager,
         private UserPasswordHasherInterface $passwordHasher,
+        private CandidatRepository $candidatRepository,
     ) {}
 
     /**
@@ -44,11 +46,16 @@ class UserSuiviService
     /**
      * Crée un nouvel utilisateur
      */
-    public function creerUtilisateur(string $identifiant, string $motDePasse, string $role = 'intervenant'): UserSuivi
+    public function creerUtilisateur(string $identifiant, string $motDePasse, string $role = 'intervenant', ?string $email = null): UserSuivi
     {
         $user = new UserSuivi();
         $user->setUsername($identifiant);
         $user->setRole($role);
+        // Intervenant : l'identifiant stocké est le numSalarie (RGPD : ni numSS ni téléphone
+        // dans la bd horaire). L'email est résolu par l'appelant depuis le dossier chaudoudou.
+        if ($role === 'intervenant') {
+            $user->setEmail($email);
+        }
         $user->setPassword($this->passwordHasher->hashPassword($user, $motDePasse));
 
         $this->entityManager->persist($user);

@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}Relevé {% if type == 'MENA' %}Ménage{% else %}Garde d'enfants{% endif %} — {{ user.nom }}{% endblock %}
+{% block title %}Relevé {% if type == 'MENA' %}Ménage{% else %}Garde d'enfants{% endif %} {{ user.nom }}{% endblock %}
 {% block page_title %}Fiche relevé d'heures{% endblock %}
 
 {% block stylesheets %}
@@ -15,7 +15,7 @@
             {% if isAdmin %}
             <h1>Relevé de {{ user.nom }} {{ user.prenom }}</h1>
             {% else %}
-            <h1>{{ user.nom }} {{ user.prenom }} — votre relevé</h1>
+            <h1>{{ user.nom }} {{ user.prenom }} votre relevé</h1>
             {% endif %}
             <p style="margin:4px 0 0;">Fiche mensuelle</p>
         </div>
@@ -34,16 +34,26 @@
                 </a>
             </div>
 
-            {# Navigation mois #}
-            <div style="display:flex;gap:8px;">
+            {# Navigation mois : on affiche le NOM du mois ciblé (plus parlant) #}
+            {% set moisFr = {1:'Janvier',2:'Février',3:'Mars',4:'Avril',5:'Mai',6:'Juin',7:'Juillet',8:'Août',9:'Septembre',10:'Octobre',11:'Novembre',12:'Décembre'} %}
+            {% set base   = 'now'|date('Y-m-15') %}
+            {% set dCur   = base|date_modify(moisOffset ~ ' month') %}
+            {% set dPrev  = base|date_modify((moisOffset - 1) ~ ' month') %}
+            {% set dNext  = base|date_modify((moisOffset + 1) ~ ' month') %}
+            <div style="display:flex;gap:8px;align-items:center;">
                 <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: user.id, type: type, mois: moisOffset - 1}) }}"
-                   class="btn btn-secondary btn-sm">
-                    <i class="fas fa-chevron-left"></i> Mois précédent
+                   class="btn btn-secondary btn-sm" title="Voir {{ moisFr[dPrev|date('n')] }} {{ dPrev|date('Y') }}">
+                    <i class="fas fa-chevron-left"></i> {{ moisFr[dPrev|date('n')] }} {{ dPrev|date('Y') }}
                 </a>
+
+                <span style="font-weight:700;color:var(--primary);white-space:nowrap;">
+                    {{ moisFr[dCur|date('n')] }} {{ dCur|date('Y') }}
+                </span>
+
                 {% if moisOffset < 0 %}
                 <a href="{{ path('releves_intervenant_fiche_mvc', {intervenantId: user.id, type: type, mois: moisOffset + 1}) }}"
-                   class="btn btn-secondary btn-sm">
-                    Mois suivant <i class="fas fa-chevron-right"></i>
+                   class="btn btn-secondary btn-sm" title="Voir {{ moisFr[dNext|date('n')] }} {{ dNext|date('Y') }}">
+                    {{ moisFr[dNext|date('n')] }} {{ dNext|date('Y') }} <i class="fas fa-chevron-right"></i>
                 </a>
                 {% endif %}
             </div>
@@ -140,12 +150,92 @@
 @media (max-width:640px) {
     .sheet-recap-grid { grid-template-columns: 1fr; }
 }
+/* Cases éditables de la grille relevé (uniquement celles avec un créneau) */
+#tableContainer td.cell-editable { cursor:pointer; position:relative; transition:background .15s; }
+#tableContainer td.cell-editable:hover { background:var(--primary-light); box-shadow:inset 0 0 0 2px var(--primary); }
+
+/* Découpage en fiches de 5 familles max (meilleur responsive mobile) */
+.fiche-block { margin-top:18px; }
+.fiche-block:first-of-type { margin-top:0; }
+.fiche-block-label {
+    font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+    color:var(--primary); background:var(--primary-light);
+    padding:6px 12px; border-radius:8px 8px 0 0; display:inline-block;
+}
+#tableContainer table { width:100%; }
+
+/* Navigation entre fiches (quand nombreuses) */
+.fiche-pager {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:10px 14px; margin-bottom:12px;
+    background:#fff; border:1px solid var(--border); border-radius:var(--radius-md);
+    box-shadow:var(--shadow-xs); position:sticky; top:8px; z-index:10;
+}
+.fiche-counter { font-size:15px; font-weight:600; color:var(--text-muted); }
+.fiche-counter strong { font-size:20px; color:var(--primary); }
+.fiche-pager .btn[disabled] { opacity:.4; cursor:not-allowed; }
+@media (max-width:640px) {
+    #tableContainer { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    #tableContainer table { font-size:12px; }
+    #tableContainer td, #tableContainer th { padding:4px 5px; }
+}
+
+/* Modale d'édition de case */
+#cellEditModal, #signConfirmModal { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:3000; display:none; align-items:center; justify-content:center; }
+#cellEditModal.open, #signConfirmModal.open { display:flex; }
+.cell-modal-box { background:#fff; border-radius:16px; padding:22px 24px; width:92%; max-width:460px; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+.cell-modal-box h3 { margin:0 0 4px; font-size:17px; }
+.cell-modal-sub { font-size:13px; color:var(--text-muted); margin-bottom:16px; }
+.cr-row { display:flex; align-items:center; gap:8px; padding:8px 0; border-top:1px solid var(--border); }
+.cr-time { display:flex; align-items:center; gap:3px; }
+.cr-time select { padding:6px 8px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; font-weight:600; font-family:inherit; background:var(--bg); }
+.cr-sep { font-weight:700; color:var(--text-muted); }
+.cr-arrow { color:var(--text-muted); }
+.cr-actions { margin-left:auto; display:flex; gap:6px; }
+.cell-locked-note { margin-top:12px; padding:9px 12px; background:#fff8e1; border-left:3px solid #f59f00; border-radius:8px; font-size:12.5px; color:#856404; }
 </style>
+
+{# ── Modale d'édition d'une case (jour × famille) ───────────────────────── #}
+<div id="cellEditModal">
+    <div class="cell-modal-box">
+        <h3 id="cellModalTitle">Modifier le créneau</h3>
+        <div class="cell-modal-sub" id="cellModalSub"></div>
+
+        <div id="cellCreneauxList"><!-- créneaux existants injectés par JS --></div>
+
+        <div id="cellLockedNote" class="cell-locked-note" style="display:none;">
+            <i class="fas fa-lock"></i> Ce mois est clôturé modification impossible.
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:18px;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="fermerCellEditor()">Fermer</button>
+        </div>
+    </div>
+</div>
+
+{# ── Modale de confirmation de signature ────────────────────────────────── #}
+<div id="signConfirmModal">
+    <div class="cell-modal-box" style="max-width:430px;text-align:center;">
+        <div style="font-size:34px;color:var(--primary);margin-bottom:8px;"><i class="fas fa-signature"></i></div>
+        <h3 style="margin:0 0 6px;">Confirmer la signature</h3>
+        <p style="color:var(--text-muted);font-size:14px;line-height:1.5;margin:0 0 6px;">
+            Le relevé sera <strong>envoyé par email</strong> (copie à Chaudoudoux) et
+            <strong>ne pourra plus être modifié</strong>.
+        </p>
+        <p style="color:var(--text-muted);font-size:13px;margin:0 0 18px;">Voulez-vous continuer ?</p>
+        <div style="display:flex;gap:10px;justify-content:center;">
+            <button type="button" class="btn btn-ghost" onclick="fermerSignConfirm()">Annuler</button>
+            <button type="button" class="btn btn-success" id="signConfirmBtn"><i class="fas fa-check"></i> Signer</button>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 
 {% block javascripts %}
 {{ parent() }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
 <script>
 const ID = {{ user.id }};
 const paramsUri = new URLSearchParams(window.location.search);
@@ -161,7 +251,7 @@ function activerBoutonTelechargement() {
 }
 </script>
 
-<script src="{{ asset('/assets/js/fiche-dheure.js') }}"></script>
+<script src="{{ asset('/assets/js/fiche-dheure.js') }}?v={{ 'now'|date('YmdHis') }}"></script>
 <script>
 const VACANCES_CONFIG = {% if vacancesConfig is defined and vacancesConfig %}{
   titre: {{ vacancesConfig.titre|json_encode|raw }},

@@ -36,7 +36,7 @@
     <i class="fas fa-file-pdf" style="font-size:36px;color:var(--primary);margin-bottom:12px;display:block;"></i>
     <h2 style="margin:0 0 8px;">Génération du PDF…</h2>
     <p style="color:var(--text-muted);margin:0 0 20px;">
-        {{ fiches|length }} fiche(s) — {{ filename }}
+        {{ fiches|length }} fiche(s) {{ filename }}
     </p>
     <div style="max-width:320px;margin:0 auto;background:var(--border);border-radius:20px;height:8px;overflow:hidden;">
         <div id="progressBar" style="height:100%;background:var(--primary);width:0%;border-radius:20px;"></div>
@@ -47,7 +47,7 @@
     </a>
 </div>
 
-{# Toutes les fiches rendues en HTML — invisibles, lues par jsPDF #}
+{# Toutes les fiches rendues en HTML invisibles, lues par jsPDF #}
 <div id="allFiches" style="position:absolute;left:-9999px;top:0;width:800px;visibility:hidden;">
 
 {% for fiche in fiches %}
@@ -93,7 +93,7 @@
                     <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 0;">
                         <span>{{ i + 1 }}</span>
                         {% if familles[i] is defined %}
-                            {% set famLabel = familles[i].numFam ? famille_label(familles[i].numFam) : 'FAMILLE OCCASIONNELLE' ~ familles[i].nomFam %}
+                            {% set famLabel = (familles[i].numFam and familles[i].numFam != '0' and not familles[i].occasionnel) ? famille_label(familles[i].numFam) : ('FAMILLE OCCASIONNELLE' ~ (familles[i].nomFam ? ' ' ~ familles[i].nomFam : '')) %}
                             {% set famFs = famLabel|length > 20 ? '7px' : (famLabel|length > 13 ? '8px' : '9px') %}
                             <span class="nom-famille" style="font-weight:bold; font-size:{{ famFs }};">{{ famLabel }}</span>
                             <i style="font-size:7px;" class="villes">{{ familles[i].ville_Famille }}</i>

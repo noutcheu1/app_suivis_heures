@@ -1,0 +1,88 @@
+{% extends 'base.html.twig' %}
+{% block title %}Modèles d'email Admin{% endblock %}
+{% block page_title %}Personnalisation des emails{% endblock %}
+
+{% block body %}
+<div style="max-width:860px;margin:0 auto;padding:8px 4px 40px;">
+
+    <p style="color:var(--text-muted);margin:0 0 24px;">
+        Modifiez le <strong>sujet</strong> et le <strong>message</strong> de chaque email envoyé par l'application.
+        Utilisez les <strong>variables</strong> entre accolades : elles seront remplacées automatiquement à l'envoi.
+    </p>
+
+    {% for t in templates %}
+    <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px;margin-bottom:18px;box-shadow:var(--shadow-sm);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+            <h2 style="font-size:17px;margin:0;color:#1e1b4b;">
+                <i class="fas fa-envelope" style="color:var(--primary);"></i> {{ t.label }}
+            </h2>
+            {% if t.personnalise %}
+                <span style="font-size:12px;font-weight:600;background:#dcfce7;color:#15803d;padding:3px 10px;border-radius:20px;">Personnalisé</span>
+            {% else %}
+                <span style="font-size:12px;font-weight:600;background:#f1f5f9;color:var(--text-muted);padding:3px 10px;border-radius:20px;">Par défaut</span>
+            {% endif %}
+        </div>
+
+        {# Variables disponibles + signification #}
+        <div style="background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;">
+            <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">
+                <i class="fas fa-tags"></i> Variables disponibles cliquez pour copier
+            </div>
+            {% for nom, desc in t.variables %}
+                <div style="display:flex;align-items:baseline;gap:10px;padding:4px 0;">
+                    <code class="copy-var" data-var="{{ '{' ~ nom ~ '}' }}"
+                          style="background:#eef2ff;color:#4338ca;padding:3px 9px;border-radius:6px;font-size:13px;cursor:pointer;white-space:nowrap;"
+                          title="Cliquer pour copier">{{ '{' ~ nom ~ '}' }}</code>
+                    <span style="font-size:13.5px;color:var(--text);">{{ desc }}</span>
+                </div>
+            {% endfor %}
+        </div>
+
+        <form method="POST" action="{{ path('admin_emails_save_mvc') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('emails') }}">
+            <input type="hidden" name="cle" value="{{ t.cle }}">
+
+            <label style="display:block;font-weight:600;font-size:14px;margin:10px 0 6px;">Sujet</label>
+            <input type="text" name="sujet" value="{{ t.sujet }}"
+                   style="width:100%;padding:11px 13px;border:1px solid var(--border-strong);border-radius:var(--radius-md);font-size:15px;">
+
+            <label style="display:block;font-weight:600;font-size:14px;margin:14px 0 6px;">Message</label>
+            <textarea name="corps" rows="8"
+                      style="width:100%;padding:11px 13px;border:1px solid var(--border-strong);border-radius:var(--radius-md);font-size:15px;line-height:1.6;resize:vertical;font-family:inherit;">{{ t.corps }}</textarea>
+
+            <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+                <button type="submit"
+                        style="background:var(--primary);color:#fff;border:none;padding:11px 22px;border-radius:var(--radius-md);font-size:15px;font-weight:600;cursor:pointer;">
+                    <i class="fas fa-floppy-disk"></i> Enregistrer
+                </button>
+            </div>
+        </form>
+
+        {% if t.personnalise %}
+        <form method="POST" action="{{ path('admin_emails_reset_mvc') }}"
+              onsubmit="return confirm('Réinitialiser ce modèle au texte par défaut ?');" style="margin-top:8px;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('emails') }}">
+            <input type="hidden" name="cle" value="{{ t.cle }}">
+            <button type="submit"
+                    style="background:none;border:none;color:var(--danger);font-size:13px;cursor:pointer;padding:4px 0;">
+                <i class="fas fa-rotate-left"></i> Revenir au texte par défaut
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+</div>
+
+<script>
+    // Clic sur une variable → copie dans le presse-papier
+    document.querySelectorAll('.copy-var').forEach(el => {
+        el.addEventListener('click', async () => {
+            const v = el.dataset.var;
+            try { await navigator.clipboard.writeText(v); }
+            catch { /* navigateur sans clipboard API */ }
+            if (window.toast) toast(v + ' copié', 'success', 1800);
+        });
+    });
+</script>
+{% endblock %}
