@@ -32,7 +32,8 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
 
     public function authenticate(Request $request): Passport
     {
-        $username = $request->request->get('id', '');
+        $saisi    = $request->request->get('id', ''); // ce que l'utilisateur a réellement tapé
+        $username = $saisi;
         $type     = $request->request->get('type');
         $ip       = $request->getClientIp();
 
@@ -41,7 +42,7 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
         // 2) On le VÉRIFIE sur chaudoudou → numSalarie = identifiant du compte.
         // 3) Repli sur la valeur normalisée si aucun intervenant (cas admin « 9999999999 »).
         if ($type === 'INTER') {
-            $tel = \App\Repository\UserSuiviRepository::normaliserTel($username);
+            $tel = \App\Repository\UserSuiviRepository::normaliserTel($saisi);
             $username = $this->intervenantRepository->findByTelephoneNormalise($tel)?->getNumSalarie()
                 ?? $tel;
         }
@@ -53,9 +54,11 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
             'ip'       => $ip,
         ]);
 
+        // On ré-affiche EXACTEMENT ce que l'utilisateur a tapé (jamais une valeur résolue
+        // en base : évite d'exposer un identifiant interne après un échec).
         $request->getSession()->set(
             \Symfony\Component\Security\Http\SecurityRequestAttributes::LAST_USERNAME,
-            $username
+            $saisi
         );
         $request->getSession()->set('type', $type);
 

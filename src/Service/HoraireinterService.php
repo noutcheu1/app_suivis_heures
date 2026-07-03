@@ -75,7 +75,9 @@ class HoraireinterService
         $horaire = new Horaireinter();
 
         $horaire->setNumFam($numFam);
-        $horaire->setNomFam($donnees['nomFam'] ?? '');
+        // Sécurité (anti-XSS stocké) : le nom d'une famille occasionnelle est saisi
+        // librement dans le formulaire → on retire tout HTML/script avant stockage.
+        $horaire->setNomFam($this->nettoyerNomFam($donnees['nomFam'] ?? ''));
         $horaire->setNumInter($numInter);
         $horaire->setDatePresta(new \DateTime($donnees['datePresta']));
         $horaire->setHeureDebutPresta(new \DateTime($donnees['heureDebutPresta']));
@@ -160,7 +162,7 @@ class HoraireinterService
 
         $horaire = new Horaireinter();
         $horaire->setNumFam($numFamStored);
-        $horaire->setNomFam($nomFam);
+        $horaire->setNomFam($this->nettoyerNomFam($nomFam));
         $horaire->setNumInter($numInter);
         $horaire->setDatePresta($today);
         $horaire->setHeureDebutPresta($debutArrondi);
@@ -506,7 +508,7 @@ class HoraireinterService
 
         $horaire = new \App\Entity\Horaire\Horaireinter();
         $horaire->setNumFam($numFam);
-        $horaire->setNomFam($nomFam);
+        $horaire->setNomFam($this->nettoyerNomFam($nomFam));
         $horaire->setNumInter($numInter);
         $horaire->setDatePresta($date);
         $horaire->setHeureDebutPresta(null);
@@ -763,6 +765,17 @@ class HoraireinterService
         if ($this->repository->existsChevauchement($numInter, $datePresta, $heureDebut, $heureFin, $excludeId)) {
             throw new \LogicException('Ce créneau chevauche une autre prestation déjà enregistrée ce jour-là.');
         }
+    }
+
+    /**
+     * Nettoie un nom de famille OCCASIONNELLE saisi librement (anti-XSS stocké) :
+     * retire tout HTML/script, normalise les espaces, limite la longueur.
+     */
+    private function nettoyerNomFam(?string $nom): string
+    {
+        $nom = strip_tags((string) $nom);
+        $nom = trim((string) preg_replace('/\s+/', ' ', $nom));
+        return mb_substr($nom, 0, 100);
     }
 
     /**
