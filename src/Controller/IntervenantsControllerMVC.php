@@ -24,6 +24,8 @@ final class IntervenantsControllerMVC extends AbstractController
         private FamilleService            $familleService,
         private FamilleIntervenantService $familleIntervenantService,
         private FamilleExtension          $familleExtension,
+        private \App\Repository\VacancesReponseIntervenantRepository $reponseInterRepo,
+        private \App\Repository\VacancesConfigRepository $vacancesRepo,
     ) {}
 
     // ── Admin : liste ─────────────────────────────────────────────────────────
@@ -100,6 +102,9 @@ final class IntervenantsControllerMVC extends AbstractController
             'familles'        => $familles,
             // Pointages NON terminés → récupération d'oubli (clôture sans QR).
             'pointagesEnCours'=> $this->horaireService->getPointagesEnCours($id),
+            // Résumé de la dernière réponse à une campagne de congés.
+            'reponseVacances' => ($rv = $this->reponseInterRepo->findLatestByNumInter($id)),
+            'campagneVacances'=> $rv ? $this->vacancesRepo->find($rv->getVacancesConfigId()) : null,
         ]);
     }
 

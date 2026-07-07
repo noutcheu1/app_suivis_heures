@@ -14,9 +14,12 @@ use App\Repository\ParentFamilleRepository;
 use App\Repository\ProposerRepository;
 use App\Repository\RelevemensuelinterRepository;
 use App\Repository\VacancesConfigRepository;
+use App\Repository\VacancesReponseFamilleRepository;
 use App\Service\AuthService;
 use App\Service\FactureService;
+use App\Service\FamilleRemplacementService;
 use App\Service\FamilleService;
+use App\Service\RemplacementService;
 use App\Service\HoraireinterService;
 use App\Service\IntervenantService;
 use App\Service\ReleveMensuelFamilleService;
@@ -39,6 +42,7 @@ final class AdminControllerMVC extends AbstractController
         private ReleveMensuelFamilleService $releveMensuelFamilleService,
         private FactureService              $factureService,
         private VacancesConfigRepository    $vacancesRepo,
+        private VacancesReponseFamilleRepository $reponseFamRepo,
         private AppConfigRepository         $appConfigRepo,
         private HoraireinterRepository      $horaireRepo,
         private ProposerRepository          $proposerRepo,
@@ -48,6 +52,8 @@ final class AdminControllerMVC extends AbstractController
         private TarifFamilleRepository          $tarifFamilleRepo,
         private RelevemensuelinterRepository    $relevemensuelinterRepo,
         private EntityManagerInterface          $em,
+        private FamilleRemplacementService      $remplacementService,
+        private RemplacementService             $planRemplacementService,
     ) {}
 
     #[Route('/admin-mvc/dashboard', name: 'admin_dashboard_mvc')]
@@ -212,15 +218,27 @@ final class AdminControllerMVC extends AbstractController
             $interMap[$i->getId()] = trim($i->getNom() . ' ' . $i->getPrenom());
         }
 
+        // Résumé de la dernière réponse à une campagne de congés (pour la carte info).
+        $reponseVacances = $this->reponseFamRepo->findLatestByNumFam($numFam);
+        $campagneVacances = $reponseVacances
+            ? $this->vacancesRepo->find($reponseVacances->getVacancesConfigId())
+            : null;
+
+        // Remplacements à prévoir (campagne active) — null si aucun impact réel.
+        $remplacements = $this->remplacementService->pourFamille($famille);
+
         return $this->render('admin/famille_detail.html.twig', [
-            'auth'         => $this->authService->check(),
-            'famille'      => $famille,
-            'prestations'  => $prestations,
-            'parents'      => $parents,
-            'intervenants' => $intervenants,
-            'interMap'     => $interMap,
-            'typeAdhs'     => $typeAdhs,
-            'plannings'    => $plannings,
+            'auth'            => $this->authService->check(),
+            'famille'         => $famille,
+            'prestations'     => $prestations,
+            'parents'         => $parents,
+            'intervenants'    => $intervenants,
+            'interMap'        => $interMap,
+            'typeAdhs'         => $typeAdhs,
+            'plannings'       => $plannings,
+            'reponseVacances' => $reponseVacances,
+            'campagneVacances'=> $campagneVacances,
+            'remplacements'   => $remplacements,
         ]);
     }
 
@@ -757,6 +775,25 @@ final class AdminControllerMVC extends AbstractController
         ]);
     }
 
+    #[Route('/admin-mvc/vacances/{id}/remplacements', name: 'admin_vacances_remplacements_mvc', requirements: ['id' => '\d+'])]
+    public function remplacementsVacances(int $id): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $plan = $this->planRemplacementService->planPourCampagne($id);
+        if (!$plan) {
+            $this->addFlash('error', 'Campagne introuvable.');
+            return $this->redirectToRoute('admin_vacances_mvc');
+        }
+
+        return $this->render('admin/vacances_remplacements.html.twig', [
+            'auth' => true,
+            'plan' => $plan,
+        ]);
+    }
+
     #[Route('/admin-mvc/vacances/creer', name: 'admin_vacances_creer_mvc', methods: ['POST'])]
     public function creerVacances(Request $request): Response
     {
@@ -769,25 +806,74 @@ final class AdminControllerMVC extends AbstractController
             return $this->redirectToRoute('admin_vacances_mvc');
         }
 
-        $titre        = trim($request->request->get('titre', ''));
-        $periode      = trim($request->request->get('periodeTexte', ''));
+        // Titre = type de campagne prédéfini, ou titre personnalisé si « Autre ».
+        $typeCampagne = trim($request->request->get('typeCampagne', ''));
+        $titrePerso   = trim($request->request->get('titrePerso', ''));
+        $titre        = $typeCampagne === 'autre' ? $titrePerso : $typeCampagne;
+
         $message      = trim($request->request->get('message', ''));
-        $moisPeriodes = trim($request->request->get('moisPeriodes', ''));
-        $dateDebutStr = trim($request->request->get('dateApparitionDebut', ''));
         $dateFinStr   = trim($request->request->get('dateApparitionFin', ''));
+        // Ouverture du formulaire = date d'apparition (réutilise le champ existant).
+        $dateDebutStr = trim($request->request->get('dateApparitionDebut', ''));
+        // Campagne de congés
+        $congeDebutStr  = trim($request->request->get('dateDebut', ''));
+        $congeFinStr    = trim($request->request->get('dateFin', ''));
+        $limiteRepStr   = trim($request->request->get('dateLimiteReponse', ''));
 
         if (!$titre) {
-            $this->addFlash('error', 'Le titre est obligatoire.');
+            $this->addFlash('error', 'Choisissez un type de campagne (ou renseignez un titre personnalisé).');
+            return $this->redirectToRoute('admin_vacances_mvc');
+        }
+
+        // ── Dates obligatoires ───────────────────────────────────────────────
+        if (!$congeDebutStr || !$congeFinStr || !$limiteRepStr) {
+            $this->addFlash('error', 'Indiquez la date de début, la date de fin des vacances et la date limite de réponse.');
+            return $this->redirectToRoute('admin_vacances_mvc');
+        }
+
+        // ── Saisie robuste : refuse une date invalide au lieu de planter ─────
+        try {
+            $ouverture = $dateDebutStr ? new \DateTimeImmutable($dateDebutStr) : null; // ouverture du formulaire
+            $debut     = new \DateTimeImmutable($congeDebutStr); // début congés
+            $fin       = new \DateTimeImmutable($congeFinStr);   // fin congés
+            $limite    = new \DateTimeImmutable($limiteRepStr);  // date limite de réponse
+        } catch (\Exception) {
+            $this->addFlash('error', 'Une des dates saisies est invalide.');
+            return $this->redirectToRoute('admin_vacances_mvc');
+        }
+
+        // ── Validation métier — ordre chronologique attendu ──────────────────
+        //   ouverture du formulaire < date limite de réponse < début congés ≤ fin congés
+        $today = new \DateTimeImmutable('today');
+        if ($limite < $today) {
+            $this->addFlash('error', "La date limite de réponse est déjà passée : choisissez une date à venir.");
+            return $this->redirectToRoute('admin_vacances_mvc');
+        }
+        if ($debut > $fin) {
+            $this->addFlash('error', 'La date de fin des vacances doit être postérieure ou égale à la date de début.');
+            return $this->redirectToRoute('admin_vacances_mvc');
+        }
+        if ($limite >= $debut) {
+            $this->addFlash('error', 'La date limite de réponse doit être avant le début des vacances (pour laisser le temps de s\'organiser).');
+            return $this->redirectToRoute('admin_vacances_mvc');
+        }
+        if ($ouverture && $ouverture >= $limite) {
+            $this->addFlash('error', "L'ouverture du formulaire doit être avant la date limite de réponse.");
             return $this->redirectToRoute('admin_vacances_mvc');
         }
 
         $config = new VacancesConfig();
         $config->setTitre($titre);
-        $config->setPeriodeTexte($periode ?: null);
         $config->setMessage($message ?: null);
-        $config->setMoisPeriodes($moisPeriodes ?: null);
-        $config->setDateApparitionDebut($dateDebutStr ? new \DateTimeImmutable($dateDebutStr) : null);
-        $config->setDateApparitionFin($dateFinStr ? new \DateTimeImmutable($dateFinStr) : null);
+        // Champs bannière obsolètes (déduits de la période) : laissés à null.
+        $config->setPeriodeTexte(null);
+        $config->setMoisPeriodes(null);
+        $config->setDateApparitionDebut($ouverture);
+        $config->setDateApparitionFin($fin ? $fin->modify('+3 days') : null); // fin d'apparition ≈ après les congés
+        $config->setDateDebut($debut);
+        $config->setDateFin($fin);
+        $config->setDateLimiteReponse($limite);
+        $config->setStatut(VacancesConfig::STATUT_BROUILLON);
         $config->setActif(false);
 
         $this->em->persist($config);

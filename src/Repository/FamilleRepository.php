@@ -286,7 +286,7 @@ class FamilleRepository extends ServiceEntityRepository
         }
 
         return $this->createQueryBuilder('f')
-            ->where('f.numero_Famille IN (:numeros)')
+            ->where('f.numeroFamille IN (:numeros)')
             ->setParameter('numeros', $numeros)
             ->orderBy('f.nomFamille', 'ASC')
             ->getQuery()

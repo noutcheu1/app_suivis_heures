@@ -33,6 +33,44 @@ class VacancesConfigRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /**
+     * Campagnes à ENVOYER : statut brouillon et date d'ouverture atteinte
+     * (ouverture NULL = envoi possible tout de suite).
+     *
+     * @return VacancesConfig[]
+     */
+    public function findAEnvoyer(\DateTimeImmutable $today): array
+    {
+        return $this->createQueryBuilder('v')
+            ->where('v.statut = :brouillon')
+            ->andWhere('v.dateApparitionDebut IS NULL OR v.dateApparitionDebut <= :today')
+            ->setParameter('brouillon', VacancesConfig::STATUT_BROUILLON)
+            ->setParameter('today', $today)
+            ->orderBy('v.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Campagne « pertinente » pour la fiche famille : la plus récente qui est
+     * envoyée (collecte en cours) OU clôturée depuis peu (fenêtre de travail
+     * de 5 jours). Sert à n'afficher qu'UNE campagne, celle sur laquelle on agit.
+     */
+    public function findPourFicheFamille(): ?VacancesConfig
+    {
+        $limite = new \DateTimeImmutable('today -5 days');
+
+        return $this->createQueryBuilder('v')
+            ->where('v.statut = :env OR (v.statut = :clo AND v.dateLimiteReponse >= :limite)')
+            ->setParameter('env', VacancesConfig::STATUT_ENVOYEE)
+            ->setParameter('clo', VacancesConfig::STATUT_CLOTUREE)
+            ->setParameter('limite', $limite)
+            ->orderBy('v.createdAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /** Toutes les configs, les plus récentes en premier. */
     public function findAllOrderedDesc(): array
     {

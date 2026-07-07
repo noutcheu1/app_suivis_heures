@@ -6,6 +6,7 @@ use App\Repository\HoraireinterRepository;
 use App\Repository\ParentFamilleRepository;
 use App\Repository\ProposerRepository;
 use App\Repository\VacancesConfigRepository;
+use App\Repository\VacancesReponseFamilleRepository;
 use App\Service\AuthService;
 use App\Service\FactureService;
 use App\Service\FamilleIntervenantService;
@@ -35,6 +36,7 @@ final class FamillesControllerMVC extends AbstractController
         private FactureService              $factureService,
         private ReleveFamilleBuilder        $releveFamilleBuilder,
         private VacancesConfigRepository    $vacancesRepo,
+        private VacancesReponseFamilleRepository $reponseFamRepo,
         private IntervenantService          $intervenantService,
         private ProposerRepository          $proposerRepo,
         private HoraireinterRepository      $horaireRepo,
@@ -73,6 +75,12 @@ final class FamillesControllerMVC extends AbstractController
         $intervenants  = $this->familleIntervenantService->getIntervenantsForFamille($numFam);
         $assignations  = $this->familleIntervenantService->getAssignationsFamille($numFam);
 
+        // Dernière campagne de congés pour cette famille (pour la carte + bouton « Répondre »).
+        $reponseVacances  = $this->reponseFamRepo->findLatestByNumFam($numFam);
+        $campagneVacances = $reponseVacances
+            ? $this->vacancesRepo->find($reponseVacances->getVacancesConfigId())
+            : null;
+
         return $this->render('familles/dashboard.html.twig', [
             'auth'                   => true,
             'famille'                => $famille,
@@ -82,6 +90,8 @@ final class FamillesControllerMVC extends AbstractController
             'dernieres'              => $dernieres,
             'intervenants'           => $intervenants,
             'assignations'           => $assignations,
+            'reponseVacances'        => $reponseVacances,
+            'campagneVacances'       => $campagneVacances,
         ]);
     }
 
@@ -115,6 +125,12 @@ final class FamillesControllerMVC extends AbstractController
         $intervenants  = $this->familleIntervenantService->getIntervenantsForFamille($numFam);
         $assignations  = $this->familleIntervenantService->getAssignationsFamille($numFam);
 
+        // Dernière campagne de congés pour cette famille (pour la carte + bouton « Répondre »).
+        $reponseVacances  = $this->reponseFamRepo->findLatestByNumFam($numFam);
+        $campagneVacances = $reponseVacances
+            ? $this->vacancesRepo->find($reponseVacances->getVacancesConfigId())
+            : null;
+
         return $this->render('familles/dashboard.html.twig', [
             'auth'                   => true,
             'famille'                => $famille,
@@ -124,6 +140,8 @@ final class FamillesControllerMVC extends AbstractController
             'dernieres'              => $dernieres,
             'intervenants'           => $intervenants,
             'assignations'           => $assignations,
+            'reponseVacances'        => $reponseVacances,
+            'campagneVacances'       => $campagneVacances,
         ]);
     }
 

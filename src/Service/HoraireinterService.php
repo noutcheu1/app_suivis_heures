@@ -82,6 +82,11 @@ class HoraireinterService
         $horaire->setDatePresta(new \DateTime($donnees['datePresta']));
         $horaire->setHeureDebutPresta(new \DateTime($donnees['heureDebutPresta']));
         $horaire->setHeureFinPresta(new \DateTime($donnees['heureFinPresta']));
+        // Saisie manuelle = prestation COMPLÈTE (pas « en cours ») : on pose la fin
+        // réelle = déclarée, sinon le relevé (qui exige heureFinReelle IS NOT NULL)
+        // l'exclut du comptage.
+        $horaire->setHeureDebutReelle(new \DateTime($donnees['heureDebutPresta']));
+        $horaire->setHeureFinReelle(new \DateTime($donnees['heureFinPresta']));
         $horaire->setTypePresta($donnees['typePresta'] ?? '');
         $horaire->setKmAvecEnfant($donnees['kmAvecEnfant'] ?? null);
         $horaire->setAjouterLe(new \DateTime());

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vos vacances — {{ config ? config.titre : 'Campagne' }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --primary:#6366f1; --primary-d:#4f46e5; --green:#16a34a; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:'Segoe UI',Inter,system-ui,sans-serif; color:#1e293b;
+               background:linear-gradient(160deg,#eef2ff 0%,#faf5ff 55%,#fff 100%);
+               min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:32px 16px; }
+        .wrap { width:100%; max-width:540px; }
+        .card { background:#fff; border-radius:22px; box-shadow:0 18px 50px rgba(79,70,229,.14); overflow:hidden; }
+
+        .head { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; padding:30px 28px 26px; text-align:center; }
+        .head .ic { width:64px; height:64px; border-radius:50%; background:rgba(255,255,255,.18);
+                    display:flex; align-items:center; justify-content:center; font-size:30px; margin:0 auto 14px; }
+        .head h1 { font-size:22px; margin:0 0 4px; font-weight:700; }
+        .head p { margin:0; font-size:14.5px; opacity:.92; }
+
+        .body { padding:26px 28px 30px; }
+        .info { background:#f5f3ff; border:1px solid #ddd6fe; border-radius:14px; padding:14px 16px;
+                font-size:14px; color:#4338ca; margin-bottom:26px; line-height:1.5; }
+        .info i { margin-right:6px; }
+
+        .q { font-weight:700; font-size:16px; margin:24px 0 12px; color:#1e1b4b; }
+        .q:first-of-type { margin-top:6px; }
+
+        .opts { display:flex; gap:12px; flex-wrap:wrap; }
+        .opt { flex:1; min-width:130px; }
+        .opt input { position:absolute; opacity:0; }
+        .opt label { display:flex; align-items:center; justify-content:center; gap:8px; text-align:center;
+                     border:2px solid #e2e8f0; border-radius:14px; padding:14px 12px; cursor:pointer;
+                     font-weight:600; font-size:15px; color:#475569; transition:all .15s; background:#fff; }
+        .opt input:checked + label { border-color:var(--primary); background:#eef2ff; color:var(--primary-d);
+                                     box-shadow:0 4px 14px rgba(99,102,241,.18); }
+
+        .dates { display:none; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+        .dates.on { display:grid; }
+        .fld label { display:block; font-size:13px; font-weight:600; color:#64748b; margin-bottom:6px; }
+        input[type=date], textarea { width:100%; padding:13px; border:2px solid #e2e8f0; border-radius:12px;
+                                     font-size:16px; font-family:inherit; transition:border-color .15s; }
+        input[type=date]:focus, textarea:focus { outline:none; border-color:var(--primary); }
+        textarea { resize:vertical; margin-top:6px; }
+
+        .btn { width:100%; margin-top:28px; padding:16px; border:none; border-radius:14px;
+               background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; font-size:16.5px; font-weight:700;
+               cursor:pointer; box-shadow:0 8px 20px rgba(22,163,74,.28); transition:transform .1s; }
+        .btn:active { transform:translateY(1px); }
+        .foot { text-align:center; font-size:12.5px; color:#94a3b8; margin-top:18px; }
+        .foot i { color:#f472b6; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="card">
+        <div class="head">
+            <div class="ic">🏖️</div>
+            <h1>{{ config ? config.titre : 'Vos vacances' }}</h1>
+            <p>On prépare déjà cette période, et on aimerait le faire avec vous</p>
+        </div>
+
+        <div class="body">
+            {% set moisFr = {1:'janvier',2:'février',3:'mars',4:'avril',5:'mai',6:'juin',7:'juillet',8:'août',9:'septembre',10:'octobre',11:'novembre',12:'décembre'} %}
+            {% if config and config.dateDebut %}
+            <div class="info">
+                Période concernée : du
+                <strong>{{ config.dateDebut|date('j') }} {{ moisFr[config.dateDebut|date('n')] }}</strong>
+                au <strong>{{ config.dateFin|date('j') }} {{ moisFr[config.dateFin|date('n')] }} {{ config.dateFin|date('Y') }}</strong>.
+                {% if config.dateLimiteReponse %}<br>Réponse souhaitée avant le
+                <strong>{{ config.dateLimiteReponse|date('j') }} {{ moisFr[config.dateLimiteReponse|date('n')] }} {{ config.dateLimiteReponse|date('Y') }}</strong>.{% endif %}
+            </div>
+            {% endif %}
+
+            {% set aErreur = erreur is defined and erreur %}
+            {% set aRepondu = reponse.repondu %}
+            {# On affiche les dates si la famille ne maintient PAS les prestations. #}
+            {% set neMaintientPas = reponse.maintienPrestation is same as(false) %}
+            {% set minD = config and config.dateDebut ? config.dateDebut|date('Y-m-d') : '' %}
+            {% set maxD = config and config.dateFin ? config.dateFin|date('Y-m-d') : '' %}
+
+            {% if aErreur %}
+            <div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;">
+                <i class="fas fa-circle-exclamation"></i> {{ erreur }}
+            </div>
+            {% elseif aRepondu %}
+            <div style="background:#ecfeff;border:1px solid #a5f3fc;color:#155e75;border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;">
+                <i class="fas fa-circle-check"></i> Vous nous avez déjà répondu{% if reponse.reponduLe %} le {{ reponse.reponduLe|date('d/m/Y') }}{% endif %} — merci ! Vous pouvez ajuster votre réponse ci-dessous si besoin.
+            </div>
+            {% endif %}
+
+            <p style="font-size:15px;color:#475569;line-height:1.6;margin:0 0 4px;">
+                <span class="q">Bonjour 👋</span><br>
+                Pourriez-vous nous préciser votre période sans prestations Ménage relative à vos congés.
+            </p>
+
+            <form method="POST">
+                <div class="q">Souhaitez-vous maintenir les prestations Ménages durant les vacances scolaires&nbsp;?</div>
+                <div class="opts">
+                    <div class="opt">
+                        <input type="radio" id="m-oui" name="maintien" value="oui" {% if reponse.maintienPrestation == true %}checked{% endif %} onclick="majDates(true)">
+                        <label for="m-oui">Oui</label>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" id="m-non" name="maintien" value="non" {% if neMaintientPas %}checked{% endif %} onclick="majDates(false)">
+                        <label for="m-non">Non</label>
+                    </div>
+                </div>
+
+                <div id="datesWrap" class="dates {% if not neMaintientPas %}on{% endif %}">
+                    <div class="fld"><label>À partir du</label><input type="date" name="dateDebut" min="{{ minD }}" max="{{ maxD }}" value="{{ reponse.dateDebutAbsence ? reponse.dateDebutAbsence|date('Y-m-d') : '' }}"></div>
+                    <div class="fld"><label>Jusqu'au</label><input type="date" name="dateFin" min="{{ minD }}" max="{{ maxD }}" value="{{ reponse.dateFinAbsence ? reponse.dateFinAbsence|date('Y-m-d') : '' }}"></div>
+                </div>
+
+                <div class="q">Lors des congés de l'intervenante, souhaitez-vous un remplacement&nbsp;?</div>
+                <div class="opts">
+                    <div class="opt">
+                        <input type="radio" id="r-oui" name="souhaiteRemplacement" value="oui" {% if reponse.souhaiteRemplacement == true %}checked{% endif %}>
+                        <label for="r-oui">Oui</label>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" id="r-non" name="souhaiteRemplacement" value="non" {% if reponse.souhaiteRemplacement == false %}checked{% endif %}>
+                        <label for="r-non">Non</label>
+                    </div>
+                </div>
+
+                {% set aMessage = reponse.commentaire is not empty %}
+                <a href="#" id="msgToggle" onclick="showMsg(event)" style="display:{{ aMessage ? 'none' : 'inline-block' }};margin-top:20px;font-size:14px;color:var(--primary);text-decoration:none;font-weight:600;">
+                    + Ajouter un message (facultatif)
+                </a>
+                <div id="msgBox" style="display:{{ aMessage ? 'block' : 'none' }};">
+                    <div class="q">Votre message</div>
+                    <textarea name="commentaire" rows="3">{{ reponse.commentaire }}</textarea>
+                </div>
+
+                <button type="submit" class="btn"><i class="fas fa-paper-plane"></i> {{ aRepondu ? 'Mettre à jour ma réponse' : 'Envoyer ma réponse' }}</button>
+            </form>
+        </div>
+    </div>
+    <div class="foot">Avec <i class="fas fa-heart"></i> — La Maison des Chaudoudoux</div>
+</div>
+
+<script>
+function majDates(on) { document.getElementById('datesWrap').classList.toggle('on', on); }
+function showMsg(e) { e.preventDefault(); document.getElementById('msgBox').style.display = 'block'; document.getElementById('msgToggle').style.display = 'none'; }
+</script>
+</body>
+</html>

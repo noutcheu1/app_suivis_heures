@@ -17,11 +17,58 @@
                 <p>{{ user.prenom ?? '' }} {{ user.nom ?? '' }}</p>
             </div>
         </div>
-        <a href="{{ path('intervenant_profile_mvc', {id: user.id}) }}" class="btn btn-secondary btn-sm">
-            <i class="fas fa-edit"></i> Mon profil
-        </a>
     </div>
 </div>
+
+{# ── Réponse à la campagne de congés (résumé simple) ─── #}
+{% if reponseVacances is defined and reponseVacances %}
+{% set moisFr = {1:'janvier',2:'février',3:'mars',4:'avril',5:'mai',6:'juin',7:'juillet',8:'août',9:'septembre',10:'octobre',11:'novembre',12:'décembre'} %}
+<div class="card" style="margin-bottom:20px;border-left:4px solid #4f46e5;">
+    <div class="card-body" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <div style="font-size:26px;">🏖️</div>
+        <div style="flex:1;min-width:200px;">
+            <div style="font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">
+                Vacances{% if campagneVacances %} — {{ campagneVacances.titre }}{% endif %}
+            </div>
+            {% if not reponseVacances.repondu %}
+                <div style="font-size:15px;color:var(--warning);font-weight:600;margin-top:4px;">
+                    <i class="fas fa-hourglass-half"></i> Pas encore répondu
+                </div>
+            {% elseif reponseVacances.dateDebutConge %}
+                <div style="font-size:15px;color:#1e1b4b;font-weight:600;margin-top:4px;">
+                    En congé du
+                    <strong>{{ reponseVacances.dateDebutConge|date('j') }} {{ moisFr[reponseVacances.dateDebutConge|date('n')] }}</strong>
+                    au
+                    <strong>{{ reponseVacances.dateFinConge|date('j') }} {{ moisFr[reponseVacances.dateFinConge|date('n')] }} {{ reponseVacances.dateFinConge|date('Y') }}</strong>
+                </div>
+            {% else %}
+                <div style="font-size:15px;color:#15803d;font-weight:600;margin-top:4px;">
+                    <i class="fas fa-check-circle"></i> Pas de congé prévu sur cette période
+                </div>
+                {# La dispo remplacement n'est demandée QUE si pas en congé #}
+                <div style="font-size:14px;margin-top:2px;">
+                    {% if reponseVacances.disponibleRemplacement %}
+                        <span style="color:#15803d;"><i class="fas fa-check-circle"></i> Disponible pour des remplacements</span>
+                    {% else %}
+                        <span style="color:var(--text-muted);"><i class="fas fa-times-circle"></i> Pas disponible pour remplacer</span>
+                    {% endif %}
+                </div>
+            {% endif %}
+            {% if reponseVacances.commentaire %}
+            <div style="font-size:13px;color:var(--text-muted);margin-top:6px;font-style:italic;">« {{ reponseVacances.commentaire }} »</div>
+            {% endif %}
+        </div>
+        {# Bouton pour répondre / modifier depuis le site, tant que la campagne est ouverte #}
+        {% if campagneVacances and (campagneVacances.dateLimiteReponse is null or campagneVacances.dateLimiteReponse|date('Y-m-d') >= "now"|date('Y-m-d')) %}
+        <a href="{{ path('vacances_reponse_intervenant', {token: reponseVacances.token}) }}"
+           style="background:#4f46e5;color:#fff;font-weight:600;font-size:14px;padding:10px 18px;border-radius:10px;text-decoration:none;white-space:nowrap;">
+            {{ reponseVacances.repondu ? 'Modifier ma réponse' : 'Répondre maintenant' }}
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {# ── KPIs mois courant ─────────────────────────────── #}
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px;">
     <div class="kpi-card">

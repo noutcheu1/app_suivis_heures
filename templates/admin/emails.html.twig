@@ -5,13 +5,28 @@
 {% block body %}
 <div style="max-width:860px;margin:0 auto;padding:8px 4px 40px;">
 
-    <p style="color:var(--text-muted);margin:0 0 24px;">
-        Modifiez le <strong>sujet</strong> et le <strong>message</strong> de chaque email envoyé par l'application.
+    <p style="color:var(--text-muted);margin:0 0 18px;">
+        Choisissez un modèle à modifier, puis changez le <strong>sujet</strong> et le <strong>message</strong>.
         Utilisez les <strong>variables</strong> entre accolades : elles seront remplacées automatiquement à l'envoi.
     </p>
 
-    {% for t in templates %}
-    <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px;margin-bottom:18px;box-shadow:var(--shadow-sm);">
+    {# ── Sélecteur de modèle (regroupé par catégorie) ── #}
+    <label style="display:block;font-weight:600;font-size:14px;margin:0 0 6px;">Modèle à modifier</label>
+    <select id="tplSelect"
+            style="width:100%;padding:12px 13px;border:1px solid var(--border-strong);border-radius:var(--radius-md);font-size:15px;background:#fff;margin-bottom:22px;">
+        {% for categorie, liste in groupes %}
+        <optgroup label="{{ categorie }}">
+            {% for t in liste %}
+            <option value="{{ t.cle }}">{{ t.label }}{% if t.personnalise %} • personnalisé{% endif %}</option>
+            {% endfor %}
+        </optgroup>
+        {% endfor %}
+    </select>
+
+    {# ── Un bloc par modèle (affiché selon le sélecteur) ── #}
+    {% for categorie, liste in groupes %}
+    {% for t in liste %}
+    <div class="tpl-block" id="tpl-{{ t.cle }}" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px;box-shadow:var(--shadow-sm);">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
             <h2 style="font-size:17px;margin:0;color:#1e1b4b;">
                 <i class="fas fa-envelope" style="color:var(--primary);"></i> {{ t.label }}
@@ -23,7 +38,7 @@
             {% endif %}
         </div>
 
-        {# Variables disponibles + signification #}
+        {# Variables disponibles #}
         <div style="background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;">
             <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">
                 <i class="fas fa-tags"></i> Variables disponibles cliquez pour copier
@@ -71,16 +86,26 @@
         {% endif %}
     </div>
     {% endfor %}
+    {% endfor %}
 
 </div>
 
 <script>
-    // Clic sur une variable → copie dans le presse-papier
+    // Sélecteur : afficher le modèle choisi, cacher les autres.
+    const tplSelect = document.getElementById('tplSelect');
+    function showTpl(cle) {
+        document.querySelectorAll('.tpl-block').forEach(b => b.style.display = 'none');
+        const el = document.getElementById('tpl-' + cle);
+        if (el) el.style.display = 'block';
+    }
+    tplSelect.addEventListener('change', () => showTpl(tplSelect.value));
+    if (tplSelect.value) showTpl(tplSelect.value); // charge le premier au démarrage
+
+    // Clic sur une variable → copie dans le presse-papier.
     document.querySelectorAll('.copy-var').forEach(el => {
         el.addEventListener('click', async () => {
             const v = el.dataset.var;
-            try { await navigator.clipboard.writeText(v); }
-            catch { /* navigateur sans clipboard API */ }
+            try { await navigator.clipboard.writeText(v); } catch { /* pas de clipboard API */ }
             if (window.toast) toast(v + ' copié', 'success', 1800);
         });
     });
