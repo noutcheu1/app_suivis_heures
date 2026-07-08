@@ -82,6 +82,11 @@ class HoraireinterService
         $horaire->setDatePresta(new \DateTime($donnees['datePresta']));
         $horaire->setHeureDebutPresta(new \DateTime($donnees['heureDebutPresta']));
         $horaire->setHeureFinPresta(new \DateTime($donnees['heureFinPresta']));
+        // Saisie manuelle = prestation COMPLÈTE (pas « en cours ») : on pose la fin
+        // réelle = déclarée, sinon le relevé (qui exige heureFinReelle IS NOT NULL)
+        // l'exclut du comptage.
+        $horaire->setHeureDebutReelle(new \DateTime($donnees['heureDebutPresta']));
+        $horaire->setHeureFinReelle(new \DateTime($donnees['heureFinPresta']));
         $horaire->setTypePresta($donnees['typePresta'] ?? '');
         $horaire->setKmAvecEnfant($donnees['kmAvecEnfant'] ?? null);
         $horaire->setAjouterLe(new \DateTime());
@@ -996,15 +1001,9 @@ class HoraireinterService
         $date      = new \DateTime($periodeFin);
         $moisAnnee = $date->format('m/Y');
 
-        // On ne peut signer qu'un relevé dont la PÉRIODE EST TERMINÉE (mois écoulé) :
-        // pas la période en cours, qui se clôture plus tard et dépend du service
-        // (la periodeFin encode déjà la fin de période : MENA le 24, ENFA fin de mois).
-        $today = new \DateTime('today');
-        // En dev/test (debug), on ne limite pas la période pour faciliter les essais.
-        if (!$this->isDebug && $date >= $today) {
-            return ['success' => false, 'message' => "Vous ne pouvez signer qu'un relevé dont la période est déjà terminée (mois écoulé)."];
-        }
-
+        // La signature est possible à tout moment dès qu'il y a des données pour le
+        // mois (le bouton Signer est déjà désactivé côté fiche quand il n'y a rien à
+        // signer). Aucune limite de fin de période / de date (ex. le 25).
         $this->releveRepository->signerReleve($moisAnnee, $numInter, $type);
 
         return ['success' => true];

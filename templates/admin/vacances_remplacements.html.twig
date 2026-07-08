@@ -1,0 +1,176 @@
+{% extends 'base.html.twig' %}
+{% block title %}Remplacements — {{ plan.campagne.titre }}{% endblock %}
+{% block page_title %}Remplacements{% endblock %}
+
+{% block body %}
+{% set moisFr = {1:'janvier',2:'février',3:'mars',4:'avril',5:'mai',6:'juin',7:'juillet',8:'août',9:'septembre',10:'octobre',11:'novembre',12:'décembre'} %}
+{% set nbPourvoir = plan.postes|filter(p => p.statut == 'a_pourvoir' and p.suggestions is not empty)|length %}
+{% set nbSansDispo = plan.postes|filter(p => p.statut == 'a_pourvoir' and p.suggestions is empty)|length %}
+{% set nbInactif = plan.postes|filter(p => p.statut != 'a_pourvoir')|length %}
+
+<style>
+  .rmp-lead{color:var(--text-muted);font-size:13.5px;margin:2px 0 0;}
+  .rmp-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0 16px;}
+  .rmp-filters{display:flex;gap:7px;flex-wrap:wrap;}
+  .rmp-filters button{border:1px solid #e6e8f3;background:#fff;color:#5b6180;font:inherit;font-size:13px;
+    font-weight:600;padding:7px 14px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;}
+  .rmp-filters button.on{background:#6366f1;border-color:#6366f1;color:#fff;}
+  .rmp-filters .cnt{font-size:11px;font-weight:800;background:rgba(99,102,241,.12);color:#4f46e5;padding:1px 7px;border-radius:999px;}
+  .rmp-filters button.on .cnt{background:rgba(255,255,255,.25);color:#fff;}
+  .rmp-search{flex:1;min-width:180px;max-width:290px;margin-left:auto;position:relative;}
+  .rmp-search input{width:100%;border:1px solid #e6e8f3;border-radius:9px;padding:8px 12px 8px 32px;font:inherit;font-size:13px;outline:none;}
+  .rmp-search .ic{position:absolute;left:11px;top:9px;color:#9aa0c9;font-size:13px;}
+  .rmp-wrap{overflow-x:auto;background:#fff;border:1px solid #e6e8f3;border-radius:13px;}
+  table.rmp{width:100%;border-collapse:collapse;font-size:14px;min-width:680px;}
+  table.rmp th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7196;
+    font-weight:700;padding:12px 16px;border-bottom:1px solid #e6e8f3;white-space:nowrap;cursor:pointer;user-select:none;}
+  table.rmp th .ar{opacity:.4;font-size:10px;}
+  table.rmp td{padding:13px 16px;border-bottom:1px solid #f0f1f8;vertical-align:middle;}
+  table.rmp tr:last-child td{border-bottom:none;}
+  table.rmp tbody tr.off{opacity:.55;}
+  table.rmp tbody tr:hover{background:#fafbff;}
+  .av{width:30px;height:30px;border-radius:50%;background:#eef2ff;color:#4f46e5;display:inline-flex;
+    align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;}
+  .cellflex{display:flex;align-items:center;gap:10px;}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap;}
+  .c-ok{background:#e9f9ef;color:#16a34a;} .c-warn{background:#fdf3e6;color:#b45309;}
+  .c-danger{background:#fdeaea;color:#dc2626;} .c-off{background:#eef0f4;color:#64748b;}
+  .muted{color:#6b7196;font-size:12.5px;}
+  .repl a{color:#4f46e5;text-decoration:none;font-weight:600;}
+  .repl a:hover{text-decoration:underline;}
+  .lien{color:#6366f1;text-decoration:none;font-weight:600;white-space:nowrap;}
+  .lien:hover{text-decoration:underline;}
+  .nores{text-align:center;padding:24px;color:#6b7196;}
+</style>
+
+<div class="page-header">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <div>
+      <h1>🔄 Remplacements — {{ plan.campagne.titre }}</h1>
+      <p class="rmp-lead">Les intervenantes de ménage absentes et les remplaçantes disponibles pour assurer le relais. Filtrez, puis contactez.</p>
+    </div>
+    <a href="{{ path('admin_vacances_mvc') }}" class="btn btn-secondary" style="text-decoration:none;">← Campagnes</a>
+  </div>
+</div>
+
+<div class="rmp-bar">
+  <div class="rmp-filters">
+    <button class="on" onclick="rmpFilter('tous',this)">Tous <span class="cnt">{{ plan.postes|length }}</span></button>
+    <button onclick="rmpFilter('pourvoir',this)">À pourvoir <span class="cnt">{{ nbPourvoir }}</span></button>
+    <button onclick="rmpFilter('sansdispo',this)">Sans remplaçant <span class="cnt">{{ nbSansDispo }}</span></button>
+    <button onclick="rmpFilter('inactif',this)">Suspendu / absente <span class="cnt">{{ nbInactif }}</span></button>
+    <button onclick="rmpFilter('dispo',this)">🟢 Disponibles <span class="cnt">{{ plan.disponibles|length }}</span></button>
+  </div>
+  <div class="rmp-search"><span class="ic"><i class="fas fa-search"></i></span><input type="text" placeholder="Rechercher une famille…" oninput="rmpSearch(this.value)"></div>
+</div>
+
+<div class="rmp-wrap">
+  <table class="rmp" id="rmpTable">
+    <thead>
+      <tr>
+        <th onclick="rmpSort(0)">Famille <span class="ar">↕</span></th>
+        <th onclick="rmpSort(1)">Intervenante absente <span class="ar">↕</span></th>
+        <th onclick="rmpSort(2)">Situation <span class="ar">↕</span></th>
+        
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in plan.postes %}
+      {% set cat = p.statut == 'a_pourvoir' ? (p.suggestions is empty ? 'sansdispo' : 'pourvoir') : 'inactif' %}
+      {% set nomFam = famille_label(p.famNum) %}
+      <tr class="{{ cat == 'inactif' ? 'off' }}" data-cat="{{ cat }}" data-search="{{ (nomFam ~ ' ' ~ p.interNom)|lower }}">
+        <td data-sort="{{ nomFam|lower }}">
+          <div class="cellflex">
+            <span class="av">{{ nomFam|first|upper }}</span>
+            <div>
+              <strong>{{ nomFam }}</strong>
+              {% if p.famVille %}<div class="muted">{{ p.famVille }}</div>{% endif %}
+            </div>
+          </div>
+        </td>
+        <td data-sort="{{ p.interNom|lower }}">{{ p.interNom }}<div class="muted">absente {{ p.debut|date('d/m') }} → {{ p.fin|date('d/m') }}</div></td>
+        <td data-sort="{{ cat }}">
+          {% if cat == 'pourvoir' %}<span class="chip c-ok">✓ À pourvoir</span>
+          {% elseif cat == 'sansdispo' %}<span class="chip c-danger">⚠ Sans remplaçante</span>
+          {% elseif p.statut == 'suspend' %}<span class="chip c-warn">⏸️ Suspendu</span>
+          {% else %}<span class="chip c-off">⏭️ Absente</span>{% endif %}
+        </td>
+        
+        <td><a class="lien" href="{{ path('admin_famille_detail_mvc', {numFam: p.famNum}) }}">Voir la fiche →</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="nores">Aucun remplacement à prévoir. 🎉</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr id="rmpEmpty" style="display:none;"><td colspan="5" class="nores">Aucun résultat pour ce filtre.</td></tr></tfoot>
+  </table>
+</div>
+
+{# ── Liste des remplaçantes disponibles (affichée via le filtre « Disponibles ») ── #}
+<div id="rmpDispo" class="rmp-wrap" style="display:none;">
+  <table class="rmp">
+    <thead>
+      <tr><th>Intervenant disponible période vacances scolaires</th><th>Ville</th><th>Déjà en charge</th><th>Téléphone</th></tr>
+    </thead>
+    <tbody>
+      {% for d in plan.disponibles %}
+      <tr>
+        <td><div class="cellflex"><span class="av">{{ d.nom|first|upper }}</span><strong>{{ d.nom }}</strong></div></td>
+        <td class="muted">{{ d.ville ?: '—' }}</td>
+        <td class="muted">{{ d.charge }} famille{{ d.charge > 1 ? 's' : '' }}</td>
+        <td>{% if d.tel %}<a class="lien" href="tel:{{ d.tel }}"><i class="fas fa-phone" style="font-size:11px;"></i> {{ d.tel }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="nores">Personne ne s'est déclaré disponible pour un remplacement.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+let rmpCat = 'tous', rmpQuery = '';
+function rmpApply(){
+  let shown = 0;
+  document.querySelectorAll('#rmpTable tbody tr').forEach(r=>{
+    if(!r.dataset.cat) return;
+    const okCat = rmpCat === 'tous' || r.dataset.cat === rmpCat;
+    const okQ = !rmpQuery || (r.dataset.search||'').includes(rmpQuery);
+    const show = okCat && okQ;
+    r.style.display = show ? '' : 'none';
+    if(show) shown++;
+  });
+  document.getElementById('rmpEmpty').style.display = shown ? 'none' : '';
+}
+function rmpFilter(cat, btn){
+  document.querySelectorAll('.rmp-filters button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const tableWrap = document.getElementById('rmpTable').closest('.rmp-wrap');
+  const dispo = document.getElementById('rmpDispo');
+  const search = document.querySelector('.rmp-search');
+  if(cat === 'dispo'){                              // vue « qui est disponible »
+    tableWrap.style.display = 'none';
+    dispo.style.display = '';
+    if(search) search.style.visibility = 'hidden';
+    return;
+  }
+  tableWrap.style.display = '';
+  dispo.style.display = 'none';
+  if(search) search.style.visibility = '';
+  rmpCat = cat;
+  rmpApply();
+}
+function rmpSearch(v){ rmpQuery = v.trim().toLowerCase(); rmpApply(); }
+let rmpDir = {};
+function rmpSort(col){
+  const tbody = document.querySelector('#rmpTable tbody');
+  const rows = [...tbody.querySelectorAll('tr')].filter(r=>r.dataset.cat);
+  const dir = rmpDir[col] = !rmpDir[col];
+  rows.sort((a,b)=>{
+    const x = a.children[col].dataset.sort||'', y = b.children[col].dataset.sort||'';
+    return dir ? x.localeCompare(y) : y.localeCompare(x);
+  });
+  rows.forEach(r=>tbody.appendChild(r));
+}
+</script>
+{% endblock %}

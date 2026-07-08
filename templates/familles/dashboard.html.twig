@@ -16,6 +16,7 @@
     </div>
 </div>
 
+
 {# ── KPI cards ──────────────────────────────────────────── #}
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:16px;margin-bottom:28px;">
 
@@ -102,6 +103,20 @@
             <p class="action-card-desc">Calcul mensuel estimé</p>
         </div>
     </a>
+
+    {# Campagne de congés en cours : tuile pour répondre depuis l'espace #}
+    {% if reponseVacances is defined and reponseVacances and campagneVacances
+        and (campagneVacances.dateLimiteReponse is null or campagneVacances.dateLimiteReponse|date('Y-m-d') >= "now"|date('Y-m-d')) %}
+    <a class="action-card" href="{{ path('vacances_reponse_famille', {token: reponseVacances.token}) }}">
+        <div class="action-card-icon" style="background:#eef2ff;">
+            <i class="fas fa-umbrella-beach" style="color:#6366f1;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">{{ reponseVacances.repondu ? 'Ma réponse vacances' : 'Répondre aux vacances' }}</p>
+            <p class="action-card-desc">{{ reponseVacances.repondu ? 'Modifier ma réponse' : (campagneVacances.titre) }}</p>
+        </div>
+    </a>
+    {% endif %}
 
 </div>
 

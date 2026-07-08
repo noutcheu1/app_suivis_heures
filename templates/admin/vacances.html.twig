@@ -7,8 +7,8 @@
 <div class="page-header">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
     <div>
-      <h1>Formulaires de vacances</h1>
-      <p>Ajoutez un formulaire de vacances sur tous les relevés famille activez ou désactivez à tout moment.</p>
+      <h1>Campagnes de congés</h1>
+      <p>Créez une campagne, puis envoyez le formulaire aux familles et intervenants pour recueillir leurs dates.</p>
     </div>
     {% if actif %}
     <span style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:bold;">
@@ -33,62 +33,129 @@
 </div>
 {% endfor %}
 
-{# ── Formulaire de création ─────────────────────────────────────────── #}
+{# ── Nouvelle campagne de congés ────────────────────────────────────── #}
 <div class="card" style="margin-bottom:16px;">
   <div class="card-header">
-    <i class="fas fa-plus-circle" style="color:var(--primary);"></i>
-    <span class="card-title">Nouveau formulaire de vacances</span>
+    <i class="fas fa-umbrella-beach" style="color:var(--primary);"></i>
+    <span class="card-title">Nouvelle campagne de congés</span>
   </div>
   <div class="card-body">
-    <form method="POST" action="{{ path('admin_vacances_creer_mvc') }}"
-          style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:end;flex-wrap:wrap;">
+    <form method="POST" action="{{ path('admin_vacances_creer_mvc') }}" id="campagneForm">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token('vacances_creer') }}">
-      <div>
-        <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:3px;">
-          Titre <span style="color:#c00;">*</span>
+
+      {# ── Type de campagne (liste prédéfinie + Autre) ── #}
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">
+        De quelles vacances s'agit-il ? <span style="color:#c00;">*</span>
+      </label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+        {% for t in ["Vacances d'hiver", "Vacances de printemps", "Vacances d'été", "Vacances de la Toussaint", "Vacances de Noël"] %}
+        <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d1d5db;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;background:#fff;">
+          <input type="radio" name="typeCampagne" value="{{ t }}" required onchange="toggleTitrePerso(false)"> {{ t }}
         </label>
-        <input type="text" name="titre" placeholder="VACANCES D'ÉTÉ" required
-               style="width:100%;padding:5px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:3px;">
-      </div>
-      <div>
-        <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:3px;">
-          Mois à afficher
+        {% endfor %}
+        <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d1d5db;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;background:#fff;">
+          <input type="radio" name="typeCampagne" value="autre" onchange="toggleTitrePerso(true)"> Autre…
         </label>
-        <input type="text" name="moisPeriodes" placeholder="JUILLET,AOUT"
-               style="width:100%;padding:5px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:3px;"
-               title="Séparés par virgule : JUILLET,AOUT">
       </div>
-      <div>
-        <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:3px;">
-          Apparaît à partir du
+
+      {# Titre personnalisé (affiché si "Autre") #}
+      <div id="titrePersoWrap" style="display:none;margin-bottom:14px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">
+          Nom de ces vacances <span style="color:#c00;">*</span>
         </label>
-        <input type="date" name="dateApparitionDebut"
-               style="width:100%;padding:5px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:3px;">
+        <input type="text" name="titrePerso" id="titrePerso" placeholder="Ex. Pont du 1er mai"
+               style="width:100%;max-width:360px;padding:8px 10px;font-size:13px;border:1px solid #d1d5db;border-radius:6px;">
       </div>
-      <div>
-        <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:3px;">
-          Disparaît après le
-        </label>
-        <input type="date" name="dateApparitionFin"
-               style="width:100%;padding:5px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:3px;">
-      </div>
-      <div style="grid-column:1/-1;display:grid;grid-template-columns:2fr auto;gap:10px;align-items:end;">
+
+      {# ── Dates ── #}
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:end;">
         <div>
-          <label style="display:block;font-size:11px;font-weight:bold;color:#374151;margin-bottom:3px;">
-            Message / consigne (optionnel)
+          <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">
+            Les vacances commencent le <span style="color:#c00;">*</span>
           </label>
-          <input type="text" name="message" placeholder="Merci de retourner ce document avant le..."
-                 style="width:100%;padding:5px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:3px;">
+          <input type="date" name="dateDebut" required
+                 style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #d1d5db;border-radius:6px;">
         </div>
         <div>
-          <button type="submit" class="btn btn-primary btn-sm">
-            <i class="fas fa-plus"></i> Créer
-          </button>
+          <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">
+            Les vacances se terminent le <span style="color:#c00;">*</span>
+          </label>
+          <input type="date" name="dateFin" required
+                 style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #d1d5db;border-radius:6px;">
         </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">
+            Date d'ouverture du formulaire des vacances posées
+          </label>
+          <input type="date" name="dateApparitionDebut"
+                 style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #d1d5db;border-radius:6px;">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">
+            Date de fermeture du formulaire des vacances posées <span style="color:#c00;">*</span>
+          </label>
+          <input type="date" name="dateLimiteReponse" required
+                 style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #d1d5db;border-radius:6px;">
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">
+          Petit mot à mettre dans l'email (facultatif)
+        </label>
+        <textarea name="message" rows="2" placeholder="Merci de nous indiquer vos dates de vacances avant la date indiquée."
+                  style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #d1d5db;border-radius:6px;resize:vertical;"></textarea>
+      </div>
+
+      <div style="margin-top:12px;text-align:right;">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="fas fa-plus"></i> Enregistrer
+        </button>
       </div>
     </form>
   </div>
 </div>
+
+<script>
+function toggleTitrePerso(show) {
+    const wrap = document.getElementById('titrePersoWrap');
+    const inp  = document.getElementById('titrePerso');
+    wrap.style.display = show ? 'block' : 'none';
+    inp.required = show;
+    if (!show) inp.value = '';
+    else inp.focus();
+}
+
+// Validation métier côté client (retour immédiat ; le serveur revérifie de toute façon).
+document.getElementById('campagneForm').addEventListener('submit', function (e) {
+    const val = n => document.querySelector('[name="' + n + '"]').value;
+    const ouverture = val('dateApparitionDebut');
+    const debut     = val('dateDebut');
+    const fin       = val('dateFin');
+    const limite    = val('dateLimiteReponse');
+
+    const aujourdhui = new Date().toISOString().slice(0, 10); // AAAA-MM-JJ
+
+    let erreur = null;
+    if (limite && limite < aujourdhui) {
+        erreur = 'La date limite de réponse est déjà passée : choisissez une date à venir.';
+    } else if (debut && fin && debut > fin) {
+        erreur = 'La date de fin des vacances doit être après la date de début.';
+    } else if (limite && debut && limite >= debut) {
+        erreur = 'La date pour répondre doit être avant le début des vacances.';
+    } else if (ouverture && limite && ouverture >= limite) {
+        erreur = 'La date où les gens peuvent répondre doit être avant la date limite pour répondre.';
+    }
+    if (erreur) {
+        if (typeof window.toast === 'function') {
+            e.preventDefault();
+            window.toast(erreur, 'error');
+        }
+        // Si le système de notif n'est pas chargé, on laisse le formulaire partir :
+        // le serveur revalide et affichera l'erreur (message flash en haut de page).
+    }
+});
+</script>
 
 {# ── Liste des formulaires ──────────────────────────────────────────── #}
 <div class="card">
@@ -111,37 +178,41 @@
     <table class="data-table">
       <thead>
         <tr>
-          <th>Titre</th>
-          <th>Mois</th>
-          <th>Fenêtre d'apparition</th>
-          <th>Message</th>
-          <th>Créé le</th>
+          <th>Campagnes</th>
+          <th>Période de congés</th>
+          <th>Date de fermeture du formulaire</th>
           <th>Statut</th>
+          <th>Créé le</th>
           <th style="text-align:right;">Actions</th>
         </tr>
       </thead>
       <tbody>
       {% for cfg in configs %}
-      <tr style="{{ cfg.actif ? 'background:#f0fdf4;' : '' }}">
+      <tr>
         <td style="font-weight:600;">{{ cfg.titre }}</td>
-        <td style="font-size:11px;">{{ cfg.moisPeriodes ?: '—' }}</td>
-        <td style="font-size:11px;white-space:nowrap;">
-          {% if cfg.dateApparitionDebut %}Du {{ cfg.dateApparitionDebut|date('d/m/Y') }}{% endif %}
-          {% if cfg.dateApparitionFin %} au {{ cfg.dateApparitionFin|date('d/m/Y') }}{% endif %}
-          {% if not cfg.dateApparitionDebut and not cfg.dateApparitionFin %}Toujours{% endif %}
+        <td style="font-size:12px;white-space:nowrap;">
+          {% if cfg.dateDebut %}{{ cfg.dateDebut|date('d/m/Y') }}{% else %}—{% endif %}
+          {% if cfg.dateFin %} → {{ cfg.dateFin|date('d/m/Y') }}{% endif %}
         </td>
-        <td style="font-size:11px;color:#6b7280;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          {{ cfg.message ?: '—' }}
+        <td style="font-size:12px;white-space:nowrap;">
+          {{ cfg.dateLimiteReponse ? cfg.dateLimiteReponse|date('d/m/Y') : '—' }}
         </td>
-        <td style="white-space:nowrap;font-size:11px;">{{ cfg.createdAt|date('d/m/Y H:i') }}</td>
         <td>
-          {% if cfg.actif %}
-            <span class="badge badge-success"><i class="fas fa-check"></i> Actif</span>
+          {% set st = cfg.statut ?? 'brouillon' %}
+          {% if st == 'envoyee' %}
+            <span class="badge badge-info"><i class="fas fa-paper-plane"></i> Envoyée</span>
+          {% elseif st == 'cloturee' %}
+            <span class="badge badge-muted"><i class="fas fa-lock"></i> Clôturée</span>
           {% else %}
-            <span class="badge badge-muted">Inactif</span>
+            <span class="badge badge-warning"><i class="fas fa-pencil"></i> Brouillon</span>
           {% endif %}
         </td>
+        <td style="white-space:nowrap;font-size:11px;">{{ cfg.createdAt|date('d/m/Y H:i') }}</td>
         <td style="text-align:right;white-space:nowrap;">
+          <a href="{{ path('admin_vacances_remplacements_mvc', {id: cfg.id}) }}" class="btn btn-sm btn-primary"
+             style="text-decoration:none;" title="Vue d'ensemble des remplacements">
+            <i class="fas fa-people-arrows"></i> Remplacements
+          </a>
           <form method="POST" action="{{ path('admin_vacances_toggle_mvc', {id: cfg.id}) }}" style="display:inline;">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token('vacances_toggle_' ~ cfg.id) }}">
             <button type="submit" class="btn btn-sm {{ cfg.actif ? 'btn-warning' : 'btn-success' }}"

@@ -42,6 +42,27 @@ class VacancesConfig
     #[ORM\Column]
     private bool $actif = false;
 
+    // ── Campagne de congés (nouveau modèle) ──────────────────────────────────
+    /** Période de vacances concernée : début. */
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $dateDebut = null;
+
+    /** Période de vacances concernée : fin. */
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $dateFin = null;
+
+    /** Les personnes doivent répondre avant cette date. */
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $dateLimiteReponse = null;
+
+    /** brouillon | envoyee | cloturee */
+    #[ORM\Column(length: 20, options: ['default' => 'brouillon'])]
+    private string $statut = self::STATUT_BROUILLON;
+
+    public const STATUT_BROUILLON = 'brouillon';
+    public const STATUT_ENVOYEE   = 'envoyee';
+    public const STATUT_CLOTUREE  = 'cloturee';
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -51,6 +72,18 @@ class VacancesConfig
     }
 
     public function getId(): ?int { return $this->id; }
+
+    public function getDateDebut(): ?\DateTimeImmutable { return $this->dateDebut; }
+    public function setDateDebut(?\DateTimeImmutable $d): static { $this->dateDebut = $d; return $this; }
+
+    public function getDateFin(): ?\DateTimeImmutable { return $this->dateFin; }
+    public function setDateFin(?\DateTimeImmutable $d): static { $this->dateFin = $d; return $this; }
+
+    public function getDateLimiteReponse(): ?\DateTimeImmutable { return $this->dateLimiteReponse; }
+    public function setDateLimiteReponse(?\DateTimeImmutable $d): static { $this->dateLimiteReponse = $d; return $this; }
+
+    public function getStatut(): string { return $this->statut; }
+    public function setStatut(string $statut): static { $this->statut = $statut; return $this; }
 
     public function getTitre(): string { return $this->titre; }
     public function setTitre(string $titre): static { $this->titre = $titre; return $this; }

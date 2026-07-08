@@ -26,9 +26,15 @@ final class EmailTemplateControllerMVC extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
+        // Regroupement par catégorie (Connexion, Relevés, Pointage, Congés…).
+        $groupes = [];
+        foreach ($this->emailTemplates->listerPourAdmin() as $t) {
+            $groupes[$t['categorie']][] = $t;
+        }
+
         return $this->render('admin/emails.html.twig', [
-            'auth'      => true,
-            'templates' => $this->emailTemplates->listerPourAdmin(),
+            'auth'    => true,
+            'groupes' => $groupes,
         ]);
     }
 

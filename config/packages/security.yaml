@@ -45,6 +45,8 @@ security:
         - { path: ^/pointage,               roles: PUBLIC_ACCESS }
         # /garde : déclaration garde d'enfant sans QR (téléphone → planning → pointage).
         - { path: ^/garde,                  roles: PUBLIC_ACCESS }
+        # /vacances : formulaires de réponse à une campagne de congés (lien à jeton).
+        - { path: ^/vacances,               roles: PUBLIC_ACCESS }
         - { path: ^/admin-mvc,              roles: ROLE_ADMIN }
         - { path: ^/familles-mvc,           roles: ROLE_ADMIN }
         - { path: ^/famille/,               roles: ROLE_FAMILLE }

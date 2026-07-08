@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vos congés — {{ config ? config.titre : 'Campagne' }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --primary:#6366f1; --primary-d:#4f46e5; --green:#16a34a; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:'Segoe UI',Inter,system-ui,sans-serif; color:#1e293b;
+               background:linear-gradient(160deg,#eef2ff 0%,#faf5ff 55%,#fff 100%);
+               min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:32px 16px; }
+        .wrap { width:100%; max-width:540px; }
+        .card { background:#fff; border-radius:22px; box-shadow:0 18px 50px rgba(79,70,229,.14); overflow:hidden; }
+
+        .head { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; padding:30px 28px 26px; text-align:center; }
+        .head .ic { width:64px; height:64px; border-radius:50%; background:rgba(255,255,255,.18);
+                    display:flex; align-items:center; justify-content:center; font-size:30px; margin:0 auto 14px; }
+        .head h1 { font-size:22px; margin:0 0 4px; font-weight:700; }
+        .head p { margin:0; font-size:14.5px; opacity:.92; }
+
+        .body { padding:26px 28px 30px; }
+        .info { background:#f5f3ff; border:1px solid #ddd6fe; border-radius:14px; padding:14px 16px;
+                font-size:14px; color:#4338ca; margin-bottom:26px; line-height:1.5; }
+        .info i { margin-right:6px; }
+
+        .q { font-weight:700; font-size:16px; margin:24px 0 12px; color:#1e1b4b; }
+        .q:first-of-type { margin-top:6px; }
+
+        .opts { display:flex; gap:12px; flex-wrap:wrap; }
+        .opt { flex:1; min-width:130px; }
+        .opt input { position:absolute; opacity:0; }
+        .opt label { display:flex; align-items:center; justify-content:center; gap:8px; text-align:center;
+                     border:2px solid #e2e8f0; border-radius:14px; padding:14px 12px; cursor:pointer;
+                     font-weight:600; font-size:15px; color:#475569; transition:all .15s; background:#fff; }
+        .opt input:checked + label { border-color:var(--primary); background:#eef2ff; color:var(--primary-d);
+                                     box-shadow:0 4px 14px rgba(99,102,241,.18); }
+        .opt label i { font-size:16px; }
+
+        .dates { display:none; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+        .dates.on { display:grid; }
+        .fld label { display:block; font-size:13px; font-weight:600; color:#64748b; margin-bottom:6px; }
+        input[type=date], textarea { width:100%; padding:13px; border:2px solid #e2e8f0; border-radius:12px;
+                                     font-size:16px; font-family:inherit; transition:border-color .15s; }
+        input[type=date]:focus, textarea:focus { outline:none; border-color:var(--primary); }
+        textarea { resize:vertical; margin-top:6px; }
+
+        .btn { width:100%; margin-top:28px; padding:16px; border:none; border-radius:14px;
+               background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; font-size:16.5px; font-weight:700;
+               cursor:pointer; box-shadow:0 8px 20px rgba(22,163,74,.28); transition:transform .1s; }
+        .btn:active { transform:translateY(1px); }
+        .foot { text-align:center; font-size:12.5px; color:#94a3b8; margin-top:18px; }
+        .foot i { color:#f472b6; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="card">
+        <div class="head">
+            <div class="ic">🏖️</div>
+            <h1>{{ config ? config.titre : 'Vos congés' }}</h1>
+            <p>Aidez-nous à organiser les plannings</p>
+        </div>
+
+        <div class="body">
+            {% set moisFr = {1:'janvier',2:'février',3:'mars',4:'avril',5:'mai',6:'juin',7:'juillet',8:'août',9:'septembre',10:'octobre',11:'novembre',12:'décembre'} %}
+            {% if config and config.dateDebut %}
+            <div class="info">
+                <i class="fas fa-calendar-day"></i> Période concernée : du
+                <strong>{{ config.dateDebut|date('j') }} {{ moisFr[config.dateDebut|date('n')] }}</strong>
+                au <strong>{{ config.dateFin|date('j') }} {{ moisFr[config.dateFin|date('n')] }} {{ config.dateFin|date('Y') }}</strong>.
+                {% if config.dateLimiteReponse %}<br><i class="fas fa-clock"></i> Réponse souhaitée avant le
+                <strong>{{ config.dateLimiteReponse|date('j') }} {{ moisFr[config.dateLimiteReponse|date('n')] }} {{ config.dateLimiteReponse|date('Y') }}</strong>.{% endif %}
+            </div>
+            {% endif %}
+
+            {% set aErreur = erreur is defined and erreur %}
+            {% set aRepondu = reponse.repondu %}
+            {% set showDates = aErreur or reponse.dateDebutConge is not null %}
+
+            {% if aErreur %}
+            <div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;">
+                <i class="fas fa-circle-exclamation"></i> {{ erreur }}
+            </div>
+            {% elseif aRepondu %}
+            <div style="background:#ecfeff;border:1px solid #a5f3fc;color:#155e75;border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;">
+                <i class="fas fa-circle-check"></i> Vous avez déjà répondu{% if reponse.reponduLe %} le {{ reponse.reponduLe|date('d/m/Y') }}{% endif %}. Vous pouvez modifier votre réponse ci-dessous.
+            </div>
+            {% endif %}
+            {% set minD = config and config.dateDebut ? config.dateDebut|date('Y-m-d') : '' %}
+            {% set maxD = config and config.dateFin ? config.dateFin|date('Y-m-d') : '' %}
+
+            <form method="POST">
+                <div class="q">Prendrez-vous des congés pendant cette période&nbsp;?</div>
+                <div class="opts">
+                    <div class="opt">
+                        <input type="radio" id="c-oui" name="enConge" value="oui" {% if showDates %}checked{% endif %} onclick="majDates(true)">
+                        <label for="c-oui"><i class="fas fa-umbrella-beach"></i> Oui</label>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" id="c-non" name="enConge" value="non" {% if not showDates %}checked{% endif %} onclick="majDates(false)">
+                        <label for="c-non"><i class="fas fa-briefcase"></i> Non</label>
+                    </div>
+                </div>
+
+                <div id="datesWrap" class="dates {% if showDates %}on{% endif %}">
+                    <div class="fld"><label>À partir du</label><input type="date" name="dateDebut" min="{{ minD }}" max="{{ maxD }}" value="{{ reponse.dateDebutConge ? reponse.dateDebutConge|date('Y-m-d') : '' }}"></div>
+                    <div class="fld"><label>Jusqu'au</label><input type="date" name="dateFin" min="{{ minD }}" max="{{ maxD }}" value="{{ reponse.dateFinConge ? reponse.dateFinConge|date('Y-m-d') : '' }}"></div>
+                </div>
+
+                {# Question posée uniquement si l'intervenant n'est PAS en congé #}
+                <div id="dispoWrap">
+                    <div class="q">Seriez-vous disponible pour des remplacements sur cette période&nbsp;?</div>
+                    <div class="opts">
+                        <div class="opt">
+                            <input type="radio" id="d-oui" name="dispo" value="oui" {% if reponse.disponibleRemplacement %}checked{% endif %}>
+                            <label for="d-oui"><i class="fas fa-hand-holding-heart"></i> Oui</label>
+                        </div>
+                        <div class="opt">
+                            <input type="radio" id="d-non" name="dispo" value="non" {% if not reponse.disponibleRemplacement %}checked{% endif %}>
+                            <label for="d-non"><i class="fas fa-times"></i> Non</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="q">Un message pour nous&nbsp;? <span style="font-weight:400;color:#94a3b8;font-size:14px;">(facultatif)</span></div>
+                <textarea name="commentaire" rows="3" placeholder="Ex. je préfère travailler le matin…">{{ reponse.commentaire }}</textarea>
+
+                <button type="submit" class="btn"><i class="fas fa-paper-plane"></i> {{ aRepondu ? 'Mettre à jour ma réponse' : 'Envoyer ma réponse' }}</button>
+            </form>
+        </div>
+    </div>
+    <div class="foot">Avec <i class="fas fa-heart"></i> — La Maison des Chaudoudoux</div>
+</div>
+
+<script>
+function majDates(on) {
+    // "on" = l'intervenant prend des congés.
+    document.getElementById('datesWrap').classList.toggle('on', on);
+    // En congé → pas de remplacement possible : on masque la question et on force "Non".
+    document.getElementById('dispoWrap').style.display = on ? 'none' : 'block';
+    if (on) document.getElementById('d-non').checked = true;
+}
+// Synchronise l'affichage au chargement (ex. après une erreur, « Oui » est présélectionné).
+majDates(document.getElementById('c-oui').checked);
+</script>
+</body>
+</html>

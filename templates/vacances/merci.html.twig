@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merci</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body { margin:0; font-family:Inter,system-ui,sans-serif; background:#f1f5f9; padding:40px 16px; text-align:center; color:#1e293b; }
+        .card { background:#fff; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.08); max-width:420px; margin:0 auto; padding:36px 26px; }
+        .ic { font-size:52px; color:#16a34a; margin-bottom:14px; }
+        h1 { font-size:20px; color:#1e1b4b; margin:0 0 8px; }
+        p { color:#475569; font-size:15px; margin:0; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="ic"><i class="fas fa-circle-check"></i></div>
+    <h1>Merci&nbsp;!</h1>
+    <p>Votre réponse{% if config %} pour « {{ config.titre }} »{% endif %} a bien été enregistrée.<br>
+       Vous pouvez fermer cette page.</p>
+</div>
+</body>
+</html>
