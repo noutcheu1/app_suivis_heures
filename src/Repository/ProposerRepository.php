@@ -216,6 +216,23 @@ class ProposerRepository extends ServiceEntityRepository
         return array_map('intval', $rows);
     }
 
+    /**
+     * numSalarie distincts assurant un type de prestation (MENA/ENFA) sur un
+     * planning ACTIF. Sert de vivier de remplaçants.
+     *
+     * @return int[]
+     */
+    public function findNumsSalarieActifsParType(string $type): array
+    {
+        return array_map('intval', $this->conn->fetchFirstColumn(
+            "SELECT DISTINCT p.numSalarie_Intervenants FROM proposer p
+             WHERE p.idADH_TypeADH = 'PREST'
+               AND p.idPresta_Prestations = ?
+               AND (p.dateFin_Proposer IS NULL OR p.dateFin_Proposer = '0000-00-00' OR p.dateFin_Proposer >= CURDATE())",
+            [strtoupper($type)]
+        ));
+    }
+
     // ── Lookup par clé composite ──────────────────────────────────────────────
 
     /**

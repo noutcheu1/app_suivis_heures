@@ -41,6 +41,7 @@ final class FamillesControllerMVC extends AbstractController
         private ProposerRepository          $proposerRepo,
         private HoraireinterRepository      $horaireRepo,
         private ParentFamilleRepository     $parentRepo,
+        private \App\Repository\FamilleTokenRepository $tokenRepo,
     ) {}
 
     #[Route('/famille/mon-espace', name: 'famille_panel_mvc')]
@@ -92,6 +93,7 @@ final class FamillesControllerMVC extends AbstractController
             'assignations'           => $assignations,
             'reponseVacances'        => $reponseVacances,
             'campagneVacances'       => $campagneVacances,
+            'qrToken'                => $this->tokenRepo->tokenPour((string) $numFam),
         ]);
     }
 
@@ -142,6 +144,7 @@ final class FamillesControllerMVC extends AbstractController
             'assignations'           => $assignations,
             'reponseVacances'        => $reponseVacances,
             'campagneVacances'       => $campagneVacances,
+            'qrToken'                => $this->tokenRepo->tokenPour((string) $numFam),
         ]);
     }
 
@@ -181,11 +184,13 @@ final class FamillesControllerMVC extends AbstractController
         if (!$this->authService->check()) {
             return $this->redirectToRoute('app_login');
         }
-        // Admin : peut consulter le QR de n'importe quelle famille via ?numFam=.
-        // Famille : son propre numéro.
-        $numFam = $this->authService->isAdmin()
-            ? $request->query->get('numFam')
-            : $this->authService->famille_id();
+        // Admin : consulte le QR d'une famille via ?token= (jamais le numéro en clair).
+        // Famille : toujours sa propre fiche (paramètre ignoré → pas d'énumération).
+        if ($this->authService->isAdmin()) {
+            $numFam = ($t = $request->query->get('token')) ? $this->tokenRepo->numFamPour($t) : null;
+        } else {
+            $numFam = $this->authService->famille_id();
+        }
         if (!$numFam) {
             throw $this->createNotFoundException(
                 'Aucun dossier famille trouvé pour votre identifiant. Contactez l\'administrateur.'
@@ -198,6 +203,7 @@ final class FamillesControllerMVC extends AbstractController
         return $this->render('familles/qr-code.html.twig', [
             'auth'    => true,
             'famille' => $famille,
+            'qrToken' => $this->tokenRepo->tokenPour((string) $numFam),
         ]);
     }
 

@@ -54,6 +54,8 @@ final class AdminControllerMVC extends AbstractController
         private EntityManagerInterface          $em,
         private FamilleRemplacementService      $remplacementService,
         private RemplacementService             $planRemplacementService,
+        private \App\Repository\CongeRepository  $congeRepo,
+        private \App\Repository\FamilleTokenRepository $tokenRepo,
     ) {}
 
     #[Route('/admin-mvc/dashboard', name: 'admin_dashboard_mvc')]
@@ -772,6 +774,83 @@ final class AdminControllerMVC extends AbstractController
             'auth'    => true,
             'configs' => $this->vacancesRepo->findAllOrderedDesc(),
             'actif'   => $this->vacancesRepo->findActif(),
+        ]);
+    }
+
+    /** Liste des familles avec sélection (comme la liste des relevés) → impression QR. */
+    #[Route('/admin-mvc/qrcodes-familles', name: 'admin_qrcodes_familles_mvc')]
+    public function qrcodesFamilles(): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        return $this->render('admin/qrcodes_familles.html.twig', [
+            'auth'     => true,
+            'familles' => $this->familleRepo->findWithActivePlanning(),
+            'imprimes' => array_flip($this->tokenRepo->numFamsImprimes()),
+        ]);
+    }
+
+    /** Feuille d'impression (21 QR par page) pour les familles sélectionnées. */
+    #[Route('/admin-mvc/qrcodes-familles/imprimer', name: 'admin_qrcodes_familles_print_mvc', methods: ['POST'])]
+    public function qrcodesFamillesImprimer(Request $request): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $selection = (array) $request->request->all('fams');
+        $items = [];
+        foreach ($selection as $numFam) {
+            $numFam = (string) $numFam;
+            if ($numFam === '') {
+                continue;
+            }
+            $items[] = [
+                'numFam' => $numFam,
+                'ville'  => $this->familleRepo->findByNumero($numFam)?->getVille(),
+                'url'    => $this->generateUrl(
+                    'pointage_saisie',
+                    ['token' => $this->tokenRepo->tokenPour($numFam)],
+                    \Symfony\Component\Routing\Generator\UrlGeneratorInterface::ABSOLUTE_URL
+                ),
+            ];
+        }
+
+        // Trace l'impression (pour le filtre « imprimé / non imprimé »).
+        $this->tokenRepo->marquerImprimes($selection);
+
+        return $this->render('admin/qrcodes_familles_print.html.twig', [
+            'pages' => array_chunk($items, 21), // 21 QR par page (grille 3×7)
+            'total' => count($items),
+        ]);
+    }
+
+    #[Route('/admin-mvc/conges', name: 'admin_conges_mvc')]
+    public function conges(Request $request): Response
+    {
+        if (!$this->authService->check() || !$this->authService->isAdmin()) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $type   = strtoupper($request->query->get('type', '')) ?: null; // FAMILLE | INTERVENANT | null
+        $conges = $this->congeRepo->findActifs(in_array($type, ['FAMILLE', 'INTERVENANT'], true) ? $type : null);
+
+        // Résolution des noms d'intervenants (les familles passent par famille_label en Twig).
+        $nomsInter = [];
+        foreach ($conges as $c) {
+            if ($c->getTypePersonne() === 'INTERVENANT' && !isset($nomsInter[$c->getPersonneId()])) {
+                $i = $this->intervenantRepo->findInfosIntervenant((int) $c->getPersonneId());
+                $nomsInter[$c->getPersonneId()] = $i ? trim($i->getPrenom() . ' ' . $i->getNom()) : ('#' . $c->getPersonneId());
+            }
+        }
+
+        return $this->render('admin/conges.html.twig', [
+            'auth'      => true,
+            'conges'    => $conges,
+            'nomsInter' => $nomsInter,
+            'filtre'    => $type,
         ]);
     }
 

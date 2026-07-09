@@ -111,18 +111,28 @@
 <div id="rmpDispo" class="rmp-wrap" style="display:none;">
   <table class="rmp">
     <thead>
-      <tr><th>Intervenant disponible période vacances scolaires</th><th>Ville</th><th>Déjà en charge</th><th>Téléphone</th></tr>
+      <tr><th>Intervenant disponible</th><th>Ville</th><th>Disponibilité sur la période</th><th>Déjà en charge</th><th>Téléphone</th></tr>
     </thead>
     <tbody>
       {% for d in plan.disponibles %}
       <tr>
         <td><div class="cellflex"><span class="av">{{ d.nom|first|upper }}</span><strong>{{ d.nom }}</strong></div></td>
         <td class="muted">{{ d.ville ?: '—' }}</td>
+        <td>
+          {% if d.toujours %}
+            <span style="color:#16a34a;font-weight:600;">✓ Toute la période</span>
+          {% elseif d.dispoDes %}
+            À partir du <strong>{{ d.dispoDes|date('d/m/Y') }}</strong>
+            {% if d.indispos %}<div class="muted">congé{{ d.indispos|length > 1 ? 's' : '' }} : {% for w in d.indispos %}{% if not loop.first %}, {% endif %}{{ w.debut|date('d/m') }}→{{ w.fin|date('d/m') }}{% endfor %}</div>{% endif %}
+          {% else %}
+            <span style="color:#dc2626;font-weight:600;">Indisponible (congés)</span>
+          {% endif %}
+        </td>
         <td class="muted">{{ d.charge }} famille{{ d.charge > 1 ? 's' : '' }}</td>
         <td>{% if d.tel %}<a class="lien" href="tel:{{ d.tel }}"><i class="fas fa-phone" style="font-size:11px;"></i> {{ d.tel }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="nores">Personne ne s'est déclaré disponible pour un remplacement.</td></tr>
+      <tr><td colspan="5" class="nores">Aucun intervenant ne s'est déclaré disponible pour un remplacement.</td></tr>
       {% endfor %}
     </tbody>
   </table>

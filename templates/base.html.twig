@@ -609,6 +609,8 @@
                                 <li><a class="dropdown-item" href="{{ path('admin_familles_mvc') }}"><i class="fas fa-list me-2 text-muted"></i>Toutes les familles</a></li>
                                 <li><a class="dropdown-item" href="{{ path('liste_Familles_type_mvc', {type: 'prestMenage'}) }}"><i class="fas fa-broom me-2 text-muted"></i>Ménage</a></li>
                                 <li><a class="dropdown-item" href="{{ path('liste_Familles_type_mvc', {type: 'prestGardeEnfants'}) }}"><i class="fas fa-child me-2 text-muted"></i>Garde d'enfant</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ path('admin_qrcodes_familles_mvc') }}"><i class="fas fa-qrcode me-2 text-muted"></i>QR codes (impression)</a></li>
                             </ul>
                         </li>
                         <li class="nav-item">
@@ -627,7 +629,7 @@
                             <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="fas fa-gear me-1"></i>Configuration</a>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="{{ path('admin_exceptions_facturation_mvc') }}"><i class="fas fa-sliders me-2 text-muted"></i>Exceptions tarifs</a></li>
-                                <li><a class="dropdown-item" href="{{ path('admin_vacances_mvc') }}"><i class="fas fa-umbrella-beach me-2 text-muted"></i>Formulaires vacances</a></li>
+                                <li><a class="dropdown-item" href="{{ path('admin_conges_mvc') }}"><i class="fas fa-umbrella-beach me-2 text-muted"></i>Vacances & Congés</a></li>
                                 <li><a class="dropdown-item" href="{{ path('admin_tarifs_mvc') }}"><i class="fas fa-tags me-2 text-muted"></i>Tarifs</a></li>
                                 <li><a class="dropdown-item" href="{{ path('admin_import_mvc') }}"><i class="fas fa-file-import me-2 text-muted"></i>Import Access</a></li>
                                 <li><a class="dropdown-item" href="{{ path('admin_emails_mvc') }}"><i class="fas fa-envelope me-2 text-muted"></i>Modèles d'email</a></li>

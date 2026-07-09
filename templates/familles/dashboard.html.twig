@@ -74,7 +74,7 @@
         </div>
     </a>
 
-<a class="action-card" href="{{ path('famille_qr_mvc', {numFam: famille.numeroFamille}) }}">
+<a class="action-card" href="{{ path('famille_qr_mvc', qrToken ? {token: qrToken} : {}) }}">
         <div class="action-card-icon" style="background:#eef2ff;">
             <i class="fas fa-qrcode" style="color:#4f46e5;"></i>
         </div>
@@ -101,6 +101,16 @@
         <div>
             <p class="action-card-label">Estimation facture</p>
             <p class="action-card-desc">Calcul mensuel estimé</p>
+        </div>
+    </a>
+
+    <a class="action-card" href="{{ path('mes_conges_mvc', {type: 'FAMILLE', personneId: famille.numeroFamille}) }}">
+        <div class="action-card-icon" style="background:#eef2ff;">
+            <i class="fas fa-umbrella-beach" style="color:#6366f1;"></i>
+        </div>
+        <div>
+            <p class="action-card-label">Mes congés</p>
+            <p class="action-card-desc">Déclarer mes absences</p>
         </div>
     </a>
 

@@ -37,11 +37,26 @@ final class PointageController extends AbstractController
         private FamilleExtension          $familleExtension,
         private AuthService               $authService,
         private LoggerInterface           $logger,
+        private \App\Repository\FamilleTokenRepository $tokenRepo,
     ) {}
 
-    #[Route('/pointage/{numFam}', name: 'pointage_saisie', methods: ['GET'])]
-    public function saisie(string $numFam, Request $request): Response
+    /**
+     * Résout le jeton public d'une famille en numéro de famille.
+     * Jette une 404 si le jeton est inconnu → empêche toute énumération.
+     */
+    private function numFamDepuisToken(string $token): string
     {
+        $numFam = $this->tokenRepo->numFamPour($token);
+        if ($numFam === null) {
+            throw $this->createNotFoundException('Lien invalide.');
+        }
+        return $numFam;
+    }
+
+    #[Route('/pointage/{token}', name: 'pointage_saisie', methods: ['GET'])]
+    public function saisie(string $token, Request $request): Response
+    {
+        $numFam  = $this->numFamDepuisToken($token);
         $famille = $this->familleService->getFamilleParNumero($numFam);
         $nomFam  = $this->familleExtension->familleLabel($famille ?? $numFam) ?: $numFam;
 
@@ -63,7 +78,7 @@ final class PointageController extends AbstractController
         $forceType = $request->query->get('garde') ? 'ENFA' : '';
 
         return $this->render('pointage/saisie.html.twig', [
-            'numFam'     => $numFam,
+            'token'      => $token,
             'nomFam'     => $nomFam,
             'telPrefill' => $telPrefill,
             'forceType'  => $forceType,
@@ -108,7 +123,7 @@ final class PointageController extends AbstractController
         foreach ($this->familleIntervenantService->getCreneauxGardeDuJour($numInter) as $c) {
             $famille = $this->familleService->getFamilleParNumero($c['numFam']);
             $creneaux[] = [
-                'numFam'     => $c['numFam'],
+                'token'      => $this->tokenRepo->tokenPour((string) $c['numFam']),
                 'nomFam'     => $this->familleExtension->familleLabel($famille ?? $c['numFam']) ?: $c['numFam'],
                 'heureDebut' => $c['heureDebut'],
                 'heureFin'   => $c['heureFin'],
@@ -126,11 +141,15 @@ final class PointageController extends AbstractController
         ]);
     }
 
-    #[Route('/pointage/{numFam}/identifier', name: 'pointage_identifier', methods: ['POST'])]
-    public function identifier(string $numFam, Request $request): JsonResponse
+    #[Route('/pointage/{token}/identifier', name: 'pointage_identifier', methods: ['POST'])]
+    public function identifier(string $token, Request $request): JsonResponse
     {
         if (!$this->verifierCsrf($request)) {
             return $this->json(['success' => false, 'error' => 'Session expirée. Rechargez la page.'], 403);
+        }
+        $numFam = $this->tokenRepo->numFamPour($token);
+        if ($numFam === null) {
+            return $this->json(['success' => false, 'error' => 'Lien invalide.'], 404);
         }
         // Anti-énumération : on bloque seulement si trop d'ÉCHECS récents (numéros inconnus).
         // Les identifications réussies (dont l'auto-identif des connectés) ne comptent pas.
@@ -199,11 +218,15 @@ final class PointageController extends AbstractController
         ]);
     }
 
-    #[Route('/pointage/{numFam}/demarrer', name: 'pointage_demarrer', methods: ['POST'])]
-    public function demarrer(string $numFam, Request $request): JsonResponse
+    #[Route('/pointage/{token}/demarrer', name: 'pointage_demarrer', methods: ['POST'])]
+    public function demarrer(string $token, Request $request): JsonResponse
     {
         if (!$this->verifierCsrf($request)) {
             return $this->json(['success' => false, 'error' => 'Session expirée. Rechargez la page.'], 403);
+        }
+        $numFam = $this->tokenRepo->numFamPour($token);
+        if ($numFam === null) {
+            return $this->json(['success' => false, 'error' => 'Lien invalide.'], 404);
         }
 
         $data   = json_decode($request->getContent(), true) ?? [];
@@ -237,11 +260,15 @@ final class PointageController extends AbstractController
         return $this->json(['success' => true, 'action' => 'demarre']);
     }
 
-    #[Route('/pointage/{numFam}/modifier', name: 'pointage_modifier', methods: ['POST'])]
-    public function modifier(string $numFam, Request $request): JsonResponse
+    #[Route('/pointage/{token}/modifier', name: 'pointage_modifier', methods: ['POST'])]
+    public function modifier(string $token, Request $request): JsonResponse
     {
         if (!$this->verifierCsrf($request)) {
             return $this->json(['success' => false, 'error' => 'Session expirée. Rechargez la page.'], 403);
+        }
+        $numFam = $this->tokenRepo->numFamPour($token);
+        if ($numFam === null) {
+            return $this->json(['success' => false, 'error' => 'Lien invalide.'], 404);
         }
 
         $data   = json_decode($request->getContent(), true) ?? [];
@@ -271,11 +298,14 @@ final class PointageController extends AbstractController
         ]);
     }
 
-    #[Route('/pointage/{numFam}/cloturer', name: 'pointage_cloturer', methods: ['POST'])]
-    public function cloturer(string $numFam, Request $request): JsonResponse
+    #[Route('/pointage/{token}/cloturer', name: 'pointage_cloturer', methods: ['POST'])]
+    public function cloturer(string $token, Request $request): JsonResponse
     {
         if (!$this->verifierCsrf($request)) {
             return $this->json(['success' => false, 'error' => 'Session expirée. Rechargez la page.'], 403);
+        }
+        if ($this->tokenRepo->numFamPour($token) === null) {
+            return $this->json(['success' => false, 'error' => 'Lien invalide.'], 404);
         }
 
         $data   = json_decode($request->getContent(), true) ?? [];
@@ -298,11 +328,15 @@ final class PointageController extends AbstractController
         return $this->json(['success' => true]);
     }
 
-    #[Route('/pointage/{numFam}/terminer', name: 'pointage_terminer', methods: ['POST'])]
-    public function terminer(string $numFam, Request $request): JsonResponse
+    #[Route('/pointage/{token}/terminer', name: 'pointage_terminer', methods: ['POST'])]
+    public function terminer(string $token, Request $request): JsonResponse
     {
         if (!$this->verifierCsrf($request)) {
             return $this->json(['success' => false, 'error' => 'Session expirée. Rechargez la page.'], 403);
+        }
+        $numFam = $this->tokenRepo->numFamPour($token);
+        if ($numFam === null) {
+            return $this->json(['success' => false, 'error' => 'Lien invalide.'], 404);
         }
 
         $data   = json_decode($request->getContent(), true) ?? [];

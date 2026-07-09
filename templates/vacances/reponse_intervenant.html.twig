@@ -109,9 +109,9 @@
                     <div class="fld"><label>Jusqu'au</label><input type="date" name="dateFin" min="{{ minD }}" max="{{ maxD }}" value="{{ reponse.dateFinConge ? reponse.dateFinConge|date('Y-m-d') : '' }}"></div>
                 </div>
 
-                {# Question posée uniquement si l'intervenant n'est PAS en congé #}
+                {# Disponibilité GÉNÉRALE : posée que l'intervenant prenne des congés ou non. #}
                 <div id="dispoWrap">
-                    <div class="q">Seriez-vous disponible pour des remplacements sur cette période&nbsp;?</div>
+                    <div class="q">Seriez-vous disponible pour des remplacements&nbsp;? <span style="font-weight:400;color:#94a3b8;font-size:14px;">(en dehors de vos congés)</span></div>
                     <div class="opts">
                         <div class="opt">
                             <input type="radio" id="d-oui" name="dispo" value="oui" {% if reponse.disponibleRemplacement %}checked{% endif %}>
@@ -136,11 +136,9 @@
 
 <script>
 function majDates(on) {
-    // "on" = l'intervenant prend des congés.
+    // "on" = l'intervenant prend des congés → on affiche les dates.
+    // La disponibilité aux remplacements est demandée dans tous les cas.
     document.getElementById('datesWrap').classList.toggle('on', on);
-    // En congé → pas de remplacement possible : on masque la question et on force "Non".
-    document.getElementById('dispoWrap').style.display = on ? 'none' : 'block';
-    if (on) document.getElementById('d-non').checked = true;
 }
 // Synchronise l'affichage au chargement (ex. après une erreur, « Oui » est présélectionné).
 majDates(document.getElementById('c-oui').checked);

@@ -102,7 +102,7 @@
 const NUM_FAM = {{ famille.numeroFamille|json_encode|raw }};
 // URL absolue de déclaration : scannée avec l'appareil photo natif du téléphone,
 // elle ouvre le formulaire de saisie pré-rempli pour cette famille.
-const QR_URL = {{ url('declarer_qr_mvc', {numFam: famille.numeroFamille})|json_encode|raw }};
+const QR_URL = {{ url('pointage_saisie', {token: qrToken})|json_encode|raw }};
 
 const qr = new QRCode(document.getElementById('qrcode'), {
     text: QR_URL,
@@ -120,7 +120,7 @@ function downloadQR() {
         if (img) {
             const a = document.createElement('a');
             a.href = img.src;
-            a.download = 'qrcode-{{ famille.numeroFamille }}.png';
+            a.download = 'qrcode-famille.png';
             a.click();
         }
         return;
