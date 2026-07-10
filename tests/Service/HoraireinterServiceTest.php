@@ -7,6 +7,7 @@ use App\Entity\Horaire\Horaireinter;
 use App\Repository\AppConfigRepository;
 use App\Repository\FamilleRepository;
 use App\Repository\HoraireinterRepository;
+use App\Repository\IntervenantRepository;
 use App\Repository\ProposerRepository;
 use App\Repository\RelevemensuelinterRepository;
 use App\Repository\TarifFamilleRepository;
@@ -26,6 +27,7 @@ class HoraireinterServiceTest extends TestCase
     private FamilleRepository&MockObject            $familleRepo;
     private AppConfigRepository&MockObject          $appConfigRepo;
     private TarifFamilleRepository&MockObject       $tarifFamilleRepo;
+    private IntervenantRepository&MockObject        $intervenantRepo;
     private HoraireinterService $service;
 
     protected function setUp(): void
@@ -37,6 +39,7 @@ class HoraireinterServiceTest extends TestCase
         $this->familleRepo      = $this->createMock(FamilleRepository::class);
         $this->appConfigRepo    = $this->createMock(AppConfigRepository::class);
         $this->tarifFamilleRepo = $this->createMock(TarifFamilleRepository::class);
+        $this->intervenantRepo  = $this->createMock(IntervenantRepository::class);
 
         $defaultConfig = new AppConfig();
         $this->appConfigRepo->method('getConfig')->willReturn($defaultConfig);
@@ -50,6 +53,8 @@ class HoraireinterServiceTest extends TestCase
             $this->familleRepo,
             $this->appConfigRepo,
             $this->tarifFamilleRepo,
+            $this->intervenantRepo,
+            true, // isDebug : lève la limite de période en test
         );
     }
 
@@ -192,7 +197,8 @@ class HoraireinterServiceTest extends TestCase
         $this->repository->method('findByIntervenantPeriodType')->willReturn([]);
         $this->releveRepository->method('findByMoisAnneeIntervenant')->willReturn(null);
 
-        $data = $this->service->getReleveData(1, 'ENFA', 0);
+        // MENA = période de facturation 25→24 (ENFA = mois calendaire).
+        $data = $this->service->getReleveData(1, 'MENA', 0);
 
         // Même calcul que le service : du 25 du mois précédent au 24 du mois courant
         $year  = (int)date('Y');
@@ -210,7 +216,8 @@ class HoraireinterServiceTest extends TestCase
         $this->repository->method('findByIntervenantPeriodType')->willReturn([]);
         $this->releveRepository->method('findByMoisAnneeIntervenant')->willReturn(null);
 
-        $data = $this->service->getReleveData(1, 'ENFA', 0);
+        // MENA : la période démarre au 25 du mois précédent.
+        $data = $this->service->getReleveData(1, 'MENA', 0);
 
         $this->assertNotEmpty($data['jours']);
         $jour = $data['jours'][0];
@@ -339,25 +346,32 @@ class HoraireinterServiceTest extends TestCase
         $this->assertTrue($result['success']);
     }
 
-    public function testSignerReleve_moisTropAncien_blocksSigning(): void
+    // La signature n'est plus limitée à une fenêtre temporelle : elle est possible à
+    // tout moment dès qu'il y a des données (le bouton est désactivé côté fiche sinon).
+    public function testSignerReleve_moisAncien_estAutorise(): void
     {
-        $this->releveRepository->expects($this->never())->method('signerReleve');
+        $this->releveRepository
+            ->expects($this->once())
+            ->method('signerReleve')
+            ->willReturn(new \App\Entity\Horaire\Relevemensuelinter());
 
         $periodeFin = (new \DateTime())->modify('-3 months')->format('Y-m-d');
         $result = $this->service->signerReleve(1, 'ENFA', $periodeFin);
 
-        $this->assertFalse($result['success']);
-        $this->assertArrayHasKey('message', $result);
+        $this->assertTrue($result['success']);
     }
 
-    public function testSignerReleve_moisFutur_blocksSigning(): void
+    public function testSignerReleve_moisFutur_estAutorise(): void
     {
-        $this->releveRepository->expects($this->never())->method('signerReleve');
+        $this->releveRepository
+            ->expects($this->once())
+            ->method('signerReleve')
+            ->willReturn(new \App\Entity\Horaire\Relevemensuelinter());
 
         $periodeFin = (new \DateTime())->modify('+1 month')->format('Y-m-d');
         $result = $this->service->signerReleve(1, 'ENFA', $periodeFin);
 
-        $this->assertFalse($result['success']);
+        $this->assertTrue($result['success']);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -421,6 +435,8 @@ class HoraireinterServiceTest extends TestCase
             $this->familleRepo,
             $freshRepo,
             $freshTarifRepo,
+            $this->intervenantRepo,
+            true,
         );
 
         $h = new Horaireinter();
@@ -446,6 +462,8 @@ class HoraireinterServiceTest extends TestCase
             $this->familleRepo,
             $freshRepo,
             $freshTarifRepo,
+            $this->intervenantRepo,
+            true,
         );
 
         $h = new Horaireinter();

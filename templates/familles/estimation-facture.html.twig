@@ -58,7 +58,7 @@
                         {{ d.type == 'MENA' ? 'Ménage' : (d.type ?? '-') }}
                     </span>
                 </td>
-                <td>{{ d.heures ?? 0 }} h</td>
+                <td>{{ (d.heures ?? 0)|number_format(2, ',', ' ') }} h</td>
                 <td>{{ d.taux ?? 0 }} €/h</td>
                 <td><strong>{{ d.montant ?? 0 }} €</strong></td>
             </tr>

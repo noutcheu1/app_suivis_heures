@@ -551,12 +551,17 @@ class HoraireinterRepository extends ServiceEntityRepository
 
         $params = ['numInter' => $numInter];
         $types  = [];
-        $familleWhere = '';
 
+        // Toujours inclure les prestations OCCASIONNELLES (numFam null/'0' ou flag
+        // occasionnel), même sans planning PREST pour ce type. On ajoute les familles
+        // planifiées quand il y en a.
+        $occasionnel = "h.numFam IS NULL OR h.numFam = '0' OR h.occasionnel = 1";
         if (!empty($validFamIds)) {
-            $familleWhere = "AND (h.numFam IS NULL OR h.numFam = '0' OR h.numFam IN (:validFamIds))";
+            $familleWhere = "AND ($occasionnel OR h.numFam IN (:validFamIds))";
             $params['validFamIds'] = $validFamIds;
             $types['validFamIds']  = \Doctrine\DBAL\ArrayParameterType::STRING;
+        } else {
+            $familleWhere = "AND ($occasionnel)";
         }
 
         $sql = "SELECT DISTINCT YEAR(h.datePresta) AS annee,

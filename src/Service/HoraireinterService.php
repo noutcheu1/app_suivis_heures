@@ -444,9 +444,9 @@ class HoraireinterService
         $rows = [];
         foreach (['MENA', 'ENFA'] as $t) {
             $validFamIds = $this->proposerRepository->findFamilleIdsPrestByIntervenant($numInter, $t);
-            if (empty($validFamIds)) {
-                continue; // pas de planning PREST pour ce type → aucun mois disponible
-            }
+            // Même sans planning PREST pour ce type, on inclut les prestations
+            // OCCASIONNELLES : un intervenant garde-enfant qui fait un ménage occasionnel
+            // doit voir apparaître son relevé Ménage (findMoisDisponibles gère l'occasionnel).
             foreach ($this->repository->findMoisDisponibles($numInter, $validFamIds) as $row) {
                 if (strtoupper($row['typePresta']) === $t) {
                     $rows[] = $row;

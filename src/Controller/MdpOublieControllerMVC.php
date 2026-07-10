@@ -26,15 +26,21 @@ final class MdpOublieControllerMVC extends AbstractController
         if ($request->isMethod('POST')) {
             $identifiant = $request->request->get('identifiant') ?? '';
 
-            if ($identifiant && $this->mdpOublieService->envoyerCodeReinitialisation($identifiant)) {
-                // On redirige vers la saisie du code EN GARDANT l'identifiant
-                // (sinon le code ne peut pas être validé).
+            $statut = $identifiant
+                ? $this->mdpOublieService->envoyerCodeReinitialisation($identifiant)
+                : MdpOublieService::ENVOI_INTROUVABLE;
+
+            if ($statut === MdpOublieService::ENVOI_LIMITE) {
+                $error = 'Vous avez atteint la limite de 3 demandes par jour. Réessayez demain.';
+            } else {
+                // Sécurité : on ne révèle PAS si le compte existe. Que l'identifiant
+                // existe ou non, on affiche la même page « un code a été envoyé si le
+                // compte existe » (la saisie d'un code invalide échouera ensuite).
                 return $this->redirectToRoute('mdp_oublie_verification_mvc', [
                     'identifiant' => $identifiant,
                     'envoye'      => 1,
                 ]);
             }
-            $error = 'Identifiant introuvable.';
         }
 
         return $this->render('mdp_oublie/demande.html.twig', [

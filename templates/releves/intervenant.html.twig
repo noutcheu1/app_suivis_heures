@@ -42,20 +42,13 @@
                 <tr>
                     <th>Période</th>
                     <th>Type</th>
-                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
             {% for item in parMois %}
             <tr>
                 <td style="font-weight:600;">{{ item.label }}</td>
-                <td>
-                    {% for type in item.types %}
-                    <span class="badge {{ type == 'MENA' ? 'badge-muted' : 'badge-info' }}" style="margin-right:4px;">
-                        {{ type == 'MENA' ? 'Ménage' : "Garde d'enfants" }}
-                    </span>
-                    {% endfor %}
-                </td>
+    
                 <td>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
                     {% for type in item.types %}

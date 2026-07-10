@@ -263,7 +263,7 @@ function filterRows() {
     const resume = document.getElementById('selectionResume');
     if (resume) {
         const moisLabel = document.querySelector('#moisSelect option:checked')?.textContent.trim() || currentMonth;
-        const totalFmt  = totalHeures.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        const totalFmt  = totalHeures.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         resume.innerHTML = `<i class="fas fa-clock"></i> <strong>${visibles}</strong> prestation(s) · `
             + `<strong>${totalFmt} h</strong> au total ${moisLabel} · ${SERVICE_LABEL[currentService] || currentService}`;
     }

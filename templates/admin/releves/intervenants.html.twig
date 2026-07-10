@@ -49,7 +49,12 @@ tr.selected-row:hover td { background:#eef2ff !important; }
 .format-btn:hover { border-color:var(--primary); background:var(--primary-light); }
 .format-btn-icon { font-size:22px; width:36px; text-align:center; flex-shrink:0; }
 
-.table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; width:100%; }
+/* Desktop : le tableau s'ajuste à la largeur dispo (pas de scroll horizontal). */
+#relevesTable { width:100%; }
+/* Colonnes compactes pour tenir sans déborder */
+#relevesTable th, #relevesTable td { padding:10px 8px; }
+#relevesTable .h-badge { padding:2px 7px; font-size:11px; }
 
 /* Boutons filtre */
 .flt-btn {
@@ -69,6 +74,10 @@ tr.selected-row:hover td { background:#eef2ff !important; }
     .col-sm-hide { display:none; }
     table.data-table thead th, table.data-table tbody td { padding:10px 8px; font-size:12px; }
     .flt-btn { font-size:11px; padding:0 8px; }
+    #relevesTable { min-width:640px; }
+    /* Barre flottante : ne déborde pas de l'écran */
+    #floatBar { left:12px; right:12px; transform:none; width:auto; }
+    #floatBar.visible { bottom:12px; }
 }
 </style>
 {% endblock %}
@@ -258,10 +267,10 @@ tr.selected-row:hover td { background:#eef2ff !important; }
                         style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--text-xmuted);padding:0 3px;"
                         title="Filtrer">▼</button>
                 </th>
-                <th style="text-align:center;padding-right:16px;" colspan="2">
+                <th style="text-align:center;">
                     <i class="fas fa-file-pdf" style="color:#dc2626;"></i> PDF individuel
                 </th>
-                <th onclick="sortType()" style="cursor:pointer;text-align:center;padding-right:16px;" colspan="2">
+                <th onclick="sortType()" style="cursor:pointer;text-align:center;padding-right:16px;">
                     <i class="fas fa-calendar-check" style="color:#64748b;"></i> TYPE DE PRESTATION
                     <div style="font-size:9px;font-weight:400;color:var(--text-xmuted);text-transform:none;">(d'après le planning)</div>
                 </th>
@@ -394,8 +403,8 @@ tr.selected-row:hover td { background:#eef2ff !important; }
                 {% endif %}
             </td>
 
-            {# PDF individuel + Consulter #}
-            <td style="text-align:center;padding-right:16px;">
+            {# PDF individuel : les deux boutons dans UNE seule cellule (alignement stable) #}
+            <td style="text-align:center;">
                 <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">
                     {% if hM > 0 %}
                     <a href="{{ urlM }}" target="_blank"
@@ -403,24 +412,20 @@ tr.selected-row:hover td { background:#eef2ff !important; }
                         <i class="fas fa-file-arrow-down"></i> Ménage
                     </a>
                     {% endif %}
-                </div>
-            </td>
-            {% if hE > 0 %}
-            <td style="text-align:center;">
-                <a href="{{ urlE }}" target="_blank"
+                    {% if hE > 0 %}
+                    <a href="{{ urlE }}" target="_blank"
                        style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;background:#f0fdf4;color:#15803d;font-size:12px;font-weight:500;text-decoration:none;border:1px solid #bbf7d0;">
                         <i class="fas fa-file-arrow-down"></i> Garde
                     </a>
-                  
-                    
+                    {% endif %}
+                    {% if hM == 0 and hE == 0 %}<span style="color:var(--border-strong);">—</span>{% endif %}
+                </div>
             </td>
-              {% endif %}
-
 
             {# TYPE DE PRESTATION d'après le PLANNING (proposer), pas les heures.
                Style « étiquette » neutre (gris/outline pointillé) pour ne PAS confondre
                avec les boutons de téléchargement bleu/vert de la colonne PDF individuel. #}
-            <td style="text-align:center;padding-right:16px;" colspan="2">
+            <td style="text-align:center;padding-right:16px;">
                 <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">
                     {% if doitMena %}
                     <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:#f1f5f9;color:#475569;font-size:11px;font-weight:600;border:1px dashed #94a3b8;">
