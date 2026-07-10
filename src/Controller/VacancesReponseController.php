@@ -22,6 +22,7 @@ final class VacancesReponseController extends AbstractController
         private VacancesReponseFamilleRepository     $reponseFamRepo,
         private VacancesReponseIntervenantRepository $reponseInterRepo,
         private EntityManagerInterface               $em,
+        private \App\Repository\IntervenantDispoRepository $dispoRepo,
     ) {}
 
     // ── Famille ──────────────────────────────────────────────────────────────
@@ -110,13 +111,18 @@ final class VacancesReponseController extends AbstractController
 
             $reponse->setDateDebutConge($debut);
             $reponse->setDateFinConge($fin);
-            // « Disponible pour remplacement » n'a de sens que si l'intervenant N'EST PAS en
-            // congé. En congé → non applicable (null), on n'enregistre pas le « Non » masqué.
-            $reponse->setDisponibleRemplacement($enConge ? null : ($request->request->get('dispo') === 'oui'));
+            // Disponibilité aux remplacements : demandée dans TOUS les cas (qu'il prenne
+            // des congés ou non), car elle vaut « en dehors de ses congés ».
+            $dispo = $request->request->get('dispo') === 'oui';
+            $reponse->setDisponibleRemplacement($dispo);
             $reponse->setCommentaire(trim((string) $request->request->get('commentaire')) ?: null);
             $reponse->setRepondu(true);
             $reponse->setReponduLe(new \DateTimeImmutable());
             $this->em->flush();
+
+            // Convergence : la campagne alimente aussi la dispo GÉNÉRALE (source de
+            // vérité utilisée par le matching des remplacements).
+            $this->dispoRepo->definir($reponse->getNumInter(), $dispo);
 
             return $this->render('vacances/merci.html.twig', ['config' => $config]);
         }

@@ -1,0 +1,126 @@
+{% extends 'base.html.twig' %}
+{% block title %}QR codes des familles{% endblock %}
+{% block page_title %}QR codes des familles{% endblock %}
+
+{% block body %}
+<style>
+  .qf-bar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:6px 0 16px;}
+  .qf-search{flex:1;min-width:200px;max-width:320px;}
+  .qf-search input{width:100%;border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-size:14px;}
+  table.qf{width:100%;border-collapse:collapse;font-size:14px;background:#fff;}
+  table.qf th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7196;
+    font-weight:700;padding:11px 14px;border-bottom:1px solid var(--border);}
+  table.qf td{padding:11px 14px;border-bottom:1px solid #f0f1f8;}
+  table.qf tbody tr:hover{background:#fafbff;}
+  table.qf tr.sel{background:#eef2ff;}
+  .qf-wrap{border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .qf-count{font-weight:700;color:var(--primary);}
+  .qf-flt.on{background:var(--primary);color:#fff;border-color:var(--primary);}
+  table.qf th.qf-sort{cursor:pointer;user-select:none;}
+  table.qf th.qf-sort .ar{opacity:.4;font-size:10px;}
+  table.qf tr.qf-row{cursor:pointer;}
+</style>
+
+<div class="page-header">
+  <div>
+    <h1>🏷️ QR codes des familles</h1>
+    <p>Sélectionnez les familles dont vous voulez imprimer le QR code (21 par page).</p>
+  </div>
+</div>
+
+<form method="POST" action="{{ path('admin_qrcodes_familles_print_mvc') }}" target="_blank" id="qfForm">
+  <div class="qf-bar">
+    <div class="qf-search"><input type="text" id="qfSearch" placeholder="🔎 Rechercher une famille…" oninput="qfFilter()"></div>
+    <div style="display:flex;gap:6px;">
+      <button type="button" class="btn btn-secondary btn-sm qf-flt on" data-flt="tous" onclick="qfSetFilter('tous',this)">Tous</button>
+      <button type="button" class="btn btn-secondary btn-sm qf-flt" data-flt="0" onclick="qfSetFilter('0',this)">⏳ Non imprimé</button>
+      <button type="button" class="btn btn-secondary btn-sm qf-flt" data-flt="1" onclick="qfSetFilter('1',this)">✓ Imprimé</button>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="qfToggleAll(true)">Tout sélectionner</button>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="qfToggleAll(false)">Tout désélectionner</button>
+    <span style="margin-left:auto;"><span class="qf-count" id="qfCount">0</span> sélectionnée(s)</span>
+    <button type="submit" class="btn btn-primary" id="qfSubmit" disabled>🖨️ Imprimer la sélection</button>
+  </div>
+
+  <div class="qf-wrap">
+    <table class="qf">
+      <thead>
+        <tr>
+          <th style="width:38px;"><input type="checkbox" id="qfMaster" onclick="qfToggleAll(this.checked)"></th>
+          <th class="qf-sort" onclick="qfSort(1)">Famille <span class="ar">↕</span></th>
+          <th class="qf-sort" onclick="qfSort(2)">Ville <span class="ar">↕</span></th>
+          <th class="qf-sort" onclick="qfSort(3)">N° client <span class="ar">↕</span></th>
+          <th class="qf-sort" onclick="qfSort(4)">QR <span class="ar">↕</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in familles %}
+        {% set estImprime = imprimes[f.numeroFamille] is defined %}
+        <tr class="qf-row" data-imprime="{{ estImprime ? '1' : '0' }}" data-search="{{ (famille_label(f.numeroFamille) ~ ' ' ~ (f.ville ?? '') ~ ' ' ~ f.numeroFamille)|lower }}" onclick="qfRowClick(event, this)">
+          <td><input type="checkbox" class="qf-cb" name="fams[]" value="{{ f.numeroFamille }}" onchange="qfSync()"></td>
+          <td><strong>{{ famille_label(f.numeroFamille) }}</strong></td>
+          <td class="muted">{{ f.ville ?: '—' }}</td>
+          <td class="muted">{{ f.numeroFamille }}</td>
+          <td>{% if estImprime %}<span style="font-size:11px;font-weight:700;background:#e9f9ef;color:#16a34a;padding:2px 8px;border-radius:999px;">✓ Imprimé</span>{% else %}<span style="font-size:11px;font-weight:700;background:#fdf3e6;color:#b45309;padding:2px 8px;border-radius:999px;">⏳ Non imprimé</span>{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;padding:22px;color:var(--text-muted);">Aucune famille avec planning actif.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</form>
+
+<script>
+let qfStatut = 'tous';
+let qfDir = {};
+function qfSort(col){
+  const tbody = document.querySelector('table.qf tbody');
+  const rows = [...tbody.querySelectorAll('tr')].filter(r => r.dataset.search);
+  const dir = qfDir[col] = !qfDir[col];
+  rows.sort(function(a, b){
+    let x, y;
+    if(col === 4){ x = a.dataset.imprime; y = b.dataset.imprime; }
+    else { x = a.children[col].textContent.trim().toLowerCase(); y = b.children[col].textContent.trim().toLowerCase(); }
+    return dir ? x.localeCompare(y, 'fr', {numeric:true}) : y.localeCompare(x, 'fr', {numeric:true});
+  });
+  rows.forEach(r => tbody.appendChild(r));
+}
+function qfRowClick(e, tr){
+  // Clic n'importe où sur la ligne = coche/décoche (sauf clic direct sur la case).
+  if(e.target.classList.contains('qf-cb')) return;
+  const cb = tr.querySelector('.qf-cb');
+  cb.checked = !cb.checked;
+  qfSync();
+}
+function qfCheckboxes(){ return [...document.querySelectorAll('.qf-cb')]; }
+function qfVisibles(){ return qfCheckboxes().filter(c => c.closest('tr').style.display !== 'none'); }
+function qfToggleAll(on){ qfVisibles().forEach(c => c.checked = on); qfSync(); }
+function qfSync(){
+  const n = qfCheckboxes().filter(c => c.checked).length;
+  document.getElementById('qfCount').textContent = n;
+  document.getElementById('qfSubmit').disabled = n === 0;
+  qfCheckboxes().forEach(c => c.closest('tr').classList.toggle('sel', c.checked));
+}
+function qfSetFilter(v, btn){
+  qfStatut = v;
+  document.querySelectorAll('.qf-flt').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  qfFilter();
+}
+function qfFilter(){
+  const q = document.getElementById('qfSearch').value.trim().toLowerCase();
+  document.querySelectorAll('table.qf tbody tr').forEach(tr => {
+    if(!tr.dataset.search) return;
+    const okQ = !q || tr.dataset.search.includes(q);
+    const okS = qfStatut === 'tous' || tr.dataset.imprime === qfStatut;
+    const visible = okQ && okS;
+    tr.style.display = visible ? '' : 'none';
+    // Une ligne qui sort du filtre est décochée → jamais sélectionnée « en douce ».
+    if(!visible){ const cb = tr.querySelector('.qf-cb'); if(cb) cb.checked = false; }
+  });
+  document.getElementById('qfMaster').checked = false;
+  qfSync();
+}
+</script>
+{% endblock %}

@@ -42,12 +42,11 @@
 </head>
 <body>
 <div class="card" id="card"
-     data-num-fam="{{ numFam }}"
-     data-url-identifier="{{ path('pointage_identifier', {numFam: numFam}) }}"
-     data-url-demarrer="{{ path('pointage_demarrer', {numFam: numFam}) }}"
-     data-url-terminer="{{ path('pointage_terminer', {numFam: numFam}) }}"
-     data-url-cloturer="{{ path('pointage_cloturer', {numFam: numFam}) }}"
-     data-url-modifier="{{ path('pointage_modifier', {numFam: numFam}) }}"
+     data-url-identifier="{{ path('pointage_identifier', {token: token}) }}"
+     data-url-demarrer="{{ path('pointage_demarrer', {token: token}) }}"
+     data-url-terminer="{{ path('pointage_terminer', {token: token}) }}"
+     data-url-cloturer="{{ path('pointage_cloturer', {token: token}) }}"
+     data-url-modifier="{{ path('pointage_modifier', {token: token}) }}"
      data-tel-prefill="{{ telPrefill }}"
      data-force-type="{{ forceType|default('') }}">
 

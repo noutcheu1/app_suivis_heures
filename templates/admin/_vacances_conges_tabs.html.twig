@@ -1,0 +1,11 @@
+{# Barre d'onglets partagée « Vacances & Congés » — param: actif = 'conges' | 'campagnes' #}
+<style>
+  .vc-tabs{display:flex;gap:4px;background:#eef0f6;border-radius:12px;padding:5px;margin:6px 0 22px;max-width:420px;}
+  .vc-tabs a{flex:1;text-align:center;padding:9px 14px;border-radius:9px;font-size:14px;font-weight:600;
+    color:#5b6180;text-decoration:none;}
+  .vc-tabs a.on{background:#6366f1;color:#fff;box-shadow:0 3px 10px rgba(99,102,241,.3);}
+</style>
+<div class="vc-tabs">
+  <a href="{{ path('admin_conges_mvc') }}" class="{{ actif == 'conges' ? 'on' }}">📋 Congés</a>
+  <a href="{{ path('admin_vacances_mvc') }}" class="{{ actif == 'campagnes' ? 'on' }}">📣 Campagnes</a>
+</div>

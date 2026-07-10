@@ -526,14 +526,12 @@ final class IntervenantsControllerMVC extends AbstractController
     // avec l'appareil photo de son téléphone → la page s'ouvre → on le redirige vers
     // son formulaire de saisie pré-rempli avec la famille (pas besoin de la caméra
     // de l'app, donc pas de contrainte HTTPS pour getUserMedia).
-    #[Route('/declarer/{numFam}', name: 'declarer_qr_mvc', methods: ['GET'])]
-    public function declarerViaQr(string $numFam): Response
+    #[Route('/declarer/{token}', name: 'declarer_qr_mvc', methods: ['GET'])]
+    public function declarerViaQr(string $token): Response
     {
-        // Flux UNIQUE de pointage : qu'on soit connecté ou non, on passe par /pointage.
-        // - non connecté : la page demande le numéro de téléphone ;
-        // - connecté : la page récupère automatiquement le numéro de l'intervenant.
-        // La logique métier (famille connue/occasionnelle, heures) vit dans PointageController.
-        return $this->redirectToRoute('pointage_saisie', ['numFam' => $numFam]);
+        // Ancienne entrée QR (compat) : on redirige vers le flux pointage basé sur le
+        // JETON. Le QR pointe désormais directement sur /pointage/{token}.
+        return $this->redirectToRoute('pointage_saisie', ['token' => $token]);
     }
 
 

@@ -2,30 +2,28 @@
 
 namespace App\Service;
 
+use App\Entity\Horaire\Conge;
 use App\Entity\Principal\Famille;
+use App\Repository\CongeRepository;
 use App\Repository\IntervenantRepository;
 use App\Repository\ProposerRepository;
-use App\Repository\VacancesConfigRepository;
-use App\Repository\VacancesReponseFamilleRepository;
-use App\Repository\VacancesReponseIntervenantRepository;
 
 /**
- * Remplacements à prévoir POUR UNE FAMILLE, sur la campagne de congés active.
+ * Remplacements à prévoir POUR UNE FAMILLE — source de vérité : la table `conge`
+ * (indépendante des campagnes). On croise :
+ *   - les congés des intervenants MÉNAGE assignés à cette famille (→ trous) ;
+ *   - le vivier des intervenants ménage LIBRES sur la période (→ remplaçants) ;
+ *   - les congés de la famille elle-même (→ suspension éventuelle).
  *
- * Logique centrée famille : on ne liste pas les absences en général, on montre
- * l'impact des absences sur CETTE famille — quels de ses intervenants habituels
- * partent, quels créneaux se libèrent, et qui est disponible pour les couvrir.
- *
- * Renvoie null s'il n'y a aucun impact réel (→ la carte est masquée côté UI).
+ * Renvoie null s'il n'y a aucun trou à couvrir (→ carte masquée).
  */
 class FamilleRemplacementService
 {
     public function __construct(
-        private VacancesConfigRepository             $configRepo,
-        private VacancesReponseIntervenantRepository $reponseInterRepo,
-        private VacancesReponseFamilleRepository     $reponseFamRepo,
-        private ProposerRepository                   $proposerRepo,
-        private IntervenantRepository                $intervenantRepo,
+        private CongeRepository       $congeRepo,
+        private ProposerRepository    $proposerRepo,
+        private IntervenantRepository $intervenantRepo,
+        private \App\Repository\IntervenantDispoRepository $dispoRepo,
     ) {}
 
     private const JOURS_ORDRE = [
@@ -34,139 +32,120 @@ class FamilleRemplacementService
     ];
 
     /**
-     * @return array{campagne: object, trous: list<array>, intervenantsAbsents: int, interventions: int, familleAbsente: bool, familleSuspend: bool}|null
+     * @return array{trous: list<array>, intervenantsAbsents: int, interventions: int}|null
      */
     public function pourFamille(Famille $famille): ?array
     {
-        $campagne = $this->configRepo->findPourFicheFamille();
-        if (!$campagne) {
-            return null;
-        }
-
         $numFam = (string) $famille->getNumeroFamille();
+        $today  = new \DateTimeImmutable('today');
 
-        // Réponses des intervenants sur cette campagne, indexées par numéro.
-        $reponses = [];
-        foreach ($this->reponseInterRepo->findByConfig($campagne->getId()) as $r) {
-            $reponses[$r->getNumInter()] = $r;
-        }
-        if (!$reponses) {
-            return null;
-        }
-
-        // Pool des remplaçants disponibles (avec leurs compétences ENFA/MENA).
-        $disponibles = [];
-        foreach ($reponses as $r) {
-            if ($r->getDisponibleRemplacement() === true) {
-                $disponibles[] = $this->detailDispo($r->getNumInter(), $r->getCommentaire());
-            }
-        }
-
-        // Réponse de la famille : est-elle absente ? veut-elle un remplacement ?
-        $familleAbsente = false;
-        $familleSuspend = false; // a explicitement dit « je préfère suspendre »
-        foreach ($this->reponseFamRepo->findByConfig($campagne->getId()) as $rf) {
-            if ((string) $rf->getNumFam() !== $numFam) {
+        // Créneaux ménage de la famille, groupés par intervenant assigné.
+        $creneauxParInter = [];
+        foreach ($this->proposerRepo->findActivesByFamille($numFam) as $p) {
+            if (strtoupper($p->getTypePrestation()) !== 'MENA') {
                 continue;
             }
-            $familleAbsente = $rf->getSituation() === 'absence';
-            $familleSuspend = $rf->getSouhaiteRemplacement() === false;
-        }
-
-        // Créneaux de la famille, regroupés par intervenant + type de service.
-        $groupes = [];
-        foreach ($this->proposerRepo->findActivesByFamille($numFam) as $p) {
-            $numInter = (int) $p->getNumSalarie();
-            $rep = $reponses[$numInter] ?? null;
-            if (!$rep || !$rep->getDateDebutConge()) {
-                continue; // cet intervenant ne part pas en congé → pas d'impact
-            }
-            $type = strtoupper($p->getTypePrestation());
-            if ($type !== 'MENA') {
-                continue; // remplacement uniquement pour le ménage
-            }
-            $cle = $numInter . '|' . $type;
-            $groupes[$cle]['numInter'] = $numInter;
-            $groupes[$cle]['type']     = $type;
-            $groupes[$cle]['debut']    = $rep->getDateDebutConge();
-            $groupes[$cle]['fin']      = $rep->getDateFinConge();
+            $num = (int) $p->getNumSalarie();
             $jour = mb_strtolower(trim($p->getJour()));
-            $groupes[$cle]['creneaux'][] = [
+            $creneauxParInter[$num][] = [
                 'ordre' => self::JOURS_ORDRE[$jour] ?? 9,
                 'texte' => ucfirst($jour) . ' ' . $p->getHeureDebut()->format('H:i')
                            . ($p->getHeureFin() ? '–' . $p->getHeureFin()->format('H:i') : ''),
             ];
         }
-
-        if (!$groupes) {
-            return null; // aucun intervenant habituel en congé → carte masquée
+        if (!$creneauxParInter) {
+            return null;
         }
 
-        $trous = [];
+        $trous   = [];
         $absents = [];
-        foreach ($groupes as $g) {
-            usort($g['creneaux'], fn ($a, $b) => $a['ordre'] <=> $b['ordre']);
-            $inter = $this->intervenantRepo->findInfosIntervenant($g['numInter']);
-            $absents[$g['numInter']] = true;
+        foreach ($creneauxParInter as $num => $creneaux) {
+            // Congés à venir / en cours de cet intervenant.
+            foreach ($this->congeRepo->findActifsByPersonne(Conge::PERSONNE_INTERVENANT, (string) $num) as $conge) {
+                if ($conge->getDateFin() < $today) {
+                    continue; // congé passé
+                }
+                if (!$conge->estValide()) {
+                    continue; // seuls les congés VALIDÉS créent un trou confirmé
+                }
+                $inter = $this->intervenantRepo->findInfosIntervenant($num);
 
-            $trous[] = [
-                'interNom'    => $inter ? trim($inter->getPrenom() . ' ' . $inter->getNom()) : ('#' . $g['numInter']),
-                'type'        => $g['type'],
-                'debut'       => $g['debut'],
-                'fin'         => $g['fin'],
-                'creneaux'    => array_column($g['creneaux'], 'texte'),
-                // Famille qui préfère suspendre → pas de remplaçant à proposer.
-                'suggestions' => $familleSuspend ? [] : $this->suggestionsPour($g['type'], $famille->getVille(), $disponibles),
-            ];
+                // La famille suspend-elle SUR cette période ? (son propre congé)
+                $suspend = false;
+                foreach ($this->congeRepo->findChevauchant(Conge::PERSONNE_FAMILLE, $numFam, $conge->getDateDebut(), $conge->getDateFin()) as $cf) {
+                    if ($cf->getSouhaiteRemplacement() === false || $cf->getMaintienPrestation() === false) {
+                        $suspend = true;
+                    }
+                }
+
+                usort($creneaux, fn ($a, $b) => $a['ordre'] <=> $b['ordre']);
+                $absents[$num] = true;
+                $trous[] = [
+                    'interNom'    => $inter ? trim($inter->getPrenom() . ' ' . $inter->getNom()) : ('#' . $num),
+                    'debut'       => $conge->getDateDebut(),
+                    'fin'         => $conge->getDateFin(),
+                    'creneaux'    => array_column($creneaux, 'texte'),
+                    'suspend'     => $suspend,
+                    'suggestions' => $suspend ? [] : $this->remplacantsLibres($conge->getDateDebut(), $conge->getDateFin(), $num, $famille->getVille()),
+                ];
+            }
+        }
+
+        if (!$trous) {
+            return null;
         }
 
         return [
-            'campagne'            => $campagne,
             'trous'               => $trous,
             'intervenantsAbsents' => count($absents),
             'interventions'       => count($trous),
-            'familleAbsente'      => $familleAbsente,
-            'familleSuspend'      => $familleSuspend,
         ];
     }
 
-    /** Détail d'un remplaçant disponible : nom, ville, tél, services assurés. */
-    private function detailDispo(int $numInter, ?string $commentaire): array
+    /**
+     * Intervenants ménage LIBRES sur [debut, fin] : ceux qui n'ont AUCUN congé qui
+     * chevauche la période. Même ville d'abord, puis la moins chargée.
+     *
+     * @return list<array{nom:string, ville:?string, tel:?string, charge:int, proche:bool}>
+     */
+    private function remplacantsLibres(\DateTimeInterface $debut, \DateTimeInterface $fin, int $exclure, ?string $villeFamille): array
     {
-        $inter = $this->intervenantRepo->findInfosIntervenant($numInter);
-        $types = [];
-        $fams  = []; // familles déjà assurées → « charge » de la remplaçante
-        foreach ($this->proposerRepo->findActivesByIntervenant($numInter) as $p) {
-            $t = strtoupper($p->getTypePrestation());
-            if ($t === 'MENA') {
-                $types[$t] = true;
-                $fams[(string) $p->getNumeroFamille()] = true;
-            }
-        }
+        // Vivier = intervenants ménage ayant DÉCLARÉ être disponibles pour remplacer.
+        $disponibles = array_flip($this->dispoRepo->numsDisponibles());
 
-        return [
-            'nom'         => $inter ? trim($inter->getPrenom() . ' ' . $inter->getNom()) : ('#' . $numInter),
-            'ville'       => $inter?->getVille(),
-            'tel'         => $inter?->getTelPortable(),
-            'types'       => array_keys($types),
-            'charge'      => count($fams),
-            'commentaire' => $commentaire,
-        ];
-    }
-
-    /** Remplaçants qui assurent ce service ; même ville en premier (proximité). */
-    private function suggestionsPour(string $type, ?string $villeFamille, array $disponibles): array
-    {
         $out = [];
-        foreach ($disponibles as $d) {
-            if (!in_array($type, $d['types'], true)) {
+        foreach ($this->proposerRepo->findNumsSalarieActifsParType('MENA') as $num) {
+            if ($num === $exclure) {
                 continue;
             }
-            $proche = $villeFamille && $d['ville']
-                && mb_strtolower(trim($villeFamille)) === mb_strtolower(trim($d['ville']));
-            $out[] = $d + ['proche' => $proche];
+            // Pas déclaré disponible aux remplacements → on ne le propose pas.
+            if (!isset($disponibles[$num])) {
+                continue;
+            }
+            // Occupé (congé VALIDÉ qui chevauche) → pas disponible sur cette période.
+            if (!empty($this->congeRepo->findChevauchant(Conge::PERSONNE_INTERVENANT, (string) $num, $debut, $fin, null, [Conge::STATUT_VALIDE]))) {
+                continue;
+            }
+            $inter = $this->intervenantRepo->findInfosIntervenant($num);
+            if (!$inter) {
+                continue;
+            }
+            $ville  = $inter->getVille();
+            $proche = $villeFamille && $ville
+                && mb_strtolower(trim($villeFamille)) === mb_strtolower(trim($ville));
+            $out[] = [
+                'nom'    => trim($inter->getPrenom() . ' ' . $inter->getNom()),
+                'ville'  => $ville,
+                'tel'    => $inter->getTelPortable(),
+                'charge' => count($this->proposerRepo->findFamilleIdsPrestByIntervenant($num, 'MENA')),
+                'proche' => $proche,
+            ];
         }
-        usort($out, fn ($a, $b) => ($b['proche'] <=> $a['proche']) ?: strcmp($a['nom'], $b['nom']));
+
+        usort($out, fn ($a, $b) => ($b['proche'] <=> $a['proche'])
+            ?: ($a['charge'] <=> $b['charge'])
+            ?: strcmp($a['nom'], $b['nom']));
+
         return $out;
     }
 }

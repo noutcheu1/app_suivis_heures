@@ -46,7 +46,7 @@
             // Choisir la famille → flux de pointage (auto-identifié via session),
             // en contexte GARDE (?garde=1) → type ENFA forcé, pas de choix de service.
             b.addEventListener('click', () => {
-                window.location.href = `/pointage/${encodeURIComponent(c.numFam)}?garde=1`;
+                window.location.href = `/pointage/${encodeURIComponent(c.token)}?garde=1`;
             });
             liste.appendChild(b);
         });
