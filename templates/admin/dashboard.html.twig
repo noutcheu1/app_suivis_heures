@@ -32,7 +32,7 @@
             <i class="fas fa-clock" style="color:#f59e0b;font-size:17px;"></i>
         </div>
         <div class="kpi-label">Heures ce mois</div>
-        <div class="kpi-value">{{ stats.heures_ce_mois ?? '—' }}</div>
+        <div class="kpi-value">{{ stats.heures_ce_mois is defined and stats.heures_ce_mois is not null ? stats.heures_ce_mois|number_format(2, ',', ' ') ~ ' h' : '—' }}</div>
     </div>
 
 </div>

@@ -90,6 +90,42 @@ ON SAISI RAPIDE SUR LE TELEPHONE
 
 ---
 
+## ⏰ Tâches planifiées (cron)
+
+Deux commandes console doivent tourner **automatiquement** (les autres commandes sont ponctuelles).
+
+| Commande | Fréquence | Rôle |
+|---|---|---|
+| `app:rappels-pointage` | **toutes les 10 min** | emails « fin de pointage proche » (~15 min avant) et « oubli » (~20 min après). L'option `--fenetre` (défaut **10**) doit **égaler** la fréquence du cron. Anti-doublon intégré. |
+| `app:envoyer-campagnes-vacances` | **1×/jour** (ex. 08:00) | envoie les emails des campagnes de congés dont la date d'ouverture est atteinte, puis passe la campagne en « envoyée ». |
+
+> ⚠️ Ne **pas** planifier `app:generer-horaires-test` (données de test) ni `app:calculer-distances` (maintenance ponctuelle).
+
+### Windows (XAMPP) — Planificateur de tâches
+Windows n'a pas `cron`. Créer 2 tâches dans le **Planificateur de tâches** :
+
+* **Programme** : `C:\xampp\php\php.exe`
+* **Arguments** (rappels, déclencheur « toutes les 10 minutes ») :
+  ```
+  C:\xampp\htdocs\app_suivis_heures\bin\console app:rappels-pointage --env=prod --no-interaction
+  ```
+* **Arguments** (campagnes, déclencheur « tous les jours à 08:00 ») :
+  ```
+  C:\xampp\htdocs\app_suivis_heures\bin\console app:envoyer-campagnes-vacances --env=prod --no-interaction
+  ```
+
+### Linux — crontab (`crontab -e`)
+```cron
+*/10 * * * *  /usr/bin/php /var/www/app_suivis_heures/bin/console app:rappels-pointage --env=prod --no-interaction
+0 8 * * *     /usr/bin/php /var/www/app_suivis_heures/bin/console app:envoyer-campagnes-vacances --env=prod --no-interaction
+```
+
+### Prérequis (sinon aucun email ne part)
+* `MAILER_DSN` dans `.env` = un vrai serveur SMTP (ex. `smtp://user:pass@host:587`) — **pas** `null://null`.
+* `DEFAULT_URI` = l'URL publique de l'app (liens et QR codes dans les emails).
+
+---
+
 ## 📝 Notes
 
 * Styles centralisés dans `assets/css/style.css`

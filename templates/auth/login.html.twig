@@ -194,9 +194,17 @@
     <div class="login-body">
 
         {% if error %}
+        {% set msgFr = {
+            'Invalid credentials.': 'Numéro de téléphone ou mot de passe incorrect.',
+            'phine number could not be found.': 'Numéro de téléphone ou mot de passe incorrect.',
+            'Bad credentials.': 'Numéro de téléphone ou mot de passe incorrect.',
+            'Too many failed login attempts, please try again later.': 'Trop de tentatives échouées. Réessayez dans quelques minutes.',
+            'Account is disabled.': 'Ce compte est désactivé. Contactez l\'administration.',
+            'Authentication request could not be processed due to a system problem.': 'Connexion impossible pour le moment, réessayez.'
+        } %}
         <div class="error-box">
             <i class="fas fa-exclamation-circle"></i>
-            {{ error.messageKey | trans(error.messageData, 'security') }}
+            {{ msgFr[error.messageKey] ?? 'Numéro de téléphone ou mot de passe incorrect.' }}
         </div>
         {% endif %}
 

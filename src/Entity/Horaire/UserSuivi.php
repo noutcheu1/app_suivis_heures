@@ -45,6 +45,14 @@ class UserSuivi implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(name: 'token_expire', type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $tokenExpire = null;
 
+    /** Compteur de demandes de réinitialisation du jour (limite anti-spam). */
+    #[ORM\Column(name: 'reinit_compteur', type: 'integer')]
+    private int $reinitCompteur = 0;
+
+    /** Jour du compteur de réinitialisation (remis à zéro à chaque nouveau jour). */
+    #[ORM\Column(name: 'reinit_compteur_le', type: 'date', nullable: true)]
+    private ?\DateTimeInterface $reinitCompteurLe = null;
+
     #[ORM\Column(name: 'cree_le', type: 'datetime')]
     private \DateTimeInterface $creeLe;
 
@@ -83,6 +91,12 @@ class UserSuivi implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getTokenExpire(): ?\DateTimeInterface { return $this->tokenExpire; }
     public function setTokenExpire(?\DateTimeInterface $dt): static { $this->tokenExpire = $dt; return $this; }
+
+    public function getReinitCompteur(): int { return $this->reinitCompteur; }
+    public function setReinitCompteur(int $n): static { $this->reinitCompteur = $n; return $this; }
+
+    public function getReinitCompteurLe(): ?\DateTimeInterface { return $this->reinitCompteurLe; }
+    public function setReinitCompteurLe(?\DateTimeInterface $d): static { $this->reinitCompteurLe = $d; return $this; }
 
     public function getCreeLe(): \DateTimeInterface { return $this->creeLe; }
 

@@ -14,6 +14,11 @@ class MdpOublieService
 {
     private const EMAIL_NOREPLY    = 'noreplychaudoudoux@gmail.com';
     private const CODE_EXPIRATION  = 3600; // 1 heure
+    private const MAX_PAR_JOUR     = 3;    // demandes de réinitialisation / jour / personne
+
+    public const ENVOI_OK          = 'ok';
+    public const ENVOI_INTROUVABLE = 'introuvable';
+    public const ENVOI_LIMITE      = 'limite';
 
     public function __construct(
         private UserSuiviRepository  $userRepository,
@@ -27,9 +32,12 @@ class MdpOublieService
     ) {}
 
     /**
-     * Génère un code à 6 chiffres, le persiste en DB et l'envoie par email.
+     * Génère un code à 6 chiffres, le persiste et l'envoie par email.
+     * Limité à MAX_PAR_JOUR demandes par jour et par personne (anti-spam).
+     *
+     * @return string self::ENVOI_OK | ENVOI_INTROUVABLE | ENVOI_LIMITE
      */
-    public function envoyerCodeReinitialisation(string $identifiant): bool
+    public function envoyerCodeReinitialisation(string $identifiant): string
     {
         // L'intervenant saisit son TÉLÉPHONE → on le résout en identifiant de compte
         // (numSalarie). Famille/admin : leur identifiant est utilisé tel quel.
@@ -37,21 +45,32 @@ class MdpOublieService
 
         $user = $this->userRepository->findByIdentifiant($identifiant);
         if (!$user) {
-            return false;
+            return self::ENVOI_INTROUVABLE;
         }
 
         $email = $this->trouverEmail($identifiant);
         if (!$email) {
-            return false;
+            return self::ENVOI_INTROUVABLE;
+        }
+
+        // Limite : 3 demandes / jour / personne. Le compteur repart à 0 chaque jour.
+        $aujourdhui = new \DateTime('today');
+        $memeJour   = $user->getReinitCompteurLe() instanceof \DateTimeInterface
+            && $user->getReinitCompteurLe()->format('Y-m-d') === $aujourdhui->format('Y-m-d');
+        if ($memeJour && $user->getReinitCompteur() >= self::MAX_PAR_JOUR) {
+            $this->audit->log('mdp_reinit_limite', ['compte' => $identifiant]);
+            return self::ENVOI_LIMITE;
         }
 
         $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
         $user->setTokenReinit($code);
         $user->setTokenExpire(new \DateTime('+1 hour'));
+        $user->setReinitCompteur($memeJour ? $user->getReinitCompteur() + 1 : 1);
+        $user->setReinitCompteurLe($aujourdhui);
         $this->em->flush();
 
-        return $this->envoyerEmail($email, $identifiant, $code);
+        return $this->envoyerEmail($email, $identifiant, $code) ? self::ENVOI_OK : self::ENVOI_INTROUVABLE;
     }
 
     /**

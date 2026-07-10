@@ -54,7 +54,7 @@
                     </span>
                 </td>
                 <td>{{ ligne.nomFam ?? '-' }}</td>
-                <td><strong>{{ ligne.dureeTotale ?? '-' }}</strong></td>
+                <td><strong>{% if ligne.dureeTotale %}{% set p = ligne.dureeTotale|split(':') %}{{ (p[0] + (p[1] / 60))|number_format(2, ',', ' ') }} h{% else %}-{% endif %}</strong></td>
                 <td>{{ ligne.nbrTrajet ?? 0 }}</td>
                 <td>{{ ligne.kmAvecEnfant ?? 0 }} km</td>
             </tr>

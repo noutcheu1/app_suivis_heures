@@ -444,9 +444,9 @@ class HoraireinterService
         $rows = [];
         foreach (['MENA', 'ENFA'] as $t) {
             $validFamIds = $this->proposerRepository->findFamilleIdsPrestByIntervenant($numInter, $t);
-            if (empty($validFamIds)) {
-                continue; // pas de planning PREST pour ce type → aucun mois disponible
-            }
+            // Même sans planning PREST pour ce type, on inclut les prestations
+            // OCCASIONNELLES : un intervenant garde-enfant qui fait un ménage occasionnel
+            // doit voir apparaître son relevé Ménage (findMoisDisponibles gère l'occasionnel).
             foreach ($this->repository->findMoisDisponibles($numInter, $validFamIds) as $row) {
                 if (strtoupper($row['typePresta']) === $t) {
                     $rows[] = $row;
@@ -1042,9 +1042,9 @@ class HoraireinterService
         }
 
         return [
-            'totalHeures'    => $this->secToHhMm($totalSec),
-            'heuresValidees' => $this->secToHhMm($declareesSec),
-            'heuresAttente'  => $this->secToHhMm($attenteSec),
+            'totalHeures'    => $this->secToHeuresDec($totalSec),
+            'heuresValidees' => $this->secToHeuresDec($declareesSec),
+            'heuresAttente'  => $this->secToHeuresDec($attenteSec),
             'nbSignalements' => $nbEcarts,
             'cmptvalider'    => $cmptvalider,
             'cmpt'           => $cmpt,
@@ -1150,9 +1150,9 @@ class HoraireinterService
         }
 
         return [
-            'totalHeures'    => $this->secToHhMm($totalSec),
-            'heuresValidees' => $this->secToHhMm($declareesSec),
-            'heuresAttente'  => $this->secToHhMm($attenteSec),
+            'totalHeures'    => $this->secToHeuresDec($totalSec),
+            'heuresValidees' => $this->secToHeuresDec($declareesSec),
+            'heuresAttente'  => $this->secToHeuresDec($attenteSec),
             'nbSignalements' => $nbEcarts,
             'nbPrestations'  => count($all),
             'nbAttente'      => count(array_filter($all, fn($p) => !$p->getDeclarerLeFam())),
@@ -1289,6 +1289,15 @@ class HoraireinterService
         $h = intdiv($sec, 3600);
         $m = intdiv($sec % 3600, 60);
         return sprintf('%dh%02d', $h, $m);
+    }
+
+    /**
+     * Heures en décimal, arrondies à 2 chiffres après la virgule (ex. « 12,50 h »).
+     * Affichage dashboard uniquement (n'impacte ni relevés ni factures).
+     */
+    private function secToHeuresDec(int $sec): string
+    {
+        return number_format($sec / 3600, 2, ',', ' ') . ' h';
     }
 
     /**

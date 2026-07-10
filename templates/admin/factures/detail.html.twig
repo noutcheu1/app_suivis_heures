@@ -28,11 +28,11 @@
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;">
     <div class="kpi-card">
         <div class="kpi-label">Total GE</div>
-        <div class="kpi-value" style="color:var(--primary);">{{ facture.heuresGE }} h</div>
+        <div class="kpi-value" style="color:var(--primary);">{{ facture.heuresGE|number_format(2, ',', ' ') }} h</div>
     </div>
     <div class="kpi-card">
         <div class="kpi-label">Total Ménage</div>
-        <div class="kpi-value" style="color:var(--primary);">{{ facture.heuresMENA }} h</div>
+        <div class="kpi-value" style="color:var(--primary);">{{ facture.heuresMENA|number_format(2, ',', ' ') }} h</div>
     </div>
     <div class="kpi-card">
         <div class="kpi-label">Interventions</div>
@@ -58,11 +58,11 @@
         <span class="card-title">{{ groupe.label }}</span>
         <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">
             {% if groupe.type == 'GE' %}
-                {{ facture.heuresGE }} h × {{ facture.tauxGE|number_format(2, ',') }} €/h
+                {{ facture.heuresGE|number_format(2, ',', ' ') }} h × {{ facture.tauxGE|number_format(2, ',') }} €/h
                 {% if facture.tauxGESource == 'famille' %}<span class="badge badge-info" style="font-size:10px;">taux famille</span>{% endif %}
                 {% if facture.tauxGESource == 'V_non_défini' %}<span class="badge badge-warning" style="font-size:10px;">taux V non défini</span>{% endif %}
             {% else %}
-                {{ facture.heuresMENA }} h × {{ facture.tauxMENA|number_format(2, ',') }} €/h
+                {{ facture.heuresMENA|number_format(2, ',', ' ') }} h × {{ facture.tauxMENA|number_format(2, ',') }} €/h
                 {% if facture.tauxMENASource == 'famille' %}<span class="badge badge-info" style="font-size:10px;">taux famille</span>{% endif %}
             {% endif %}
             = <strong>{{ (groupe.type == 'GE' ? facture.montantGE : facture.montantMENA)|number_format(2, ',') }} €</strong>
