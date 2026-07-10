@@ -55,6 +55,13 @@ class RappelsPointageCommand extends Command
         $dryRun  = (bool) $input->getOption('dry-run');
         $fenetre = max(1, (int) $input->getOption('fenetre'));
 
+        // Interrupteur global des emails planifiés (désactivé par défaut).
+        // Passer EMAILS_PLANIFIES_ACTIFS=1 dans .env pour réactiver l'envoi.
+        if (!$dryRun && !filter_var($_ENV['EMAILS_PLANIFIES_ACTIFS'] ?? getenv('EMAILS_PLANIFIES_ACTIFS'), FILTER_VALIDATE_BOOLEAN)) {
+            $io->note('Emails planifiés désactivés (EMAILS_PLANIFIES_ACTIFS non actif). Aucun rappel envoyé.');
+            return Command::SUCCESS;
+        }
+
         $joursFr = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
         $jourAuj = $joursFr[(int) (new \DateTime())->format('w')];
         $now     = new \DateTime();
