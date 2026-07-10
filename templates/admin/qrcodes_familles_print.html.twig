@@ -29,12 +29,13 @@
         /* Format étiquettes Avery L7160 : 21/A4 (3 × 7), étiquette 63,5 × 38,1 mm. */
         /* Hauteur < A4 (le contenu ne fait que ~282mm) : évite qu'un arrondi de
            rasterisation ne déborde et ne crée une page blanche au découpage. */
-        .page { width: 210mm; height: 290mm; background: #fff;
-                padding: 15.1mm 0 0 9.2mm; }                    /* marge gauche 7,2 + 2mm */
+        .page { width: 210mm; height: 297mm; background: #fff;
+                padding: 8mm 0 0 6mm; }                         /* marges réduites : les 7 rangées débordaient */
         .grid { display: grid; grid-template-columns: repeat(3, 63.5mm);
-                column-gap: 4.5mm; row-gap: 0; }                /* pas d'espace vertical entre lignes */
+                column-gap: 3mm; row-gap: 0; }                  /* pas d'espace vertical entre lignes */
         .cell { width: 63.5mm; height: 38.1mm; overflow: hidden; text-align: center;
-                display: flex; flex-direction: row; align-items: center; justify-content: center; padding: 1.5mm; }
+                display: flex; flex-direction: row; align-items: center; justify-content: center; padding: 1.5mm;
+                border: 0.2mm solid #d1d5db; border-radius: 1mm; }  /* légère bordure = repère de découpe */
         .cell .qr { width: 31.5mm; height: 38.1mm; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .cell .qr img, .cell .qr canvas { width: 31.5mm !important; height: 31.5mm !important; }
         /* Moitié droite : nom de la famille + appel à l'action. */
@@ -71,6 +72,13 @@
                 </div>
             </div>
             {% endfor %}
+            {# Complète la planche jusqu'à 21 rectangles (3 × 7) : cases vides bordées. #}
+            {% set nbVides = 21 - pageItems|length %}
+            {% if nbVides > 0 %}
+                {% for i in 1..nbVides %}
+                <div class="cell cell-vide"></div>
+                {% endfor %}
+            {% endif %}
         </div>
     </div>
 {% endfor %}
@@ -99,9 +107,17 @@ function fini(ok, msg){
     document.getElementById('actions').style.display = 'flex';
 }
 
+function nomFichierPdf() {
+    // Nom daté : qrcodes-familles-AAAA-MM-JJ.pdf (date de téléchargement).
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    const date = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    return `qrcodes-familles-${date}.pdf`;
+}
+
 async function telechargerPdf() {
     try {
-        await pagesToPDF('.page', 'qrcodes-familles.pdf', {
+        await pagesToPDF('.page', nomFichierPdf(), {
             // scale 2 (au lieu de 3) + JPEG 0.8 → PDF ~2× plus léger, QR toujours net.
             orientation: 'p', format: 'a4', margin: 0, scale: 2, quality: 0.8,
             onError: e => { throw e; },

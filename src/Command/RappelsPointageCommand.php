@@ -30,7 +30,7 @@ use Symfony\Component\Mime\Email;
 )]
 class RappelsPointageCommand extends Command
 {
-    private const FROM = 'noreplychaudoudoux@demomailtrap.co';
+    private const FROM = 'noreplychaudoudoux@gmail.com';
 
     public function __construct(
         private HoraireinterRepository $horaireRepo,

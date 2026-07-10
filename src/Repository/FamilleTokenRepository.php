@@ -55,6 +55,24 @@ class FamilleTokenRepository extends ServiceEntityRepository
         );
     }
 
+    /**
+     * Date d'impression (téléchargement) par famille : numFam => DateTime|null.
+     *
+     * @return array<string,\DateTimeInterface>
+     */
+    public function datesImprimes(): array
+    {
+        $map = [];
+        foreach ($this->createQueryBuilder('t')
+                     ->select('t.numFam', 't.imprimeLe')
+                     ->where('t.imprimeLe IS NOT NULL')
+                     ->getQuery()
+                     ->getResult() as $r) {
+            $map[(string) $r['numFam']] = $r['imprimeLe'];
+        }
+        return $map;
+    }
+
     /** Marque une liste de familles comme « QR imprimé » (crée le token au besoin). */
     public function marquerImprimes(array $numFams): void
     {

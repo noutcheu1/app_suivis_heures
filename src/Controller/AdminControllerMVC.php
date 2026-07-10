@@ -786,9 +786,10 @@ final class AdminControllerMVC extends AbstractController
         }
 
         return $this->render('admin/qrcodes_familles.html.twig', [
-            'auth'     => true,
-            'familles' => $this->familleRepo->findWithActivePlanning(),
-            'imprimes' => array_flip($this->tokenRepo->numFamsImprimes()),
+            'auth'          => true,
+            'familles'      => $this->familleRepo->findWithActivePlanning(),
+            'imprimes'      => array_flip($this->tokenRepo->numFamsImprimes()),
+            'datesImprimes' => $this->tokenRepo->datesImprimes(),
         ]);
     }
 
