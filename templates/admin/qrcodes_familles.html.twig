@@ -61,7 +61,7 @@
           <td><strong>{{ famille_label(f.numeroFamille) }}</strong></td>
           <td class="muted">{{ f.ville ?: '—' }}</td>
           <td class="muted">{{ f.numeroFamille }}</td>
-          <td>{% if estImprime %}<span style="font-size:11px;font-weight:700;background:#e9f9ef;color:#16a34a;padding:2px 8px;border-radius:999px;">✓ Imprimé</span>{% else %}<span style="font-size:11px;font-weight:700;background:#fdf3e6;color:#b45309;padding:2px 8px;border-radius:999px;">⏳ Non imprimé</span>{% endif %}</td>
+          <td>{% if estImprime %}<span style="font-size:11px;font-weight:700;background:#e9f9ef;color:#16a34a;padding:2px 8px;border-radius:999px;">✓ Imprimé</span>{% if datesImprimes[f.numeroFamille] is defined %}<span style="display:block;font-size:10px;color:var(--text-muted);margin-top:3px;">le {{ datesImprimes[f.numeroFamille]|date('d/m/Y à H:i') }}</span>{% endif %}{% else %}<span style="font-size:11px;font-weight:700;background:#fdf3e6;color:#b45309;padding:2px 8px;border-radius:999px;">⏳ Non imprimé</span>{% endif %}</td>
         </tr>
         {% else %}
         <tr><td colspan="5" style="text-align:center;padding:22px;color:var(--text-muted);">Aucune famille avec planning actif.</td></tr>
