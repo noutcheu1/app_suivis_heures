@@ -12,8 +12,8 @@ use Symfony\Component\Mime\Email;
 class ReleveMailService
 {
     // Adresse expéditrice et copie (structure Chaudoudoux).
-    private const EMAIL_NOREPLY   = 'noreplychaudoudoux@demomailtrap.co';
-    private const EMAIL_STRUCTURE = 'noreplychaudoudoux@demomailtrap.co';
+    private const EMAIL_NOREPLY   = 'mchaudoudoux@aol.com';
+    private const EMAIL_STRUCTURE = 'mchaudoudoux@aol.com';
 
     public function __construct(
         private MailerInterface     $mailer,

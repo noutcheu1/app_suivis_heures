@@ -35,7 +35,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 )]
 class EnvoyerCampagnesVacancesCommand extends Command
 {
-    private const FROM = 'noreplychaudoudoux@demomailtrap.co';
+    private const FROM = 'mchaudoudoux@aol.com';
 
     public function __construct(
         private VacancesConfigRepository             $configRepo,
