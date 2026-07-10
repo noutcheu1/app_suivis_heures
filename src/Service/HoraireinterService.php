@@ -1042,9 +1042,9 @@ class HoraireinterService
         }
 
         return [
-            'totalHeures'    => $this->secToHhMm($totalSec),
-            'heuresValidees' => $this->secToHhMm($declareesSec),
-            'heuresAttente'  => $this->secToHhMm($attenteSec),
+            'totalHeures'    => $this->secToHeuresDec($totalSec),
+            'heuresValidees' => $this->secToHeuresDec($declareesSec),
+            'heuresAttente'  => $this->secToHeuresDec($attenteSec),
             'nbSignalements' => $nbEcarts,
             'cmptvalider'    => $cmptvalider,
             'cmpt'           => $cmpt,
@@ -1150,9 +1150,9 @@ class HoraireinterService
         }
 
         return [
-            'totalHeures'    => $this->secToHhMm($totalSec),
-            'heuresValidees' => $this->secToHhMm($declareesSec),
-            'heuresAttente'  => $this->secToHhMm($attenteSec),
+            'totalHeures'    => $this->secToHeuresDec($totalSec),
+            'heuresValidees' => $this->secToHeuresDec($declareesSec),
+            'heuresAttente'  => $this->secToHeuresDec($attenteSec),
             'nbSignalements' => $nbEcarts,
             'nbPrestations'  => count($all),
             'nbAttente'      => count(array_filter($all, fn($p) => !$p->getDeclarerLeFam())),
@@ -1289,6 +1289,15 @@ class HoraireinterService
         $h = intdiv($sec, 3600);
         $m = intdiv($sec % 3600, 60);
         return sprintf('%dh%02d', $h, $m);
+    }
+
+    /**
+     * Heures en décimal, arrondies à 2 chiffres après la virgule (ex. « 12,50 h »).
+     * Affichage dashboard uniquement (n'impacte ni relevés ni factures).
+     */
+    private function secToHeuresDec(int $sec): string
+    {
+        return number_format($sec / 3600, 2, ',', ' ') . ' h';
     }
 
     /**

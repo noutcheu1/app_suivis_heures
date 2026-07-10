@@ -39,8 +39,9 @@ En haut de chaque page, le **menu** vous emmène partout :
    - **Total heures**, **Heures validées** (par les familles), **Heures en attente**,
      **Signalements** (écarts), **Prestations** (nombre), **Total km**.
 3. **Bandeau d'alerte** (s'il y en a) « Relevé non signé… » avec un bouton pour aller le signer.
-4. **Actions rapides** 5 raccourcis : **Saisir des heures**, **Scanner QR**,
-   **Mes familles** (planning), **Relevé Garde enfants**, **Relevé Ménage**.
+4. **Actions rapides** des raccourcis : **Saisir des heures**, **Scanner QR**,
+   **Mes familles** (planning), **Relevé Garde enfants**, **Relevé Ménage**, et **Mes congés**
+   (voir section 8).
 5. **Dernières prestations** un tableau de vos saisies récentes.
 
 ![Tableau de bord avec les zones numérotées](images/intervenant-02-accueil.png)
@@ -136,7 +137,65 @@ n'êtes **pas connecté** → une page de pointage s'ouvre.
 
 ---
 
-## 8. Signer mon relevé du mois 💶 (pour être payé)
+## 8. Mes congés, disponibilité et campagnes 🏖️
+
+Il y a **deux façons** de communiquer vos absences : les **déclarer vous-même à tout moment**
+(« Mes congés »), ou **répondre à une campagne** lancée par l'administration. Les deux sont
+décrites ci-dessous.
+
+### 🏖️ Déclarer mes congés à tout moment (« Mes congés »)
+
+**Comment y accéder :** depuis l'**Accueil**, la tuile **« Mes congés »**.
+
+**À quoi ça sert :** déclarer vos **périodes d'absence** (vacances, indisponibilités) **à tout
+moment** et autant de fois que nécessaire. L'administration s'en sert pour organiser les
+**remplacements**. C'est indépendant des campagnes de vacances.
+
+**Les zones de la page :**
+1. **Ajouter un congé :**
+   - **Du / Au** (les dates de votre absence),
+   - **« Seriez-vous disponible pour des remplacements ? »** (Oui / Non) — c'est votre
+     disponibilité **générale**, *en dehors* de vos congés,
+   - **Motif** (facultatif) → bouton **Enregistrer ce congé**.
+2. **Mes congés déclarés :** la liste de vos congés, chacun avec son **statut** :
+   - ⏳ **En attente de validation** (l'administration doit valider),
+   - ✓ **Validé** (officiel, pris en compte pour les plannings),
+   - ✕ **Refusé**.
+3. Un congé **en attente** peut être **modifié** ✏️ ou **supprimé** 🗑.
+   Un congé **✓ validé est verrouillé** 🔒 → contactez l'administration pour le changer.
+
+![Page Mes congés](images/intervenant-11-conges.png)
+
+> 💡 **Un congé de 2 jours ne vous rend pas indisponible le reste du temps** : votre réponse
+> « disponible pour des remplacements » vaut pour toute la période **hors** de vos congés.
+> ⚠️ Deux congés qui se **chevauchent** sont refusés (un message vous l'indique).
+
+### 📣 Répondre à une campagne de vacances
+
+De temps en temps, l'administration lance une **campagne** (ex. « Vacances d'été ») pour
+collecter vos congés sur une **période précise**. Deux façons d'être prévenu·e :
+- un **email** avec un **lien** (pas besoin de vous connecter),
+- et/ou une **tuile « Répondre aux vacances »** sur votre **Accueil**.
+
+**Comment répondre (le formulaire) :**
+1. Ouvrez le **lien de l'email** *ou* cliquez la **tuile** de l'accueil.
+2. **« Prendrez-vous des congés pendant cette période ? »** → **Oui / Non**.
+   Si **Oui**, indiquez les **dates** (Du / Au).
+3. **« Seriez-vous disponible pour des remplacements ? »** → **Oui / Non**
+   (votre disponibilité **générale**, en dehors de vos congés).
+4. Un **message** facultatif → bouton **Envoyer ma réponse**.
+
+![Formulaire de réponse à une campagne](images/intervenant-12-campagne.png)
+
+> ✅ Vous pouvez **modifier votre réponse** tant que la campagne est **ouverte** (avant la
+> date limite indiquée en haut du formulaire). Passé ce délai, le formulaire est fermé.
+> 💡 **Différence avec « Mes congés »** : un congé donné **via une campagne** est pris en compte
+> **directement** ; un congé déclaré librement dans **Mes congés** doit d'abord être **validé**
+> par l'administration.
+
+---
+
+## 9. Signer mon relevé du mois 💶 (pour être payé)
 
 **Comment y accéder :** menu **Mes relevés** (ou les cartes « Relevé Garde / Ménage » de l'accueil).
 
@@ -174,6 +233,9 @@ n'êtes **pas connecté** → une page de pointage s'ouvre.
 2. Cliquez sur **Signer** → une fenêtre de **confirmation** apparaît → confirmez avec **Signer**.
 3. Le **PDF** vous est **envoyé par email** et le relevé devient **verrouillé**.
 
+> ✅ Vous pouvez signer **dès qu'il y a des heures** pour le mois (le bouton **Signer** est
+> désactivé s'il n'y a rien à signer). Il n'est plus nécessaire d'attendre la fin de la période.
+
 > ⚠️ Si le mois est **clôturé**, la fenêtre affiche « Ce mois est clôturé modification
 > impossible » : vous ne pouvez plus corriger, contactez l'administration.
 > 📄 Au-delà de **5 familles**, le relevé continue sur une **page suivante**.
@@ -183,7 +245,7 @@ n'êtes **pas connecté** → une page de pointage s'ouvre.
 
 ---
 
-## 9. Mon profil
+## 10. Mon profil
 
 **Comment y accéder :** menu **Mon profil** (ou bouton **Mon profil** sur l'accueil).
 
@@ -213,6 +275,7 @@ n'êtes **pas connecté** → une page de pointage s'ouvre.
 1. **Scanner = le plus simple** : Démarrer en arrivant, **Terminer** en partant.
 2. **Toujours Terminer**, sinon les heures ne comptent pas.
 3. **Signer son relevé** chaque mois pour être payé.
-4. Garder son **email** et son **téléphone** à jour.
+4. **Déclarer ses congés** dès qu'on les connaît (tuile **Mes congés**).
+5. Garder son **email** et son **téléphone** à jour.
 
 *Une question ? Contactez l'administration de La Maison des Chaudoudoux.*

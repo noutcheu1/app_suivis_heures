@@ -59,6 +59,26 @@ Fiche complète : coordonnées, parents, enfants, planning, prestations, tarif.
 `/admin-mvc/famille/{numFam}/ajouter-planning` *(action)*
 Ajoute une affectation (intervenant, jour, horaires, type) au planning de la famille.
 
+### 3.5 QR codes des familles (impression)
+`/admin-mvc/qrcodes-familles`
+Menu **Familles → QR codes (impression)**. Sert à imprimer les **étiquettes QR** que les
+intervenants scannent chez chaque famille.
+- **Liste avec sélection** : cocher les familles voulues (clic **n'importe où sur la ligne**),
+  **recherche**, **tri** par colonne, et **case maître** (tout / rien sur les lignes visibles).
+- **Filtre « Imprimé / Non imprimé »** : chaque famille indique si son QR a **déjà été imprimé**
+  (badge ✓ / ⏳). Pratique pour n'imprimer que les nouvelles.
+- Bouton **Imprimer la sélection** → une page génère **automatiquement un PDF** :
+  **21 QR par page**, au format étiquettes **Avery L7160** (63,5 × 38,1 mm, grille 3 × 7).
+  Chaque étiquette = **QR + nom de la famille + « Scanne-moi… »**.
+- Les familles imprimées passent alors à **✓ Imprimé** (le filtre se met à jour).
+
+> 🔒 Sécurité : le QR encode un **jeton unique** (pas le numéro de client), non devinable →
+> impossible d'énumérer les familles depuis l'URL. Imprimer à **100 % / Taille réelle** pour
+> l'alignement des étiquettes.
+
+> 💡 La fiche d'une famille affiche aussi, quand c'est pertinent, une carte **« Remplacements à
+> prévoir »** (voir *Vacances & Congés → Congés*).
+
 ---
 
 ## 4. Relevés des intervenants
@@ -157,12 +177,45 @@ Tarifs **globaux** : taux horaires (Garde / Ménage), frais de gestion, montant 
 intervention et plafond, km enfants, abonnement. Historisés par date de début.
 *(Le tarif par famille et l'exonération km se gèrent depuis la fiche famille.)*
 
-### 8.3 Formulaires vacances
-`/admin-mvc/vacances` (+ `creer`, `{id}/toggle`, `{id}/supprimer`)
-Messages d'information affichés selon des **périodes** (ex. fermeture vacances) :
-- **Créer** un message (titre, texte, périodes, dates d'apparition),
-- **Activer / désactiver** (toggle),
-- **Supprimer**.
+### 8.3 Vacances & Congés
+Menu **Configuration → Vacances & Congés**. Une seule section, **deux onglets** :
+
+**📋 Onglet Congés** — `/admin-mvc/conges`
+La **source de vérité** des absences (familles + intervenants), déclarées **au fil de l'eau**
+depuis leurs espaces, indépendamment des campagnes.
+- Liste filtrable (**Familles / Intervenants**) : période, détails, **origine** (Libre / Campagne),
+  **statut**.
+- **Validation — la règle dépend de l'origine du congé intervenant :**
+  | Origine | Qui / comment | Statut à la création |
+  |---|---|---|
+  | **Libre** (hors campagne) | déclaré au fil de l'eau depuis « Mes congés » | **⏳ En attente** → l'admin doit **Valider ✓ / Refuser ✕** |
+  | **Campagne** | réponse au formulaire pendant une campagne | **✓ Validé d'office** (l'admin a lancé la campagne) |
+  Les congés **famille** sont **validés d'office** dans tous les cas.
+- Un congé **validé** peut être **remis en attente** (🔓) pour le rendre à nouveau modifiable.
+- Clic sur une personne → sa page de congés (l'admin peut créer/modifier/supprimer pour elle).
+
+> Seuls les congés **validés** comptent pour les plannings et les remplacements. Un congé
+> **Libre** d'un intervenant reste sans effet **tant que l'admin ne l'a pas validé** ; un congé
+> issu d'une **campagne** est pris en compte immédiatement.
+
+**📣 Onglet Campagnes** — `/admin-mvc/vacances` (+ `creer`, `{id}/toggle`, `{id}/supprimer`)
+Une campagne = un **envoi groupé** d'un formulaire aux familles et intervenants pour **collecter
+leurs dates** sur une période (ex. « Vacances d'été »).
+- **Créer** : titre, période concernée, **date limite de réponse**, date d'ouverture, message.
+- **Statut** (brouillon → envoyée → clôturée), **activer/désactiver**, **supprimer**.
+- L'envoi des emails à la date d'ouverture se fait via la commande cron
+  `app:envoyer-campagnes-vacances` (voir le README).
+- Familles/intervenants répondent via un **lien à jeton** (sans connexion) **ou** depuis leur espace.
+
+### 8.3 bis Remplacements (par campagne)
+`/admin-mvc/vacances/{id}/remplacements` (bouton **Remplacements** sur une campagne)
+Aide à la décision pour couvrir les absences **ménage** :
+- **Postes à pourvoir** : pour chaque intervenant absent, la/les famille(s) impactée(s) et les
+  remplaçant·es possibles (même service, **même ville en tête**, moins chargé·e d'abord).
+- **Disponibles** : qui est **libre** et **sur quelle période** — « disponible **à partir du** … »,
+  en tenant compte de **ses propres congés** (fenêtres d'indisponibilité affichées).
+- Statuts par poste : à pourvoir · aucun dispo (⚠ prioritaire) · suspendu (la famille préfère
+  suspendre) · famille absente.
 
 ### 8.4 Modèles d'email
 `/admin-mvc/emails` (+ `enregistrer`, `reinitialiser`)
@@ -186,12 +239,13 @@ Import vers la base principale :
 | Domaine | Actions clés |
 |---|---|
 | **Intervenants** | Lister, voir le détail (dashboard), familles par intervenant, rechercher, archiver |
-| **Familles** | Lister, filtrer par type, voir le détail, ajouter au planning |
+| **Familles** | Lister, filtrer par type, voir le détail, ajouter au planning, **imprimer les QR (étiquettes)** |
 | **Relevés** | Liste filtrable/triable, statut signé, téléchargement par lot |
 | **Paie** | Préparation paie + CSV, récapitulatif + CSV, fiches vierges PDF |
 | **Écarts** | Voir les écarts, détail famille, choisir la source de facturation |
 | **Facturation** | Liste, détail, imprimer une / toutes, exceptions |
-| **Configuration** | Paramètres, tarifs, vacances, modèles d'email, import |
+| **Vacances & Congés** | Valider/refuser les congés intervenant, campagnes, **remplacements** |
+| **Configuration** | Paramètres, tarifs, modèles d'email, import |
 
 ---
 
@@ -202,6 +256,11 @@ Import vers la base principale :
 - L'admin peut **saisir/modifier des heures pour n'importe quel intervenant** depuis sa page de suivi.
 - Un relevé **signé** est verrouillé (même l'admin respecte cette règle, sauf intervention directe en base).
 - Les **familles occasionnelles** apparaissent « Famille occasionnelle + nom » (pas de km).
+- **Congés** : un congé intervenant **Libre** (hors campagne) doit être **validé** par l'admin
+  pour compter ; un congé issu d'une **campagne** est **validé d'office**. Les congés **familles**
+  sont validés d'office. Seuls les congés **validés** alimentent le matching des remplacements.
+- **QR de pointage** : ils encodent un **jeton unique** (pas le numéro de client) → pensez à
+  **réimprimer** les QR si vous régénérez, et à imprimer à **100 %** pour l'alignement Avery.
 
 ---
 

@@ -181,10 +181,13 @@
         }
 
         .kpi-value {
-            font-size: 28px;
+            font-size: 25px;
             font-weight: 700;
             color: var(--text);
-            line-height: 1;
+            line-height: 1.1;
+            white-space: nowrap;          /* évite le retour à la ligne (ex. « 465,08 h ») */
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .kpi-icon {
