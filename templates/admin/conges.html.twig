@@ -1,0 +1,116 @@
+{% extends 'base.html.twig' %}
+{% block title %}Congés{% endblock %}
+{% block page_title %}Vacances & Congés{% endblock %}
+
+{% block body %}
+{% set moisFr = {1:'janvier',2:'février',3:'mars',4:'avril',5:'mai',6:'juin',7:'juillet',8:'août',9:'septembre',10:'octobre',11:'novembre',12:'décembre'} %}
+
+<style>
+  .cg-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0 18px;}
+  .cg-tabs a{border:1px solid var(--border);background:#fff;color:#5b6180;font-size:13px;font-weight:600;
+    padding:7px 14px;border-radius:999px;text-decoration:none;}
+  .cg-tabs a.on{background:#6366f1;border-color:#6366f1;color:#fff;}
+  .cg-wrap{overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:13px;}
+  table.cg{width:100%;border-collapse:collapse;font-size:14px;min-width:680px;}
+  table.cg th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7196;
+    font-weight:700;padding:12px 16px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  table.cg td{padding:13px 16px;border-bottom:1px solid #f0f1f8;vertical-align:middle;}
+  table.cg tr:last-child td{border-bottom:none;}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .p-fam{background:#e8f0ff;color:#2563eb;} .p-int{background:#f4e9ff;color:#9333ea;}
+  .p-libre{background:#e9f9ef;color:#16a34a;} .p-camp{background:#eef0f4;color:#64748b;}
+  .muted{color:#6b7196;font-size:12.5px;}
+  .nores{text-align:center;padding:24px;color:#6b7196;}
+</style>
+
+<div class="page-header">
+  <div>
+    <h1>🏖️ Vacances & Congés</h1>
+    <p>Toutes les absences déclarées par les familles et les intervenants — source de vérité du planning et des remplacements.</p>
+  </div>
+</div>
+
+{{ include('admin/_vacances_conges_tabs.html.twig', {actif: 'conges'}) }}
+
+<div class="cg-tabs">
+  <a href="{{ path('admin_conges_mvc') }}" class="{{ filtre is null ? 'on' }}">Tous</a>
+  <a href="{{ path('admin_conges_mvc', {type: 'FAMILLE'}) }}" class="{{ filtre == 'FAMILLE' ? 'on' }}">Familles</a>
+  <a href="{{ path('admin_conges_mvc', {type: 'INTERVENANT'}) }}" class="{{ filtre == 'INTERVENANT' ? 'on' }}">Intervenants</a>
+</div>
+
+<div class="cg-wrap">
+  <table class="cg">
+    <thead>
+      <tr>
+        <th>Personne</th>
+        <th>Période</th>
+        <th>Détails</th>
+        <th>Origine</th>
+        <th>Statut</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in conges %}
+      {% set fam = c.typePersonne == 'FAMILLE' %}
+      <tr>
+        <td>
+          <span class="pill {{ fam ? 'p-fam' : 'p-int' }}">{{ fam ? '🏠 Famille' : '👤 Intervenant' }}</span>
+          <div style="margin-top:4px;font-weight:600;">
+            <a href="{{ path('mes_conges_mvc', {type: c.typePersonne, personneId: c.personneId}) }}"
+               style="color:var(--primary);text-decoration:none;" title="Gérer ses congés">
+              {% if fam %}{{ famille_label(c.personneId) }}{% else %}{{ nomsInter[c.personneId] ?? ('#' ~ c.personneId) }}{% endif %}
+            </a>
+          </div>
+        </td>
+        <td class="nowrap">
+          <strong>{{ c.dateDebut|date('j') }} {{ moisFr[c.dateDebut|date('n')] }}</strong>
+          → <strong>{{ c.dateFin|date('j') }} {{ moisFr[c.dateFin|date('n')] }} {{ c.dateFin|date('Y') }}</strong>
+        </td>
+        <td class="muted">
+          {% if fam %}
+            Ménage : {{ c.maintienPrestation == true ? 'maintenu' : (c.maintienPrestation == false ? 'suspendu' : '—') }}
+            {% if c.souhaiteRemplacement is not null %} · Remplacement : {{ c.souhaiteRemplacement ? 'oui' : 'non' }}{% endif %}
+          {% else %}
+            Absence intervenant
+          {% endif %}
+          {% if c.motif %}<br>« {{ c.motif }} »{% endif %}
+        </td>
+        <td>
+          {% if c.origine == 'LIBRE' %}<span class="pill p-libre">Libre</span>
+          {% else %}<span class="pill p-camp">Campagne</span>{% endif %}
+        </td>
+        <td>
+          {% if c.statut == 'VALIDE' %}<span class="pill p-libre">✓ Validé</span>
+          {% elseif c.statut == 'REFUSE' %}<span class="pill" style="background:#fdeaea;color:#dc2626;">✕ Refusé</span>
+          {% else %}<span class="pill" style="background:#fdf3e6;color:#b45309;">⏳ En attente</span>{% endif %}
+
+          {# Validation admin : uniquement pour les congés intervenant en attente #}
+          {% if not fam and c.statut == 'EN_ATTENTE' %}
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <form method="POST" action="{{ path('admin_conge_valider_mvc', {id: c.id}) }}">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token('conge_statut_' ~ c.id) }}">
+              <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check"></i> Valider</button>
+            </form>
+            <form method="POST" action="{{ path('admin_conge_refuser_mvc', {id: c.id}) }}">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token('conge_statut_' ~ c.id) }}">
+              <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-times"></i></button>
+            </form>
+          </div>
+          {% endif %}
+
+          {# Congé intervenant validé (donc verrouillé pour lui) : l'admin peut le déverrouiller. #}
+          {% if not fam and c.statut == 'VALIDE' %}
+          <form method="POST" action="{{ path('admin_conge_devalider_mvc', {id: c.id}) }}" style="margin-top:8px;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('conge_statut_' ~ c.id) }}">
+            <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-unlock"></i> Remettre en attente</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="nores">Aucun congé déclaré{{ filtre ? ' pour ce filtre' }}.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
